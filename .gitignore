@@ -1,0 +1,87 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+VENV/
+*.env
+*.env.*
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Virtual environment folders
+.venv/
+env/
+venv/
+*.egg-info/
+
+# Pytest cache
+.pytest_cache/
+
+# VSCode settings
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+logs/
+storage/logs/
+
+# Local storage and cache
+storage/uploads/
+storage/cache/
+storage/outputs/
+
+# Secrets
+.env
+credentials.json
+*.pem
+
+# Streamlit cache
+.streamlit/
+
+# Docker
+*.pid
+*.pid.lock
+
+# Coverage reports
+htmlcov/
+.coverage
+coverage.xml
+
+# Mypy
+.mypy_cache/
+
+# Pylint
+.pylint.d/
+
+# Build artifacts
+build/
+dist/
+*.egg
+*.egg-info/
+
+# Database files
+*.sqlite3
+*.db
+
+# Node (if any JS packages)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# PyCharm
+.idea/
+
+# Test output
+test-output/
+
+# Misc
+Thumbs.db
