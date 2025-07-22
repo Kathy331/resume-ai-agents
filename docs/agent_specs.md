@@ -117,5 +117,5 @@
 
 ---
 
-*Maintained by: [Your Team or Organization]*
+*Maintained by: Kathy Chen*
 
