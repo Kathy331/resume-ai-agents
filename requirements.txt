@@ -1,0 +1,17 @@
+streamlit
+openai
+python-dotenv
+fastapi
+uvicorn
+httpx
+pydantic
+tavily-python
+requests
+beautifulsoup4
+selenium
+pytest
+pytest-asyncio
+langchain
+# chromadb
+# pinecone-client
+# weaviate-client
