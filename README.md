@@ -23,6 +23,20 @@ All powered by a Streamlit dashboard UI and orchestrated workflows for seamless 
 ## Setup
 
 ### Clone the Repository
+
+### Create a virtual environment
+For Mac/Linux:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+For Windows (PowerShell):
+```bash
+python -m venv .venv
+.venv\Scripts\Activate
+```
+
 ### Install Dependencies
 
 Using pip:
@@ -49,3 +63,10 @@ cp .env.example .env
 ```bash
 streamlit run ui/app.py
 ```
+
+### Docker (If something went wrong above)
+Download Docker for Mac or Windows: https://www.docker.com/  
+```bash
+docker compose up --build 
+```
+
