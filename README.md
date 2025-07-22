@@ -69,4 +69,6 @@ Download Docker for Mac or Windows: https://www.docker.com/
 ```bash
 docker compose up --build 
 ```
-
+### Testing
+cd resume-ai-agents/
+python scripts/test_agents.py --agent linkedin_finder
