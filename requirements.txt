@@ -12,6 +12,8 @@ selenium
 pytest
 pytest-asyncio
 langchain
+pytest
+pytest-asyncio
 # chromadb
 # pinecone-client
 # weaviate-client

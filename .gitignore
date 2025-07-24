@@ -85,3 +85,6 @@ test-output/
 
 # Misc
 Thumbs.db
+
+# Test outputs
+outputs/
