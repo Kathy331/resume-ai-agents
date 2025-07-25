@@ -1,13 +1,13 @@
-# 📐 Project Architecture
+# Project Architecture
 
-## 🏗️ Overview
+## Overview
 
 **Project Name:** Resume AI Agents  
 **Goal:** Modular AI system with specialized agents for job search automation, integrated through a central orchestrator, with Streamlit frontend and optional FastAPI backend (potentially, not yet as of Jul 22, 2025).
 
 ---
 
-### ⚙️ **Key Components**
+### **Key Components**
 
 - **agents/**: Each subfolder is a specialized agent performing one task.
 - **orchestrator/**: Combines agents into workflows for end-to-end automation.
@@ -21,7 +21,7 @@
 
 ---
 
-### 📂 **Folder Structure Highlights**
+### **Folder Structure Highlights**
 
 - **agents/**  
   Each agent has:
@@ -58,7 +58,7 @@
 
 ---
 
-### 🧠 **System Design**
+### **System Design**
 
 1. **Single Responsibility Agents**  
    Each agent performs one isolated task with standardized input and output models (`AgentInput`, `AgentOutput`).
@@ -77,12 +77,12 @@
 
 ---
 
-### 🔄 **Data Flow Example: Full Job Application Workflow**
+### **Data Flow Example: Full Job Application Workflow**
 
 User Input -> ResumeAnalyzerAgent -> LinkedInFinderAgent -> JobMatcherAgent
 -> EmailWriterAgent -> Final Output (summary, recommendations, email draft)
 
-### 💻 **Deployment**
+### **Deployment**
 - **Dockerized** via `Dockerfile` and `docker-compose.yml`.
 - **Streamlit Frontend** runs with `streamlit run ui/app.py`.
 - **FastAPI Backend** runs with `uvicorn api.main:app --reload`.

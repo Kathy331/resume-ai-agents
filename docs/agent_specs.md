@@ -1,6 +1,6 @@
-# 🤖 Agent Specifications
+# Agent Specifications
 
-## 🔧 **Base Agent**
+## **Base Agent**
 
 | **Class** | BaseAgent |
 |---|---|
@@ -11,7 +11,19 @@
 
 ---
 
-## 🕵️‍♀️ **Agent 1: LinkedIn Finder**
+## **Agent 0: Keyword Extractor**
+
+| **Folder** | agents/keyword_extractor/ |
+|---|---|
+| **Purpose** | Extracts important keywords (skills, roles, companies) from input text for downstream processing. |
+| **Components** | `agent.py`, `config.py` |
+| **Input** | text |
+| **Output** | comma-separated list of extracted keywords |
+| **Technologies** | OpenAI GPT model for NLP extraction with prompt engineering. |
+
+---
+
+## **Agent 1: LinkedIn Finder**
 
 | **Folder** | agents/linkedin_finder/ |
 |---|---|
@@ -23,7 +35,7 @@
 
 ---
 
-## 📄 **Agent 2: Resume Analyzer**
+## **Agent 2: Resume Analyzer**
 
 | **Folder** | agents/resume_analyzer/ |
 |---|---|
@@ -35,7 +47,7 @@
 
 ---
 
-## 💼 **Agent 3: Job Matcher**
+## **Agent 3: Job Matcher**
 
 | **Folder** | agents/job_matcher/ |
 |---|---|
@@ -47,7 +59,7 @@
 
 ---
 
-## ✉️ **Agent 4: Email Writer**
+## **Agent 4: Email Writer**
 
 | **Folder** | agents/email_writer/ |
 |---|---|
@@ -59,7 +71,7 @@
 
 ---
 
-## 📅 **Agent 5: Calendar Manager**
+## **Agent 5: Calendar Manager**
 
 | **Folder** | agents/calendar_manager/ |
 |---|---|
@@ -71,7 +83,7 @@
 
 ---
 
-## 🧠 **Agent 6: Orchestrator**
+## **Agent 6: Orchestrator**
 
 | **Folder** | agents/orchestrator/ |
 |---|---|
@@ -83,7 +95,7 @@
 
 ---
 
-## 🌐 **Shared Utilities**
+## **Shared Utilities**
 
 - **models.py**: Defines `AgentInput` and `AgentOutput` schemas.
 - **llm_client.py**: Wraps OpenAI/Tavily calls.
@@ -92,7 +104,7 @@
 
 ---
 
-## ⚡ **Future Expansion**
+## **Future Expansion**
 
 ✅ Add agents for:
 
@@ -108,7 +120,7 @@
 
 ---
 
-### 📝 **Contribution Guidelines**
+### **Contribution Guidelines**
 
 1. Extend `BaseAgent` for new agents.  
 2. Write unit tests in `tests/unit/test_agents/`.  
