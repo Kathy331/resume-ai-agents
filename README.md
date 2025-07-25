@@ -22,9 +22,11 @@ All powered by a Streamlit dashboard UI and orchestrated workflows for seamless 
 
 ## Setup
 
-### Clone the Repository
+### 1. Clone the Repository
 
-### Create a virtual environment
+### 2. Create a virtual environment
+Make sure local python interpreter is also in the same venv
+
 For Mac/Linux:
 ```bash
 python3 -m venv .venv
@@ -37,8 +39,7 @@ python -m venv .venv
 .venv\Scripts\Activate
 ```
 
-### Install Dependencies
-
+### 3. Install Dependencies
 Using pip:
 ```bash
 pip install -r requirements.txt
@@ -49,24 +50,32 @@ Or with Poetry:
 poetry install
 ```
 
-### Set Up Environment Variables
+### 4. Set Up Environment Variables
 Copy `.env.example` to `.env` and fill in your:
-- OpenAI API Key
-- Tavily API Key
+- OpenAI API Key (create one here: https://platform.openai.com/api-keys)
+- Tavily API Key 
 - Google API credentials
 
 ```bash
 cp .env.example .env
 ```
 
-### Run Streamlit Frontend
+### 5. Run Streamlit Frontend
 ```bash
 streamlit run ui/app.py
 ```
 
-### Docker (If something went wrong above)
+### 6. Docker (Optional: for deployment only)
 Download Docker for Mac or Windows: https://www.docker.com/  
 ```bash
 docker compose up --build 
 ```
-
+### 7. Testing 
+to run all test you could run: 
+```bash
+pytest
+```
+but please be careful of token limits, to run a single test, run: 
+```bash
+pytest tests/test_agents/test_keyword_extractor.py
+```
