@@ -79,3 +79,4 @@ but please be careful of token limits, to run a single test, run:
 ```bash
 pytest tests/test_agents/test_keyword_extractor.py
 ```
+there will be an `outputs` file generated for you to better see your test results 
