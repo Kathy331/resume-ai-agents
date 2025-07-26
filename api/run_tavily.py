@@ -18,12 +18,12 @@ if not tavily_api_key:
 tavily = TavilyClient(api_key = tavily_api_key)
 
 response = tavily.search(
-    query="What is the capital of France?")
+  query="What is the capital of France?")
 
 # print(response)
 
 for result in response['results']:
-    print(f"Title: {result['title']}")
-    print(f"URL: {result['url']}")
-    print(f"Content: {result['content']}")
+  print(f"Title: {result['title']}")
+  print(f"URL: {result['url']}")
+  print(f"Content: {result['content']}")
 
