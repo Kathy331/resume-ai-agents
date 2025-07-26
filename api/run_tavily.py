@@ -7,6 +7,7 @@ import os
 
 # to run this file, use the command after cd into api directory:
 # python3 run_tavily.py
+# https://www.youtube.com/watch?v=PDy9qnbD7VA (tavily tutorial)
 
 load_dotenv()
 
@@ -17,13 +18,16 @@ if not tavily_api_key:
 
 tavily = TavilyClient(api_key = tavily_api_key)
 
+# Test query
 response = tavily.search(
-  query="What is the capital of France?")
+  query="Rakesh Gohel, Toronto",
+  search_depth="advanced",
+  max_results=1
+)
+print(response)
 
-# print(response)
-
-for result in response['results']:
-  print(f"Title: {result['title']}")
-  print(f"URL: {result['url']}")
-  print(f"Content: {result['content']}")
+# for result in response['results']:
+#   print(f"Title: {result['title']}")
+#   print(f"URL: {result['url']}")
+#   print(f"Content: {result['content']}")
 
