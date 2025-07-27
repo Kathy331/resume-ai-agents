@@ -53,8 +53,8 @@ poetry install
 ### 4. Set Up Environment Variables
 Copy `.env.example` to `.env` and fill in your:
 - OpenAI API Key (create one here: https://platform.openai.com/api-keys)
-- Tavily API Key 
-- Google API credentials
+- Tavily API Key (create one here: https://www.tavily.com/)
+- Google API credentials 
 
 ```bash
 cp .env.example .env
