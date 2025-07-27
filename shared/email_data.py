@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import sys
 
+#python3 email_data.py
 # Load variables from .env
 load_dotenv()
 
