@@ -8,7 +8,7 @@ def process_new_emails():
 def monitor_with_idle():
     server = IMAPClient('imap.gmail.com', use_uid=True, ssl=True)
     server.login('user@gmail.com', 'password')  # Use app-specific password
-    server.select_folder('INBOX/Interview-Prep')
+    server.select_folder('INBOX/')
     
     # IDLE command - waits for new emails
     server.idle()

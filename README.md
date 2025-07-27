@@ -54,7 +54,7 @@ poetry install
 Copy `.env.example` to `.env` and fill in your:
 - OpenAI API Key (create one here: https://platform.openai.com/api-keys)
 - Tavily API Key (create one here: https://www.tavily.com/)
-- Google API credentials
+- Google API credentials 
 
 ```bash
 cp .env.example .env
