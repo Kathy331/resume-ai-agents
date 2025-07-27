@@ -14,6 +14,7 @@ pytest-asyncio
 langchain
 pytest
 pytest-asyncio
+imapclient
 # chromadb
 # pinecone-client
 # weaviate-client
