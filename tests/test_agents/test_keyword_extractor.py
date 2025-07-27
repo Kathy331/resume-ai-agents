@@ -3,6 +3,7 @@ from agents.keyword_extractor.agent import KeywordExtractorAgent
 from agents.base_agent import AgentInput
 import os
 
+## To run this test, ensure you have pytest installed and run `pytest tests/test_agents/test_keyword_extractor.py`
 @pytest.mark.asyncio
 async def test_keyword_extractor():
     agent = KeywordExtractorAgent(config={})
