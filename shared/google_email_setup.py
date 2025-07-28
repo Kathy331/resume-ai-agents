@@ -1,6 +1,7 @@
 from google_apis_start import create_service
 
-### (1)
+### run this file first to set up the Google API service
+### (A.1)
 ### THIS FILE IS CONNECTED TO google_apis_start.py
 ### (maybe I can make this the main function for google_apis_start.py?)
 ### NEED TO RUN THIS FIRST IN ORDER TO USE THE GOOGLE API FUNCTIONS

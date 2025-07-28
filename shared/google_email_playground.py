@@ -1,6 +1,6 @@
 from google_email_functions import init_gmail_service, create_draft_email, list_draft_email_messages, get_draft_email_details,send_draft_email, get_email_messages, get_email_message_details 
 
-### (2)
+### (C-Testing Emails)
 ### THIS FILE IS CONNECTED TO google_api_all_functions.py
 ### (maybe I can make this the main function for google_api_read.py?)
 ### NEED TO RUN google_email_setup.py FIRST AND THEN YOU CAN USE THIS FILE (this is basically testing the functions lol)

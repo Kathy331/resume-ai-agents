@@ -5,7 +5,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
 from google_apis_start import create_service
-### (2) 
+### (B-Reading Emails) 
 
 ### READING EMAILS
 def init_gmail_service(client_file, api_name='gmail', api_version='v1', scopes=['https://mail.google.com/']):

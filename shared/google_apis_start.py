@@ -3,7 +3,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
-### (1)
+### (A.2)
 
 ### set up the Google API service
 def create_service(client_secret_file, api_name, api_version, *scopes, prefix=''):
@@ -14,7 +14,7 @@ def create_service(client_secret_file, api_name, api_version, *scopes, prefix=''
 
     creds = None
     working_dir = os.getcwd()
-    token_dir = 'token files'
+    token_dir = 'token_files'
     token_file = f'token_{API_SERVICE_NAME}_{API_VERSION}{prefix}.json'
 
     ### Check if token directory exists, if not create it
