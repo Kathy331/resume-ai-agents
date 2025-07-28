@@ -15,6 +15,9 @@ langchain
 pytest
 pytest-asyncio
 imapclient
+google-auth
+google-auth-oauthlib
+google-api-python-client
 # chromadb
 # pinecone-client
 # weaviate-client
