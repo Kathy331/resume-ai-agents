@@ -80,3 +80,8 @@ but please be careful of token limits, to run a single test, run:
 pytest tests/test_agents/test_keyword_extractor.py
 ```
 there will be an `outputs` file generated for you to better see your test results 
+
+### 8. Secret Files
+In order to run the Google OAuth and APIs, you must have a copy of "client_secret.json" inside the google_oauth folder (.../resume-ai-agents/shared/google_oauth).
+
+To get this .json file, notify Grace (jjgacer) about it!
