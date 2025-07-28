@@ -7,14 +7,12 @@ httpx
 pydantic
 tavily-python
 requests
-beautifulsoup4
-selenium
 pytest
 pytest-asyncio
 langchain
-pytest
-pytest-asyncio
-imapclient
+google-auth
+google-auth-oauthlib
+google-api-python-client
 # chromadb
 # pinecone-client
 # weaviate-client
