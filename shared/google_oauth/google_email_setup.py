@@ -1,4 +1,4 @@
-from shared.google_oauth.google_apis_start import create_service
+from google_apis_start import create_service
 
 ### run this file first to set up the Google API service
 ### (A.1)
