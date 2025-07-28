@@ -88,3 +88,6 @@ Thumbs.db
 
 # Test outputs
 outputs/
+
+# Google API credentials
+client_secret.json
