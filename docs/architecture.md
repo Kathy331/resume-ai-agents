@@ -10,11 +10,11 @@
 ### **Key Components**
 
 - **agents/**: Each subfolder is a specialized agent performing one task.
-- **orchestrator/**: Combines agents into workflows for end-to-end automation.
+- **orchestrator/**: Combines agents into workflows for end-to-end automation. (Decides which flow to run)
 - **shared/**: Common utilities, data models, LLM wrappers, database, and vector store integration.
 - **api/**: FastAPI backend exposing agent and workflow endpoints. (potentially, not yet as of Jul 22, 2025).
 - **ui/**: Streamlit frontend for interactive user workflows.
-- **workflows/**: Predefined workflows combining multiple agents.
+- **workflows/**: Predefined workflows combining multiple agents. (The step-by-step plan for how that flow runs)
 - **tests/**: Unit and integration tests.
 - **configs/**: YAML configuration files for agents, prompts, and deployment.
 - **scripts/**: Environment setup, DB migration, testing, and deployment scripts.
