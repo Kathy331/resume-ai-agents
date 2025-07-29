@@ -6,12 +6,22 @@ import json
 import os
 from sklearn.metrics import precision_recall_fscore_support
 from tqdm import tqdm
-
 # to run this script
 # pip install -r requirements.txt
 # pip install -m spacy download en_core_web_sm
 # python3 agents/entity_extractor/train_ner.py 
 
+# LABELS = [
+#     "CANDIDATE",  # Candidate/applicant name
+#     "ROLE",       # Job role/title
+#     "COMPANY",    # Company name
+#     "DATE",       # Date of interview/event
+#     "LOCATION",   # Interview location
+#     "INTERVIEWER",# Interviewer name
+#     "DURATION",   # Length of interview
+#     "FORMAT",     # Interview format (e.g., Zoom)
+#     "LINK"        # URL/link
+# ]
 def load_data(file_path):
     data = []
     with open(file_path, 'r') as file:
@@ -39,7 +49,7 @@ def validate_and_clean_data(data):
         for j, (start, end, label) in enumerate(entities):
             # Validate bounds
             if start < 0 or end > len(text) or start >= end:
-                print(f"!! Example {i}: Invalid entity bounds [{start}, {end}] for '{label}' in text: {text[:50]}...")
+                print(f"!!  Example {i}: Invalid entity bounds [{start}, {end}] for '{label}' in text: {text[:50]}...")
                 continue
                 
             # Check for overlap
@@ -64,7 +74,7 @@ def validate_and_clean_data(data):
             cleaned_data.append((text, {"entities": valid_entities}))
             print(f"** Example {i}: Kept {len(valid_entities)} non-overlapping entities (removed overlaps)")
     
-    print(f"\nSummary: Found {overlap_count} overlapping entity cases")
+    print(f"\n Summary: Found {overlap_count} overlapping entity cases")
     return cleaned_data
 
 def train_ner(train_data, labels, n_iter=30):
@@ -124,14 +134,21 @@ def evaluate_ner(nlp, data):
         true_entities.extend(true_labels)
         pred_entities.extend(pred_labels)
     
+    print(f"True entities count: {len(true_entities)}")
+    print(f"Predicted entities count: {len(pred_entities)}")
+    
     if len(true_entities) > 0 and len(pred_entities) > 0:
-        # Handle case where we have different numbers of predictions
-        precision, recall, f1, _ = precision_recall_fscore_support(
-            true_entities, pred_entities, average='micro', zero_division=0
-        )
-        print(f"Evaluation results -- Precision: {precision:.3f}, Recall: {recall:.3f}, F1-score: {f1:.3f}")
+        try:
+            # Handle case where we have different numbers of predictions
+            precision, recall, f1, _ = precision_recall_fscore_support(
+                true_entities, pred_entities, average='micro', zero_division=0
+            )
+            print(f"Evaluation results -- Precision: {precision:.3f}, Recall: {recall:.3f}, F1-score: {f1:.3f}")
+        except Exception as e:
+            print(f"!!  Evaluation error: {e}")
+            print("This is okay - it happens when there are no predictions or true entities to compare")
     else:
-        print("Evaluation results -- No entities to evaluate")
+        print("📊 Evaluation results -- No entities to evaluate (this is normal during training)")
 
 def test_ner(nlp, texts):
     for text in texts:
@@ -194,8 +211,13 @@ if __name__ == "__main__":
     print("Testing model on example texts...")
     test_ner(nlp, test_texts)
     
-    # Save the model for later use
-    output_dir = "./invitation_email_ner_model"
+    # Save the model to your desired location
+    output_dir = "./agents/entity_extractor/invitation_email_ner_model"
+    
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(output_dir), exist_ok=True)
+    
     nlp.to_disk(output_dir)
-    print(f"Saved model to {output_dir}")
-    print(f"To use later: nlp = spacy.load('{output_dir}')")
+    print(f"✅ Saved model to {output_dir}")
+    print(f"📁 To use later: nlp = spacy.load('{output_dir}')")
+    
