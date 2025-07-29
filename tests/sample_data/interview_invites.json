@@ -48,5 +48,10 @@
     "subject": "Invitation from an unknown sender: (No Subject)",
     "body": "Invitation from an unknown sender: (No Subject)  \n📅 Tue Jul 29, 2025  \n🕒 4:15pm - 5:30pm (EDT)  \nLocation: Online Event  \n\nPlease review the meeting invite and respond accordingly. No agenda provided.",
     "from_email": "kathychen2424@gmail.com"
+  },
+  {
+    "subject": "Interview for Frontend Engineer at PixelWave",
+    "body": "Hi John, your interview for the position of Software Engineer at OpenAI is scheduled on August 10, 2025 at 3:00 PM. Interview with: Jane Doe",
+    "from_email": "hiring@orbit.dev"
   }
 ]
