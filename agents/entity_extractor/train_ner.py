@@ -6,6 +6,7 @@ import json
 import os
 from sklearn.metrics import precision_recall_fscore_support
 from tqdm import tqdm
+from collections import Counter
 # to run this script
 # pip install -r requirements.txt
 # pip install -m spacy download en_core_web_sm
@@ -31,6 +32,45 @@ def load_data(file_path):
                 entities = [(start, end, label) for start, end, label in item['entities']]
                 data.append((item['text'], {"entities": entities}))
     return data
+
+def analyze_model_predictions(nlp, test_data):
+    """Analyze what entities the model actually predicts"""
+    predicted_entities = Counter()
+    true_entities = Counter()
+    
+    for text, annotations in test_data:
+        doc = nlp(text)
+        
+        # Count predicted entities
+        for ent in doc.ents:
+            predicted_entities[ent.label_] += 1
+            
+        # Count true entities
+        true_ents = annotations.get("entities", [])
+        for _, _, label in true_ents:
+            true_entities[label] += 1
+    
+    print("\n" + "="*50)
+    print("🎯 MODEL PREDICTION ANALYSIS")
+    print("="*50)
+    print("\nTrue entities in test data:")
+    for label, count in true_entities.most_common():
+        print(f"  {label}: {count}")
+        
+    print("\nPredicted entities by model:")
+    if predicted_entities:
+        for label, count in predicted_entities.most_common():
+            print(f"  {label}: {count}")
+    else:
+        print("  No entities predicted (only CANDIDATE detected)")
+    
+    # Check what's missing
+    missing_labels = set(true_entities.keys()) - set(predicted_entities.keys())
+    if missing_labels:
+        print(f"\n⚠️  Missing entity types: {missing_labels}")
+        print("You need more training examples for these entities!")
+    
+    print("="*50)
 
 def validate_and_clean_data(data):
     """Validate and clean training data to remove overlapping entities"""
@@ -157,6 +197,26 @@ def test_ner(nlp, texts):
         print("Entities:")
         for ent in doc.ents:
             print(f"  - {ent.text} ({ent.label_})")
+def analyze_training_data(data):
+    """Analyze the distribution of entity types in training data"""
+    entity_counts = Counter()
+    total_entities = 0
+    
+    for text, annotations in data:
+        entities = annotations.get("entities", [])
+        for start, end, label in entities:
+            entity_counts[label] += 1
+            total_entities += 1
+    
+    print("\n📊 TRAINING DATA ANALYSIS:")
+    print(f"Total training examples: {len(data)}")
+    print(f"Total entities: {total_entities}")
+    print("\nEntity distribution:")
+    for label, count in entity_counts.most_common():
+        percentage = (count / total_entities * 100) if total_entities > 0 else 0
+        print(f"  {label}: {count} ({percentage:.1f}%)")
+    
+    return entity_counts
 
 if __name__ == "__main__":
     # Path to your training data JSONL file
@@ -178,6 +238,9 @@ if __name__ == "__main__":
     print("Loading data...")
     data = load_data(file_path)
     print(f"Loaded {len(data)} examples")
+    
+    # Add this analysis:
+    analyze_training_data(data)
     
     print("\nValidating and cleaning data...")
     data = validate_and_clean_data(data)
@@ -201,6 +264,9 @@ if __name__ == "__main__":
     print("Evaluating model...")
     evaluate_ner(nlp, test_data)
     
+    # Add this analysis:
+    analyze_model_predictions(nlp, test_data)
+    
     # Example test sentences
     test_texts = [
         "Hi Jamie, your 45-minute technical interview is scheduled at Launchpad AI on August 25, 2025.",
@@ -220,4 +286,3 @@ if __name__ == "__main__":
     nlp.to_disk(output_dir)
     print(f"✅ Saved model to {output_dir}")
     print(f"📁 To use later: nlp = spacy.load('{output_dir}')")
-    

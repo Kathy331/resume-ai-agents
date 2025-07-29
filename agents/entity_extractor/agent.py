@@ -5,8 +5,7 @@ import spacy
 
 # Technologies used for entity extraction:
 # - Regex: Finds exact text patterns, fast but breaks if text changes.
-# - spaCy NER: ML model to find names, dates, companies in natural text; flexible but may miss domain-specific terms.
-# - Keyword Heuristics: Custom rules using keywords to find domain-specific info; precise but requires manual upkeep.
+# - spaCy NER: ML model to find names, dates, companies in natural text
 
 class EntityExtractor(BaseAgent):
     def __init__(self, config: Dict[str, Any]):
