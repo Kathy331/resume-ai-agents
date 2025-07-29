@@ -1,0 +1,123 @@
+[
+  {
+    "CANDIDATE": "Jamie", 
+    "COMPANY": "Launchpad AI",
+    "DATE": "",
+    "DURATION": "45-minute",
+    "FORMAT": "",
+    "INTERVIEWER": "",
+    "LINK": "",
+    "ROLE": "Software Engineer",
+    "TIME": ""
+  },
+  {
+    "CANDIDATE": "Kathy",
+    "COMPANY": "Startup Shell",
+    "DATE": "Thursday, August 23, 2025",
+    "DURATION": "30 minutes",
+    "FORMAT": "In-person or Zoom",
+    "INTERVIEWER": "Cara Murphy",
+    "LINK": "",
+    "ROLE": "",
+    "TIME": "7:30pm – 8:00pm (EDT)"
+  },
+  {
+    "CANDIDATE": "Taylor",
+    "COMPANY": "NovaWorks",
+    "DATE": "",
+    "DURATION": "30-minute",
+    "FORMAT": "",
+    "INTERVIEWER": "Head of Product",
+    "LINK": "https://calendly.com/novaworks-interview/pm-round1",
+    "ROLE": "Product Manager",
+    "TIME": ""
+  },
+  {
+    "CANDIDATE": "Jordan",
+    "COMPANY": "CloudSpire",
+    "DATE": "Monday, August 5, 2025",
+    "DURATION": "",
+    "FORMAT": "Remote (Zoom)",
+    "INTERVIEWER": "",
+    "LINK": "",
+    "ROLE": "Backend Engineer",
+    "TIME": "2:00pm – 3:00pm (PST)"
+  },
+  {
+    "CANDIDATE": "Riley",
+    "COMPANY": "QuantMind",
+    "DATE": "Aug 6, 7, or 8",
+    "DURATION": "60 minutes",
+    "FORMAT": "Zoom",
+    "INTERVIEWER": "",
+    "LINK": "",
+    "ROLE": "Data Scientist",
+    "TIME": ""
+  },
+  {
+    "CANDIDATE": "Aiden",
+    "COMPANY": "Cognivault",
+    "DATE": "Friday, August 2, 2025",
+    "DURATION": "",
+    "FORMAT": "Zoom",
+    "INTERVIEWER": "Dr. S. Patel",
+    "LINK": "https://zoom.us/j/8123456789",
+    "ROLE": "AI Research Internship",
+    "TIME": "4:00pm – 4:45pm (EDT)"
+  },
+  {
+    "CANDIDATE": "Sam",
+    "COMPANY": "Bitwise Labs",
+    "DATE": "Friday",
+    "DURATION": "60 minutes",
+    "FORMAT": "",
+    "INTERVIEWER": "Sarah Chen and Marcus Rodriguez",
+    "LINK": "",
+    "ROLE": "Software Engineering Internship",
+    "TIME": "11am EST"
+  },
+  {
+    "CANDIDATE": "Morgan",
+    "COMPANY": "Ripple Design",
+    "DATE": "",
+    "DURATION": "30-minute",
+    "FORMAT": "",
+    "INTERVIEWER": "David Kim",
+    "LINK": "",
+    "ROLE": "UX Intern",
+    "TIME": ""
+  },
+  {
+    "CANDIDATE": "Alex",
+    "COMPANY": "Orbit",
+    "DATE": "",
+    "DURATION": "90-minute",
+    "FORMAT": "",
+    "INTERVIEWER": "Elena Vasquez and Jake Thompson",
+    "LINK": "https://orbit.dev/interview-booking",
+    "ROLE": "Full Stack Developer",
+    "TIME": ""
+  },
+  {
+    "CANDIDATE": "Casey",
+    "COMPANY": "TechFlow",
+    "DATE": "Wednesday, August 14, 2025",
+    "DURATION": "",
+    "FORMAT": "Zoom",
+    "INTERVIEWER": "Dr. Lisa Park and Ahmed Hassan",
+    "LINK": "",
+    "ROLE": "Senior Data Engineer",
+    "TIME": "2:30pm - 4:00pm (PST)"
+  },
+  {
+    "CANDIDATE": "John",
+    "COMPANY": "PixelWave",
+    "DATE": "August 10, 2025",
+    "DURATION": "",
+    "FORMAT": "Zoom",
+    "INTERVIEWER": "Rachel Martinez and Tom Wilson",
+    "LINK": "https://pixelwave.zoom.us/j/123456789",
+    "ROLE": "Frontend Engineer",
+    "TIME": "3:00 PM"
+  }
+]
