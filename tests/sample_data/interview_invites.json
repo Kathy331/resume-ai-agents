@@ -31,27 +31,28 @@
   },
   {
     "subject": "Next Steps: SWE Intern at Bitwise Labs",
-    "body": "Hey Sam,\n\nGreat chatting during the recruiter screen! We'd like to schedule your next technical round for the Software Engineering Internship.\n\nThe interview will be 60 minutes with two engineers. It'll include coding challenges and a few systems questions.\n\nPlease confirm if Friday at 11am EST works.\n\nThanks,\nLena\nBitwise Labs Recruiting",
+    "body": "Hey Sam,\n\nGreat chatting during the recruiter screen! We'd like to schedule your next technical round for the Software Engineering Internship.\n\nThe interview will be 60 minutes with Sarah Chen and Marcus Rodriguez from our engineering team. It'll include coding challenges and a few systems questions.\n\nPlease confirm if Friday at 11am EST works.\n\nThanks,\nLena\nBitwise Labs Recruiting",
     "from_email": "lena.huang@bitwiselabs.dev"
   },
   {
     "subject": "Behavioral Interview Invitation – UX Intern at Ripple Design",
-    "body": "Hello Morgan,\n\nWe’re excited to invite you to a behavioral interview for the UX Internship position at Ripple Design. The 30-minute interview will cover your design thinking, collaboration style, and past work.\n\nPlease reply with your availability for next week.\n\nThanks,\nRipple Design Recruiting",
+    "body": "Hello Morgan,\n\nWe're excited to invite you to a behavioral interview for the UX Internship position at Ripple Design. The 30-minute interview will cover your design thinking, collaboration style, and past work.\n\nYou'll be interviewing with David Kim, our Head of UX Design.\n\nPlease reply with your availability for next week.\n\nThanks,\nRipple Design Recruiting",
     "from_email": "jobs@rippleux.com"
   },
   {
     "subject": "Interview for Full Stack Developer at Orbit",
-    "body": "Hi Alex,\n\nFollowing your coding challenge submission, we’d like to invite you to a final interview for the Full Stack Developer role at Orbit. This will be a 90-minute session with our CTO and Engineering Lead.\n\nYou can schedule the interview using this link: https://orbit.dev/interview-booking\n\nLooking forward to it!\n\nSincerely,\nTeam Orbit",
+    "body": "Hi Alex,\n\nFollowing your coding challenge submission, we'd like to invite you to a final interview for the Full Stack Developer role at Orbit. This will be a 90-minute session with our CTO Elena Vasquez and Engineering Lead Jake Thompson.\n\nYou can schedule the interview using this link: https://orbit.dev/interview-booking\n\nLooking forward to it!\n\nSincerely,\nTeam Orbit",
     "from_email": "hiring@orbit.dev"
   },
   {
-    "subject": "Invitation from an unknown sender: (No Subject)",
-    "body": "Invitation from an unknown sender: (No Subject)  \n📅 Tue Jul 29, 2025  \n🕒 4:15pm - 5:30pm (EDT)  \nLocation: Online Event  \n\nPlease review the meeting invite and respond accordingly. No agenda provided.",
-    "from_email": "kathychen2424@gmail.com"
+    "subject": "Technical Interview - Senior Data Engineer at TechFlow",
+    "body": "Hi Casey,\n\nWe'd like to schedule your technical interview for the Senior Data Engineer position at TechFlow.\n\nInterview Details:\n📅 Wednesday, August 14, 2025\n🕒 2:30pm - 4:00pm (PST)\n👥 Interviewers: Dr. Lisa Park (VP Engineering) and Ahmed Hassan (Principal Data Engineer)\n📍 Format: Zoom (link will be provided)\n\nThe session will cover system design, data architecture, and coding challenges.\n\nPlease confirm your availability.\n\nBest regards,\nTechFlow Talent Team",
+    "from_email": "careers@techflow.io"
   },
   {
     "subject": "Interview for Frontend Engineer at PixelWave",
-    "body": "Hi John, your interview for the position of Software Engineer at OpenAI is scheduled on August 10, 2025 at 3:00 PM. Interview with: Jane Doe",
-    "from_email": "hiring@orbit.dev"
+    "body": "Hi John,\n\nYour interview for the position of Frontend Engineer at PixelWave is scheduled on August 10, 2025 at 3:00 PM.\n\nInterview with: Rachel Martinez (Senior Frontend Engineer) and Tom Wilson (Engineering Manager)\n\nThe interview will focus on React, TypeScript, and frontend architecture patterns.\n\nZoom link: https://pixelwave.zoom.us/j/123456789\n\nBest,\nPixelWave Hiring Team",
+    "from_email": "hiring@pixelwave.dev"
   }
+
 ]

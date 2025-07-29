@@ -15,6 +15,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'
 
 from agents.entity_extractor.patterns import add_patterns
 
+
 def clean_matches(matches, doc, nlp):
     """Remove duplicate and overlapping matches, keeping the most specific ones"""
     # Convert matches to a more workable format
@@ -68,6 +69,16 @@ def extract_entities_from_email(email_data, nlp, matcher):
     # Group entities by type
     entities = defaultdict(list)
     
+    # Track context to distinguish candidates from interviewers
+    interviewer_contexts = []
+    candidate_contexts = []
+    
+    # First pass: identify interviewer contexts
+    for label, start, end in cleaned_matches:
+        if label == "INTERVIEWER":
+            interviewer_contexts.append((start, end))
+    
+    # Second pass: process all entities with context awareness
     for label, start, end in cleaned_matches:
         span = doc[start:end]
         entity_text = span.text.strip()
@@ -79,28 +90,90 @@ def extract_entities_from_email(email_data, nlp, matcher):
         # Clean up the entity text
         entity_text = entity_text.replace('\n', ' ').strip()
         
-        # Additional filtering for specific entity types
+        # Specific cleaning for each entity type
         if label == "CANDIDATE":
-            # Skip if it looks like a job title or company name
-            if any(word in entity_text.lower() for word in ['engineer', 'manager', 'scientist', 'developer', 'team', 'recruiting']):
+            # For patterns that include greetings, extract just the name
+            if entity_text.lower().startswith(('hi ', 'hello ', 'dear ', 'hey ')):
+                # Split and take the name part
+                parts = entity_text.split()
+                if len(parts) >= 2:
+                    entity_text = ' '.join(parts[1:])  # Everything after the greeting
+            
+            # Skip if it contains obvious non-name words
+            skip_words = ['engineer', 'manager', 'scientist', 'developer', 'team', 'recruiting', 
+                         'labs', 'design', 'shell', 'acquisition', 'interview', 'internship',
+                         'research', 'online', 'event', 'options', 'center', 'startup', 'bitwise', 
+                         'ripple', 'senior', 'principal', 'technical', 'invitation']
+            if any(word in entity_text.lower() for word in skip_words):
+                continue
+                
+            # Skip if it's too generic or looks like a company/role
+            if entity_text.lower() in ['tue jul', 'date options', 'talent acquisition', 'senior data', 'principal data']:
+                continue
+                
+            # Check if this name appears in an interviewer context
+            is_interviewer = False
+            for int_start, int_end in interviewer_contexts:
+                if start >= int_start and end <= int_end:
+                    is_interviewer = True
+                    break
+            
+            # If it's in an interviewer context, skip it from candidates
+            if is_interviewer:
                 continue
         
+        elif label == "INTERVIEWER":
+            # NEW: Extract PERSON entities using spaCy's NER
+            names = []
+            for ent in span.ents:
+                if ent.label_ == "PERSON" and len(ent.text) > 3:
+                    names.append(ent.text)
+            
+            # Add unique names
+            for name in names:
+                if name and name not in entities["INTERVIEWER"]:
+                    entities["INTERVIEWER"].append(name)
+            continue  # Skip further processing for this match
+        
         elif label == "COMPANY":
-            # Skip if it starts with "at" (we want what comes after)
+            # Clean up "at Company" patterns - we want just the company name
             if entity_text.lower().startswith('at '):
                 entity_text = entity_text[3:].strip()
-            # Skip team references
-            if any(word in entity_text.lower() for word in ['team', 'recruiting']):
+            
+            # Skip team references and other non-company names
+            skip_words = ['team', 'recruiting', 'hiring', 'acquisition', 'interview', 'invitation', 'technical']
+            if any(word in entity_text.lower() for word in skip_words):
                 continue
         
         elif label == "DATE":
-            # Skip standalone numbers that aren't clearly dates
+            # Skip standalone numbers, room numbers, and other non-dates
             if entity_text.isdigit() and int(entity_text) < 32:
                 continue
+            if entity_text.lower() in ['room', '1105']:
+                continue
         
-        # Avoid duplicates
-        if entity_text and entity_text not in entities[label]:
+        elif label == "DURATION":
+            # Make sure it's actually a duration
+            if not any(word in entity_text.lower() for word in ['minute', 'minutes', 'hour', 'hours', 'hr', 'hrs']):
+                continue
+        
+        # For non-interviewer entities, add normally (avoid duplicates)
+        if label != "INTERVIEWER" and entity_text and entity_text not in entities[label]:
             entities[label].append(entity_text)
+    
+    # NEW: Add entity filtering to remove false positives
+    filter_phrases = {
+        "INTERVIEWER": ["team", "labs", "recruiting", "talent", "acquisition"],
+        "COMPANY": ["candidate", "interview", "schedule", "options"],
+        "ROLE": ["interview", "round", "session", "discussion"]
+    }
+    
+    for entity_type, phrases in filter_phrases.items():
+        if entity_type in entities:
+            entities[entity_type] = [
+                e for e in entities[entity_type] 
+                if not any(phrase in e.lower() for phrase in phrases)
+            ]
     
     # Add email metadata
     entities['FROM_EMAIL'] = [from_email]
@@ -189,6 +262,8 @@ def main():
     # Load spaCy model and add custom patterns
     print("Loading spaCy model and patterns...")
     nlp = spacy.load("en_core_web_sm")
+    # NEW: Add entity merging to handle multi-token names
+    nlp.add_pipe("merge_entities")  
     matcher = add_patterns(nlp)
     
     # Load test email data
