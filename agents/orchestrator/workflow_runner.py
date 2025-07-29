@@ -6,6 +6,7 @@ import asyncio
 from datetime import datetime
 from typing import Optional, Dict, Any
 
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 class WorkflowRunner:
@@ -31,7 +32,7 @@ class WorkflowRunner:
         
         try:
             # Import and run the LangGraph coordinator
-            from orchestrator.langgraph_coordinator import build_email_workflow, initialize_state
+            from agents.orchestrator.langgraph_coordinator import build_email_workflow, initialize_state
             
             # Create workflow and initial state
             workflow = build_email_workflow()
