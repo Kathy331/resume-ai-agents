@@ -58,7 +58,7 @@ This document outlines the design and functionality of each agent in the system.
 
 ### Company Researcher
 
-- **Folder:** `agents/research_engine/`  
+- **Folder:** `agents/research_engine/company_researcher.py`  
 - **Purpose:** Gathers insights about a target company.  
 - **Components:** `company_researcher.py`, `tavily_client.py`, `config.py`  
 - **Input:** Company name  
@@ -67,7 +67,7 @@ This document outlines the design and functionality of each agent in the system.
 
 ### Interviewer Researcher
 
-- **File:** `interviewer_researcher.py`  
+- **File:** `agents/research_engine/interviewer_researcher.py`  
 - **Purpose:** Fetches professional background for interviewers.  
 - **Input:** Name, company  
 - **Output:** Role, background summary, shared connections  
@@ -75,7 +75,7 @@ This document outlines the design and functionality of each agent in the system.
 
 ### Role Researcher
 
-- **File:** `role_researcher.py`  
+- **File:** `agents/research_engine/role_researcher.py`  
 - **Purpose:** Gathers information about a job role (market trends, typical skills).  
 - **Input:** Role title  
 - **Output:** Role expectations, career path, automation risk  
