@@ -1,26 +1,16 @@
 import spacy
+import spacy.training
 import random
 from spacy.util import minibatch, compounding
 import json
 import os
 from sklearn.metrics import precision_recall_fscore_support
 from tqdm import tqdm
-# to run this script, 
+
+# to run this script
 # pip install -r requirements.txt
-# python -m spacy download en_core_web_sm
-# python3 agents/entity_extractor/train_ner.py
-
-# Entity labels used in your dataset:
-# CANDIDATE - Name of the candidate/applicant
-# ROLE - Job position or role title
-# COMPANY - Company or organization name
-# DATE - Date of the interview or event
-# LOCATION - Location of the interview or event
-# INTERVIEWER - Name of the interviewer
-# DURATION - Length of the interview or event (e.g., "45 minutes")
-# FORMAT - Format of the interview (e.g., Zoom, Remote)
-# LINK - URL or link to interview or resources
-
+# pip install -m spacy download en_core_web_sm
+# python3 agents/entity_extractor/train_ner.py 
 
 def load_data(file_path):
     data = []
@@ -32,7 +22,50 @@ def load_data(file_path):
                 data.append((item['text'], {"entities": entities}))
     return data
 
-
+def validate_and_clean_data(data):
+    """Validate and clean training data to remove overlapping entities"""
+    cleaned_data = []
+    overlap_count = 0
+    
+    for i, (text, annotations) in enumerate(data):
+        entities = annotations.get("entities", [])
+        
+        # Check for overlapping entities
+        entities.sort()  # Sort by start position
+        valid_entities = []
+        prev_end = 0
+        has_overlap = False
+        
+        for j, (start, end, label) in enumerate(entities):
+            # Validate bounds
+            if start < 0 or end > len(text) or start >= end:
+                print(f"!! Example {i}: Invalid entity bounds [{start}, {end}] for '{label}' in text: {text[:50]}...")
+                continue
+                
+            # Check for overlap
+            if start < prev_end:
+                print(f"!! Example {i}: OVERLAPPING ENTITIES!")
+                print(f"   Text: {text}")
+                print(f"   Previous entity: {valid_entities[-1] if valid_entities else 'None'}")
+                print(f"   Current entity: ({start}, {end}, '{label}') = '{text[start:end]}'")
+                print(f"   Previous end: {prev_end}, Current start: {start}")
+                has_overlap = True
+                overlap_count += 1
+                # Skip the overlapping entity
+                continue
+            
+            valid_entities.append((start, end, label))
+            prev_end = end
+        
+        if not has_overlap and valid_entities:
+            cleaned_data.append((text, {"entities": valid_entities}))
+        elif valid_entities:
+            # Use only non-overlapping entities
+            cleaned_data.append((text, {"entities": valid_entities}))
+            print(f"** Example {i}: Kept {len(valid_entities)} non-overlapping entities (removed overlaps)")
+    
+    print(f"\nSummary: Found {overlap_count} overlapping entity cases")
+    return cleaned_data
 
 def train_ner(train_data, labels, n_iter=30):
     # Load base model
@@ -74,27 +107,31 @@ def train_ner(train_data, labels, n_iter=30):
     
     return nlp
 
-
 def evaluate_ner(nlp, data):
     true_entities = []
     pred_entities = []
     
     for text, annotations in data:
         doc = nlp(text)
-        true_ents = [(start, end, label) for start, end, label in annotations.get("entities")]
+        # Fix: Get entities from annotations correctly
+        true_ents = annotations.get("entities", [])
         pred_ents = [(ent.start_char, ent.end_char, ent.label_) for ent in doc.ents]
         
-        true_entities.extend(true_ents)
-        pred_entities.extend(pred_ents)
+        # Extract only the labels for sklearn metrics
+        true_labels = [label for _, _, label in true_ents]
+        pred_labels = [label for _, _, label in pred_ents]
+        
+        true_entities.extend(true_labels)
+        pred_entities.extend(pred_labels)
     
-    # Extract labels for evaluation
-    true_labels = [label for _, _, label in true_entities]
-    pred_labels = [label for _, _, label in pred_entities]
-    
-    precision, recall, f1, _ = precision_recall_fscore_support(true_labels, pred_labels, average='micro')
-    
-    print(f"Evaluation results -- Precision: {precision:.3f}, Recall: {recall:.3f}, F1-score: {f1:.3f}")
-
+    if len(true_entities) > 0 and len(pred_entities) > 0:
+        # Handle case where we have different numbers of predictions
+        precision, recall, f1, _ = precision_recall_fscore_support(
+            true_entities, pred_entities, average='micro', zero_division=0
+        )
+        print(f"Evaluation results -- Precision: {precision:.3f}, Recall: {recall:.3f}, F1-score: {f1:.3f}")
+    else:
+        print("Evaluation results -- No entities to evaluate")
 
 def test_ner(nlp, texts):
     for text in texts:
@@ -103,7 +140,6 @@ def test_ner(nlp, texts):
         print("Entities:")
         for ent in doc.ents:
             print(f"  - {ent.text} ({ent.label_})")
-
 
 if __name__ == "__main__":
     # Path to your training data JSONL file
@@ -124,13 +160,24 @@ if __name__ == "__main__":
     
     print("Loading data...")
     data = load_data(file_path)
+    print(f"Loaded {len(data)} examples")
+    
+    print("\nValidating and cleaning data...")
+    data = validate_and_clean_data(data)
     
     # Simple train/test split (80/20)
     split = int(len(data)*0.8)
     train_data = data[:split]
     test_data = data[split:]
     
-    print(f"Training on {len(train_data)} examples, evaluating on {len(test_data)} examples.")
+    print(f"\nTraining on {len(train_data)} examples, evaluating on {len(test_data)} examples.")
+    
+    # Show first training example for debugging
+    if train_data:
+        print("\nFirst training example:")
+        text, ents = train_data[0]
+        print(f"Text: {text[:100]}...")
+        print(f"Entities: {ents}")
     
     nlp = train_ner(train_data, LABELS, n_iter=30)
     
@@ -147,7 +194,8 @@ if __name__ == "__main__":
     print("Testing model on example texts...")
     test_ner(nlp, test_texts)
     
-    # Save the model
+    # Save the model for later use
     output_dir = "./invitation_email_ner_model"
     nlp.to_disk(output_dir)
     print(f"Saved model to {output_dir}")
+    print(f"To use later: nlp = spacy.load('{output_dir}')")
