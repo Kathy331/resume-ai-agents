@@ -14,6 +14,19 @@ This document outlines the design and functionality of each agent in the system.
 | **Output** | `AgentOutput` — structured output including data, status flags, metadata, and next-agent hints |
 
 ---
+## Tier 0: Experimental Agent
+
+### Keyword Extractor Agent
+
+| **Class**   | `KeywordExtractorAgent`               |
+|-------------|----------------------------------------|
+| **Folder**  | `agents/keyword_extractor/`           |
+| **Purpose** | Extracts keywords from raw text using an LLM. Used for initial Tavily prompt tuning. |
+| **Input**   | Text string (`data["text"]`)          |
+| **Output**  | Extracted keywords as a string list or comma-separated string |
+| **Tech**    | Prompt-engineered OpenAI LLM (via `call_llm` wrapper) |
+
+---
 
 ## Tier 1: Input Classification & Routing
 
