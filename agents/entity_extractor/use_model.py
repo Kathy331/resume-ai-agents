@@ -17,28 +17,39 @@ from agents.entity_extractor.patterns import add_patterns
 
 def clean_matches(matches, doc, nlp):
     """Remove duplicate and overlapping matches, keeping the most specific ones"""
-    # Group matches by their text span
-    span_to_matches = defaultdict(list)
-    
+    # Convert matches to a more workable format
+    match_list = []
     for match_id, start, end in matches:
         label = nlp.vocab.strings[match_id]
-        span_text = doc[start:end].text
-        span_to_matches[span_text].append((label, start, end))
+        span_text = doc[start:end].text.strip()
+        match_list.append((label, start, end, span_text))
     
-    # For each unique span, keep only the most relevant matches
+    # Remove overlapping matches, keeping the most specific/relevant ones
     cleaned_matches = []
+    match_list.sort(key=lambda x: (x[1], x[2]))  # Sort by start position
     
-    for span_text, match_list in span_to_matches.items():
-        # If multiple labels for same span, prioritize certain types
-        priority_order = ['CANDIDATE', 'ROLE', 'COMPANY', 'INTERVIEWER', 'TIME', 'DATE', 'LOCATION', 'LINK', 'DURATION', 'FORMAT']
+    for i, (label, start, end, span_text) in enumerate(match_list):
+        # Skip if this span overlaps with a higher priority match we've already kept
+        overlap = False
+        for kept_label, kept_start, kept_end, kept_text in cleaned_matches:
+            if not (end <= kept_start or start >= kept_end):  # If they overlap
+                # Keep the more specific match based on priority and length
+                priority_order = ['CANDIDATE', 'ROLE', 'COMPANY', 'INTERVIEWER', 'TIME', 'DATE', 'LOCATION', 'LINK', 'DURATION', 'FORMAT']
+                
+                current_priority = priority_order.index(label) if label in priority_order else len(priority_order)
+                kept_priority = priority_order.index(kept_label) if kept_label in priority_order else len(priority_order)
+                
+                if current_priority < kept_priority or (current_priority == kept_priority and len(span_text) > len(kept_text)):
+                    # Remove the old match and continue with current
+                    cleaned_matches = [(l, s, e, t) for l, s, e, t in cleaned_matches if not (l == kept_label and s == kept_start and e == kept_end)]
+                else:
+                    overlap = True
+                    break
         
-        # Sort by priority
-        sorted_matches = sorted(match_list, key=lambda x: priority_order.index(x[0]) if x[0] in priority_order else len(priority_order))
-        
-        # Keep the highest priority match for each span
-        cleaned_matches.append(sorted_matches[0])
+        if not overlap:
+            cleaned_matches.append((label, start, end, span_text))
     
-    return cleaned_matches
+    return [(label, start, end) for label, start, end, _ in cleaned_matches]
 
 def extract_entities_from_email(email_data, nlp, matcher):
     """Extract structured entities from a single email"""
@@ -68,8 +79,27 @@ def extract_entities_from_email(email_data, nlp, matcher):
         # Clean up the entity text
         entity_text = entity_text.replace('\n', ' ').strip()
         
+        # Additional filtering for specific entity types
+        if label == "CANDIDATE":
+            # Skip if it looks like a job title or company name
+            if any(word in entity_text.lower() for word in ['engineer', 'manager', 'scientist', 'developer', 'team', 'recruiting']):
+                continue
+        
+        elif label == "COMPANY":
+            # Skip if it starts with "at" (we want what comes after)
+            if entity_text.lower().startswith('at '):
+                entity_text = entity_text[3:].strip()
+            # Skip team references
+            if any(word in entity_text.lower() for word in ['team', 'recruiting']):
+                continue
+        
+        elif label == "DATE":
+            # Skip standalone numbers that aren't clearly dates
+            if entity_text.isdigit() and int(entity_text) < 32:
+                continue
+        
         # Avoid duplicates
-        if entity_text not in entities[label]:
+        if entity_text and entity_text not in entities[label]:
             entities[label].append(entity_text)
     
     # Add email metadata
