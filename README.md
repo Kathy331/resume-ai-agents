@@ -9,7 +9,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/Kathy331/resume-ai-agents">
-    <img src="ui/assets/inky.png" alt="Logo" width="80" height="80">
+    <img src="assets/inky.png" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">Resume AI Agents</h3>
@@ -110,7 +110,7 @@ Ensure you have Python 3.10+
 1. Clone the repo:
    ```bash
    git clone https://github.com/Kathy331/resume-ai-agents.git
-   cd SEEDS
+   cd resume-ai-agents
    ```
 
 2. Create and activate a virtual environment:
