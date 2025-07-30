@@ -59,7 +59,7 @@ def initialize_state(folder_name: str, max_results: int = 10) -> EmailWorkflowSt
 def setup_gmail_node(state: EmailWorkflowState) -> EmailWorkflowState:
     """Node: Initialize Gmail service"""
     try:
-        from workflows.email_pipeline import create_gmail_service
+        from workflows.enhanced_email_pipeline import create_gmail_service
         state["gmail_service"] = create_gmail_service()
         print(f"✅ Gmail service initialized for folder: {state['folder_name']}")
         return state
@@ -70,7 +70,7 @@ def setup_gmail_node(state: EmailWorkflowState) -> EmailWorkflowState:
 def fetch_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
     """Node: Fetch and parse emails"""
     try:
-        from workflows.email_pipeline import fetch_and_parse_emails
+        from workflows.enhanced_email_pipeline import fetch_and_parse_emails
         emails = fetch_and_parse_emails(
             state["gmail_service"], 
             state["folder_name"], 
@@ -87,7 +87,7 @@ def fetch_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
 def classify_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
     """Node: Classify emails into categories"""
     try:
-        from workflows.email_pipeline import classify_emails
+        from workflows.enhanced_email_pipeline import classify_emails
         classified = classify_emails(state["raw_emails"])
         state["classified_emails"] = classified
         
@@ -147,7 +147,7 @@ def process_interviews_node(state: EmailWorkflowState) -> EmailWorkflowState:
 def format_output_node(state: EmailWorkflowState) -> EmailWorkflowState:
     """Node: Format final output including enhanced processing results"""
     try:
-        from workflows.email_pipeline import format_email_summaries
+        from workflows.enhanced_email_pipeline import format_email_summaries
         summaries = format_email_summaries(state["classified_emails"])
         
         # Add enhanced processing summaries

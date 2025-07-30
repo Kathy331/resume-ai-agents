@@ -25,10 +25,90 @@ from datetime import datetime
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from shared.models import AgentInput, AgentOutput
-from workflows.email_pipeline import classify_emails  # Use simple classifier
+from shared.google_oauth.google_email_setup import get_gmail_service
+from shared.google_oauth.google_email_functions import get_email_messages, get_email_message_details
 from agents.entity_extractor.agent import EntityExtractor
 from agents.memory_systems.interview_store.agents import InterviewStore
 from shared.tavily_client import TavilyClient
+
+# Core utility functions (moved from email_pipeline.py)
+class EmailPipelineError(Exception):
+    """Custom exception for email pipeline errors"""
+    pass
+
+def create_gmail_service():
+    """Initialize Gmail service - can be mocked for testing"""
+    return get_gmail_service()
+
+def fetch_and_parse_emails(service, folder_name, max_results=10):
+    """
+    Pure function: Gmail service + params -> parsed emails
+    No side effects, just data transformation
+    """
+    try:
+        raw_emails = get_email_messages(service, folder_name=folder_name, max_results=max_results)
+        emails = [get_email_message_details(service, msg['id']) for msg in raw_emails]
+        return emails
+    except Exception as e:
+        raise EmailPipelineError(f"Failed to fetch emails from {folder_name}: {str(e)}")
+
+def classify_emails(emails):
+    """
+    Pure function: emails -> classified emails
+    Returns structured data, doesn't print or route
+    
+    TEMPORARY IMPLEMENTATION: Uses simple rule-based classification
+    TODO: Replace with AI-based EmailClassifierAgent when ready
+    """
+    classified = {
+        'Personal_sent': [],
+        'Interview_invite': [],
+        'Others': []
+    }
+    
+    for email in emails:
+        subject = email.get('subject', '').lower()
+        sender = email.get('sender', '').lower()
+        
+        # TEMPORARY RULES - replace with AI classification
+        if 'interview' in subject or 'invitation' in subject:
+            classified['Interview_invite'].append(email)
+        elif 'dinner' in subject or 'plans' in subject or 'from kathy' in subject:
+            classified['Personal_sent'].append(email)
+        else:
+            classified['Others'].append(email)
+    
+    return classified
+
+def format_email_summaries(classified_emails):
+    """
+    Pure function: classified emails -> formatted output
+    Returns data structure, doesn't print
+    """
+    summaries = []
+    
+    for email in classified_emails.get('Interview_invite', []):
+        summaries.append({
+            'type': 'interview',
+            'icon': '📬',
+            'message': f"Interview invite: {email['subject']} from {email['sender']}"
+        })
+    
+    for email in classified_emails.get('Personal_sent', []):
+        summaries.append({
+            'type': 'personal',
+            'icon': '👤',
+            'message': f"Personal: {email['subject']} from {email['sender']}"
+        })
+    
+    for email in classified_emails.get('Others', []):
+        summaries.append({
+            'type': 'other',
+            'icon': '📎',
+            'message': f"Other: {email['subject']} from {email['sender']}"
+        })
+    
+    return summaries
 
 class EnhancedEmailPipeline:
     """Enhanced email processing with intelligent routing and memory"""
@@ -104,9 +184,9 @@ class EnhancedEmailPipeline:
             return result
     
     async def _classify_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Classify email using TEMPORARY simple classification function"""
+        """Classify email using simple classification function"""
         try:
-            # TEMPORARY CLASSIFIER - Use the simple classifier from email_pipeline
+            # Use the simple classifier (now available in this file)
             # TODO: Replace with AI-based EmailClassifierAgent when ready
             emails = [email_data]  # Wrap in list as expected by classify_emails
             classified = classify_emails(emails)
