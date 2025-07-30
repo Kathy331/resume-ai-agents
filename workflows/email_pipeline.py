@@ -43,65 +43,86 @@
 
 
 
-# temporary code for email pipeline workflow
+# workflows/email_pipeline.py
+# PURE BUSINESS LOGIC - No orchestration, just the core email processing steps
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from shared.google_oauth.google_email_setup import get_gmail_service
 from shared.google_oauth.google_email_functions import get_email_messages, get_email_message_details
 
-# Fetches and parses emails from a Gmail folder
-def fetch_and_parse_emails(service, folder_name, max_results=10):
-    raw_emails = get_email_messages(service, folder_name=folder_name, max_results=max_results)
-    emails = [get_email_message_details(service, msg['id']) for msg in raw_emails]
-    return emails
+class EmailPipelineError(Exception):
+    """Custom exception for email pipeline errors"""
+    pass
 
-# Simple keyword-based classifier for email categorization
-def simple_keyword_classifier(emails):
+def fetch_and_parse_emails(service, folder_name, max_results=10):
+    """
+    Pure function: Gmail service + params -> parsed emails
+    No side effects, just data transformation
+    """
+    try:
+        raw_emails = get_email_messages(service, folder_name=folder_name, max_results=max_results)
+        emails = [get_email_message_details(service, msg['id']) for msg in raw_emails]
+        return emails
+    except Exception as e:
+        raise EmailPipelineError(f"Failed to fetch emails from {folder_name}: {str(e)}")
+
+# will be replaced later with an ai classifier
+def classify_emails(emails):
+    """
+    Pure function: emails -> classified emails
+    Returns structured data, doesn't print or route
+    """
     classified = {
         'Personal_sent': [],
         'Interview_invite': [],
         'Others': []
     }
-
+    
     for email in emails:
         subject = email.get('subject', '').lower()
         sender = email.get('sender', '').lower()
-
-        # Customize keywords as needed
+        
         if 'interview' in subject or 'invitation' in subject:
             classified['Interview_invite'].append(email)
         elif 'dinner' in subject or 'plans' in subject or 'from kathy' in subject:
             classified['Personal_sent'].append(email)
         else:
             classified['Others'].append(email)
-
+    
     return classified
 
-# Classifies and routes emails using the simple keyword classifier
-def classify_and_route_emails(emails):
-    classified = simple_keyword_classifier(emails)
-    route_emails(classified)
+def format_email_summaries(classified_emails):
+    """
+    Pure function: classified emails -> formatted output
+    Returns data structure, doesn't print
+    """
+    summaries = []
+    
+    for email in classified_emails.get('Interview_invite', []):
+        summaries.append({
+            'type': 'interview',
+            'icon': '📬',
+            'message': f"Interview invite: {email['subject']} from {email['sender']}"
+        })
+    
+    for email in classified_emails.get('Personal_sent', []):
+        summaries.append({
+            'type': 'personal',
+            'icon': '👤',
+            'message': f"Personal: {email['subject']} from {email['sender']}"
+        })
+    
+    for email in classified_emails.get('Others', []):
+        summaries.append({
+            'type': 'other',
+            'icon': '📎',
+            'message': f"Other: {email['subject']} from {email['sender']}"
+        })
+    
+    return summaries
 
-# Prints routed email summaries
-def route_emails(classified_emails):
-    personal = classified_emails.get('Personal_sent', [])
-    invites = classified_emails.get('Interview_invite', [])
-    others = classified_emails.get('Others', [])
-
-    for email in invites:
-        print(f"📬 Interview invite: {email['subject']} from {email['sender']}")
-    for email in personal:
-        print(f"👤 Personal: {email['subject']} from {email['sender']}")
-    for email in others:
-        print(f"📎 Other: {email['subject']} from {email['sender']}")
-
-# Entrypoint for running the full pipeline — folder_name is required
-def email_pipeline(folder_name, max_results=10):
-    if not folder_name:
-        raise ValueError("folder_name argument is required and cannot be empty.")
-    service = get_gmail_service()
-    emails = fetch_and_parse_emails(service, folder_name=folder_name, max_results=max_results)
-    classify_and_route_emails(emails)
-
-
-# Example usage (if you want to test locally):
-# if __name__ == "__main__":
-#     email_pipeline(folder_name='test')
+# Core pipeline steps as individual functions
+def create_gmail_service():
+    """Initialize Gmail service - can be mocked for testing"""
+    return get_gmail_service()
