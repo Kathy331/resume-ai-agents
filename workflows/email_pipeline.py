@@ -65,11 +65,14 @@ def fetch_and_parse_emails(service, folder_name, max_results=10):
     except Exception as e:
         raise EmailPipelineError(f"Failed to fetch emails from {folder_name}: {str(e)}")
 
-# will be replaced later with an ai classifier
+# TEMPORARY CLASSIFIER - will be replaced later with an AI classifier
 def classify_emails(emails):
     """
     Pure function: emails -> classified emails
     Returns structured data, doesn't print or route
+    
+    TEMPORARY IMPLEMENTATION: Uses simple rule-based classification
+    TODO: Replace with AI-based EmailClassifierAgent when ready
     """
     classified = {
         'Personal_sent': [],
@@ -81,6 +84,7 @@ def classify_emails(emails):
         subject = email.get('subject', '').lower()
         sender = email.get('sender', '').lower()
         
+        # TEMPORARY RULES - replace with AI classification
         if 'interview' in subject or 'invitation' in subject:
             classified['Interview_invite'].append(email)
         elif 'dinner' in subject or 'plans' in subject or 'from kathy' in subject:

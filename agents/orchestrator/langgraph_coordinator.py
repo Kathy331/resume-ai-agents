@@ -118,13 +118,15 @@ def setup_enhanced_pipeline_node(state: EmailWorkflowState) -> EmailWorkflowStat
 def process_interviews_node(state: EmailWorkflowState) -> EmailWorkflowState:
     """Node: Process interview invites through enhanced pipeline"""
     try:
+        import asyncio
         from workflows.enhanced_email_pipeline import process_classified_interviews
         
         # Process interview invites with entity extraction, memory check, and conditional research
-        results = process_classified_interviews(
+        # Use asyncio.run to handle the async function
+        results = asyncio.run(process_classified_interviews(
             state["classified_emails"], 
             state["enhanced_pipeline"]
-        )
+        ))
         
         state["interview_processing_results"] = results
         

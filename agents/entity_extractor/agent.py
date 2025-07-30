@@ -55,8 +55,8 @@ from agents.entity_extractor.patterns import add_patterns
 # - Regex: Finds exact text patterns, fast but breaks if text changes.
 # - spaCy NER: ML model to find names, dates, companies in natural text
 class EntityExtractor(BaseAgent):
-    def init(self, config: Dict[str, Any]):
-        super().init(config)
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
         self.nlp = spacy.load("en_core_web_sm")
         self.nlp.add_pipe("merge_entities", last=True)
         self.matcher = add_patterns(self.nlp)

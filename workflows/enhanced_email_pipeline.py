@@ -25,9 +25,9 @@ from datetime import datetime
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from shared.models import AgentInput, AgentOutput
-from agents.email_classifier.agent import EmailClassifierAgent
-from agents.entity_extractor.agent import EntityExtractorAgent
-from agents.memory_systems.interview_store.agents import InterviewStoreAgent
+from workflows.email_pipeline import classify_emails  # Use simple classifier
+from agents.entity_extractor.agent import EntityExtractor
+from agents.memory_systems.interview_store.agents import InterviewStore
 from shared.tavily_client import TavilyClient
 
 class EnhancedEmailPipeline:
@@ -35,13 +35,19 @@ class EnhancedEmailPipeline:
     
     def __init__(self):
         # Import agents here to avoid circular imports
-        from agents.email_classifier.agent import EmailClassifierAgent
-        from agents.entity_extractor.agent import EntityExtractorAgent  
-        from agents.memory_systems.interview_store.agents import InterviewStoreAgent
-        
-        self.email_classifier = EmailClassifierAgent({})
-        self.entity_extractor = EntityExtractorAgent({})
-        self.interview_store = InterviewStoreAgent({})
+        try:
+            from agents.entity_extractor.agent import EntityExtractor
+            self.entity_extractor = EntityExtractor({})
+        except ImportError:
+            print("Warning: EntityExtractor not available, using mock")
+            self.entity_extractor = None
+            
+        try:
+            from agents.memory_systems.interview_store.agents import InterviewStore
+            self.interview_store = InterviewStore({})
+        except ImportError:
+            print("Warning: InterviewStore not available, using mock")
+            self.interview_store = None
         # Note: TavilyClient will be imported when needed
         
     async def process_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -98,15 +104,25 @@ class EnhancedEmailPipeline:
             return result
     
     async def _classify_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Classify email using EmailClassifierAgent"""
+        """Classify email using TEMPORARY simple classification function"""
         try:
-            agent_input = AgentInput(data={'text': email_data.get('body', '')})
-            classification_output = await self.email_classifier.execute(agent_input)
+            # TEMPORARY CLASSIFIER - Use the simple classifier from email_pipeline
+            # TODO: Replace with AI-based EmailClassifierAgent when ready
+            emails = [email_data]  # Wrap in list as expected by classify_emails
+            classified = classify_emails(emails)
+            
+            # Determine the category for this email
+            category = 'Others'  # default
+            if email_data in classified.get('Interview_invite', []):
+                category = 'Interview_invite'
+            elif email_data in classified.get('Personal_sent', []):
+                category = 'Personal_sent'
+            
             return {
-                'success': classification_output.success,
-                'category': classification_output.data.get('category'),
-                'confidence': classification_output.data.get('confidence'),
-                'metadata': classification_output.metadata
+                'success': True,
+                'category': category,
+                'confidence': 0.8,  # Simple classifier confidence
+                'metadata': {'classifier': 'temporary_simple_rules'}
             }
         except Exception as e:
             return {'success': False, 'error': str(e)}
