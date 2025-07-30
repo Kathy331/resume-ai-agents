@@ -1,36 +1,58 @@
 # ============================================================================
 # orchestrator/langgraph_coordinator.py
 # STATE MANAGEMENT & INTELLIGENT ROUTING using LangGraph
+"""
+LANGGRAPH COORDINATOR — Defines the state machine for the email processing workflow.
+
+This module is responsible for:
+- Defining the EmailWorkflowState that carries data through each node.
+- Constructing the LangGraph graph using nodes (steps) and conditional routing.
+- Handling Gmail setup, email fetching, classification, formatting, and error recovery.
+- Returning a compiled LangGraph object that can be executed by a runner.
+
+NOTE:
+This file does NOT execute the workflow or handle output, it only defines the structure 
+and logic of the pipeline using LangGraph.
+"""
+
 from typing import TypedDict, List, Dict, Any
 from langgraph.graph import StateGraph, END
 import json
 
 class EmailWorkflowState(TypedDict):
-    """State object that flows through the LangGraph workflow"""
+    """Enhanced state object that flows through the LangGraph workflow"""
     folder_name: str
     max_results: int
     gmail_service: Any
     raw_emails: List[Dict]
     classified_emails: Dict[str, List]
+    interview_processing_results: List[Dict]  # New: Results from enhanced interview processing
+    enhanced_pipeline: Any  # New: Enhanced pipeline instance
     summaries: List[Dict]
     error: str
     retry_count: int
     should_notify: bool
     processing_complete: bool
+    research_performed_count: int  # New: Track how many interviews got research
+    memory_hits_count: int  # New: Track how many were found in memory
 
 def initialize_state(folder_name: str, max_results: int = 10) -> EmailWorkflowState:
-    """Create initial state for the workflow"""
+    """Create initial state for the enhanced workflow"""
     return EmailWorkflowState(
         folder_name=folder_name,
         max_results=max_results,
         gmail_service=None,
         raw_emails=[],
         classified_emails={},
+        interview_processing_results=[],
+        enhanced_pipeline=None,
         summaries=[],
         error="",
         retry_count=0,
         should_notify=False,
-        processing_complete=False
+        processing_complete=False,
+        research_performed_count=0,
+        memory_hits_count=0
     )
 
 # LangGraph Node Functions
@@ -82,14 +104,80 @@ def classify_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
         state["error"] = f"Classification failed: {str(e)}"
         return state
 
+def setup_enhanced_pipeline_node(state: EmailWorkflowState) -> EmailWorkflowState:
+    """Node: Initialize enhanced pipeline for interview processing"""
+    try:
+        from workflows.enhanced_email_pipeline import create_enhanced_pipeline
+        state["enhanced_pipeline"] = create_enhanced_pipeline()
+        print("✅ Enhanced pipeline initialized")
+        return state
+    except Exception as e:
+        state["error"] = f"Enhanced pipeline setup failed: {str(e)}"
+        return state
+
+def process_interviews_node(state: EmailWorkflowState) -> EmailWorkflowState:
+    """Node: Process interview invites through enhanced pipeline"""
+    try:
+        import asyncio
+        from workflows.enhanced_email_pipeline import process_classified_interviews
+        
+        # Process interview invites with entity extraction, memory check, and conditional research
+        # Use asyncio.run to handle the async function
+        results = asyncio.run(process_classified_interviews(
+            state["classified_emails"], 
+            state["enhanced_pipeline"]
+        ))
+        
+        state["interview_processing_results"] = results
+        
+        # Count research vs memory hits
+        research_count = sum(1 for r in results if r.get('research_performed'))
+        memory_hits = len(results) - research_count
+        
+        state["research_performed_count"] = research_count
+        state["memory_hits_count"] = memory_hits
+        
+        print(f"✅ Processed {len(results)} interview invites: "
+              f"{research_count} researched, {memory_hits} found in memory")
+        return state
+    except Exception as e:
+        state["error"] = f"Interview processing failed: {str(e)}"
+        return state
+
 def format_output_node(state: EmailWorkflowState) -> EmailWorkflowState:
-    """Node: Format final output"""
+    """Node: Format final output including enhanced processing results"""
     try:
         from workflows.email_pipeline import format_email_summaries
         summaries = format_email_summaries(state["classified_emails"])
+        
+        # Add enhanced processing summaries
+        if state["interview_processing_results"]:
+            interview_summary = {
+                'icon': '🎯',
+                'message': f"Enhanced Interview Processing: {state['research_performed_count']} researched, "
+                          f"{state['memory_hits_count']} found in memory (skipped research)"
+            }
+            summaries.append(interview_summary)
+            
+            # Add details for each processed interview
+            for result in state["interview_processing_results"]:
+                if result.get('entities') and result['entities'].get('success'):
+                    entities = result['entities']['data']
+                    company = entities.get('COMPANY', ['Unknown'])[0] if entities.get('COMPANY') else 'Unknown'
+                    role = entities.get('ROLE', ['Unknown'])[0] if entities.get('ROLE') else 'Unknown'
+                    
+                    status_icon = "🔍" if result.get('research_performed') else "📋"
+                    action = "researched" if result.get('research_performed') else "found in memory"
+                    
+                    detail_summary = {
+                        'icon': status_icon,
+                        'message': f"{company} - {role}: {action}"
+                    }
+                    summaries.append(detail_summary)
+        
         state["summaries"] = summaries
         state["processing_complete"] = True
-        print("✅ Email summaries formatted")
+        print("✅ Enhanced email summaries formatted")
         return state
     except Exception as e:
         state["error"] = f"Formatting failed: {str(e)}"
@@ -119,7 +207,26 @@ def should_retry(state: EmailWorkflowState) -> str:
         return "classify_emails"
 
 def route_after_classification(state: EmailWorkflowState) -> str:
-    """Route: Continue to formatting or handle errors"""
+    """Route: Determine next step after classification"""
+    if state["error"]:
+        return "error_handler"
+    
+    # Check if we have interview invites to process
+    interview_count = len(state["classified_emails"].get('Interview_invite', []))
+    if interview_count > 0:
+        return "setup_enhanced_pipeline"
+    else:
+        return "format_output"
+
+def route_after_enhanced_setup(state: EmailWorkflowState) -> str:
+    """Route: Continue to interview processing or handle errors"""
+    if state["error"]:
+        return "error_handler"
+    else:
+        return "process_interviews"
+
+def route_after_interview_processing(state: EmailWorkflowState) -> str:
+    """Route: Continue to formatting after interview processing"""
     if state["error"]:
         return "error_handler"
     else:
@@ -134,19 +241,21 @@ def is_complete(state: EmailWorkflowState) -> str:
     else:
         return "format_output"
 
-# Build the LangGraph workflow
+# Build the enhanced LangGraph workflow
 def build_email_workflow():
-    """Construct the state graph for email processing"""
+    """Construct the enhanced state graph for email processing with conditional routing"""
     workflow = StateGraph(EmailWorkflowState)
     
     # Add nodes
     workflow.add_node("setup_gmail", setup_gmail_node)
     workflow.add_node("fetch_emails", fetch_emails_node)
     workflow.add_node("classify_emails", classify_emails_node)
+    workflow.add_node("setup_enhanced_pipeline", setup_enhanced_pipeline_node)  # New
+    workflow.add_node("process_interviews", process_interviews_node)  # New
     workflow.add_node("format_output", format_output_node)
     workflow.add_node("error_handler", error_handler_node)
     
-    # Define the flow
+    # Define the enhanced flow
     workflow.set_entry_point("setup_gmail")
     
     # Gmail setup -> fetch emails (or error)
@@ -158,8 +267,14 @@ def build_email_workflow():
     # Fetch emails -> classify (with retry logic)
     workflow.add_conditional_edges("fetch_emails", should_retry)
     
-    # Classify -> format output (or error)
+    # Classify -> enhanced processing or direct to format (based on interview count)
     workflow.add_conditional_edges("classify_emails", route_after_classification)
+    
+    # Enhanced pipeline setup -> process interviews (or error)
+    workflow.add_conditional_edges("setup_enhanced_pipeline", route_after_enhanced_setup)
+    
+    # Process interviews -> format output (or error)
+    workflow.add_conditional_edges("process_interviews", route_after_interview_processing)
     
     # Format output -> end
     workflow.add_conditional_edges("format_output", is_complete)

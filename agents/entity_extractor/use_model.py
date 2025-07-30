@@ -8,6 +8,8 @@ from pathlib import Path
 from collections import defaultdict
 
 # To run this script:
+# pip install -r requirements.txt
+# pip install -m spacy download en_core_web_sm
 # python3 agents/entity_extractor/use_model.py
 
 # Ensure project root is in the import path
