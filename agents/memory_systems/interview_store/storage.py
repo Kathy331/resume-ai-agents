@@ -1,6 +1,11 @@
 # agents/memory_systems/interview_store/storage.py
 """
 Core storage operations for interviews
+
+Data is being store in the SQLite database with duplicate detection,
+CRUD operations, and interview lifecycle tracking.
+
+
 """
 
 from .interview_db import InterviewDB

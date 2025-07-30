@@ -2,7 +2,11 @@
 
 """
 Interview update operations
-Handles status updates, lifecycle tracking, and change history.
+
+features:
+- Update interview status: preparing, prepped, scheduled, completed, cancelled
+- Track changes in interview records
+- Maintain history of changes
 """
 
 import sqlite3

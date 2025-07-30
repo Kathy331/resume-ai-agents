@@ -4,6 +4,31 @@ Interview lookup and search operations
 
 Handles querying, filtering, and searching through stored interviews.
 Provides duplicate detection and similarity matching functionality.
+
+for examples:
+query: {
+    "action": "find_similar",
+    "entities": {
+      "CANDIDATE": ["John Doe"],
+      "COMPANY": ["Tech Corp"],
+      "ROLE": ["Software Engineer"],
+      "DATE": ["2023-10-01"]
+    } 
+}
+
+response: {
+    "similar_interviews": [
+      {
+        "interview_id": 123,
+        "candidate_name": "John Doe",
+        "company_name": "Tech Corp",  
+        "role": "Software Engineer",
+        "interview_date": "2023-10-01",
+        "status": "scheduled",
+        "similarity_score": 0.85,
+        "reasons": ["Candidate: 0.9", "Company: 0.8", "Role: 0.7", "Date proximity"]
+      }
+    ],
 """
 
 import sqlite3
