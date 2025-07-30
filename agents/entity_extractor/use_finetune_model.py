@@ -5,6 +5,9 @@ import sys
 import json
 from pathlib import Path
 # Running the trained NER model
+# pip install -r requirements.txt
+# pip install -m spacy download en_core_web_sm
+# python3 agents/entity_extractor/use_finetune_model.py
 print("Loading trained NER model...")
 nlp = spacy.load("./agents/entity_extractor/invitation_email_ner_model")
 

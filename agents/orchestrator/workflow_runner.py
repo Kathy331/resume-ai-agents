@@ -6,13 +6,26 @@ import asyncio
 from datetime import datetime
 from typing import Optional, Dict, Any
 
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
+"""
+WORKFLOW RUNNER — Executes the email processing workflow and handles results.
+
+This module is responsible for:
+- Initializing and running the LangGraph workflow defined in langgraph_coordinator.py.
+- Handling exceptions, retries, and final state processing.
+- Logging results, sending notifications (e.g. interview invites), and printing summaries.
+- Supporting both synchronous and asynchronous execution contexts.
+- Maintaining execution history for debugging or analytics.
+
+NOTE:
+This file does NOT define workflow logic — it delegates that to the LangGraph coordinator.
+"""
 
 class WorkflowRunner:
     """
     Orchestrates workflow execution and handles results
-    This is where you'd integrate with external systems, logging, notifications, etc.
+    This is where we integrate with external systems, logging, notifications, etc.
     """
     
     def __init__(self, enable_notifications=True, log_results=True):
