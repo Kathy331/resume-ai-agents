@@ -36,11 +36,11 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple
 from difflib import SequenceMatcher
 
-from agents.base_agent import BaseAgent, AgentInput, AgentOutput
+from shared.models import AgentInput, AgentOutput, EntityExtractionResult, InterviewData
+from agents.base_agent import BaseAgent
 
 from .interview_db import InterviewDB
 from .interview_utils import get_first_or_none, parse_date, calculate_similarity
-from agents.base_agent import BaseAgent, AgentInput, AgentOutput
 
 class InterviewLookup(InterviewDB, BaseAgent):
     """Agent for looking up and searching interviews."""

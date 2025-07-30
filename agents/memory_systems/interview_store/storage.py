@@ -4,13 +4,24 @@ Core storage operations for interviews
 
 Data is being store in the SQLite database with duplicate detection,
 CRUD operations, and interview lifecycle tracking.
-
-
 """
 
-from .interview_db import InterviewDB
-from .interview_utils import get_first_or_none, create_content_hash
+import json
+import logging
 from typing import Dict, Any, Optional
+from shared.models import EntityExtractionResult, InterviewData
+
+from .interview_db import InterviewDB
+from .interview_utils import (
+    get_first_or_none, 
+    create_content_hash, 
+    entities_to_extraction_result,
+    extraction_result_to_interview_data
+)
+
+logger = logging.getLogger(__name__)
+from shared.models import EntityExtractionResult, InterviewData
+from typing import Dict, Any, Optional, Union
 import json
 
 class InterviewStorage(InterviewDB):
@@ -21,21 +32,10 @@ class InterviewStorage(InterviewDB):
         self.similarity_threshold = config.get("similarity_threshold", 0.8)
         self.date_tolerance_days = config.get("date_tolerance_days", 7)
 
-    async def store_interview(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Store a new interview with duplicate detection."""
-        entities = data["entities"]
-        email_id = data.get("email_id") or entities.get("email_id")
-        
-        # Extract key fields
-        candidate = get_first_or_none(entities.get("CANDIDATE", []))
-        company = get_first_or_none(entities.get("COMPANY", []))
-        role = get_first_or_none(entities.get("ROLE", []))
-        interviewer = get_first_or_none(entities.get("INTERVIEWER", []))
-        interview_date = get_first_or_none(entities.get("DATE", []))
-        interview_time = get_first_or_none(entities.get("TIME", []))
-        duration = get_first_or_none(entities.get("DURATION", []))
-        location = get_first_or_none(entities.get("LOCATION", []))
-        format_type = get_first_or_none(entities.get("FORMAT", []))
+    def store_interview(self, email_id: str, entities: EntityExtractionResult, 
+                       interview_data: InterviewData) -> Dict[str, Any]:
+        """Store interview with intelligent duplicate detection."""
+        logger.info(f"Storing interview for email {email_id}")
         
         # Create content hash for exact duplicate detection
         content_hash = create_content_hash(entities)
@@ -51,8 +51,10 @@ class InterviewStorage(InterviewDB):
         
         # Store new interview
         interview_id = self._store_interview_record(
-            email_id, candidate, company, role, interviewer,
-            interview_date, interview_time, duration, location, format_type,
+            email_id, interview_data.candidate_name, interview_data.company_name, 
+            interview_data.role, interview_data.interviewer,
+            interview_data.interview_date, interview_data.interview_time, 
+            interview_data.duration, interview_data.location, interview_data.format,
             entities, content_hash
         )
         
@@ -65,7 +67,7 @@ class InterviewStorage(InterviewDB):
     def _store_interview_record(self, email_id: str, candidate: str, company: str, role: str,
                               interviewer: str, interview_date: str, interview_time: str,
                               duration: str, location: str, format_type: str,
-                              entities: Dict, content_hash: str) -> int:
+                              entities: EntityExtractionResult, content_hash: str) -> int:
         """Store interview record in database."""
         with self.get_connection() as conn:
             cursor = conn.execute("""
@@ -77,7 +79,7 @@ class InterviewStorage(InterviewDB):
             """, (
                 email_id, candidate, company, role, interviewer,
                 interview_date, interview_time, duration, location, format_type,
-                "preparing", json.dumps(entities), content_hash
+                "preparing", json.dumps(entities.dict()), content_hash
             ))
             
             return cursor.lastrowid

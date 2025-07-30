@@ -6,18 +6,62 @@ Shared utilities for interview store operations
 import json
 import hashlib
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Tuple
+from typing import List, Optional, Dict, Any, Tuple, Union
 from difflib import SequenceMatcher
+
+# Import the clean models
+from shared.models import EntityExtractionResult, InterviewData
 
 def get_first_or_none(items: List[str]) -> Optional[str]:
     """Get first item from list or None."""
     return items[0] if items else None
 
 
-def create_content_hash(entities: Dict[str, Any]) -> str:
+def create_content_hash(entities: Union[Dict[str, Any], EntityExtractionResult]) -> str:
     """Create hash for exact duplicate detection."""
-    content = json.dumps(entities, sort_keys=True)
+    if isinstance(entities, EntityExtractionResult):
+        # Use the pydantic model's dict representation
+        content = json.dumps(entities.dict(), sort_keys=True)
+    else:
+        # Fallback for raw dict (legacy)
+        content = json.dumps(entities, sort_keys=True)
     return hashlib.md5(content.encode()).hexdigest()
+
+
+def entities_to_extraction_result(entities: Dict[str, Any]) -> EntityExtractionResult:
+    """Convert raw entities dict to EntityExtractionResult model."""
+    return EntityExtractionResult(
+        candidates=entities.get("CANDIDATE", []),
+        companies=entities.get("COMPANY", []),
+        roles=entities.get("ROLE", []),
+        interviewers=entities.get("INTERVIEWER", []),
+        dates=entities.get("DATE", []),
+        times=entities.get("TIME", []),
+        durations=entities.get("DURATION", []),
+        locations=entities.get("LOCATION", []),
+        email_id=entities.get("email_id")
+    )
+
+
+def extraction_result_to_interview_data(
+    extraction: EntityExtractionResult, 
+    email_id: Optional[str] = None,
+    status: str = "preparing"
+) -> InterviewData:
+    """Convert EntityExtractionResult to InterviewData model."""
+    return InterviewData(
+        email_id=email_id or extraction.email_id,
+        candidate_name=get_first_or_none(extraction.candidates),
+        company_name=get_first_or_none(extraction.companies),
+        role=get_first_or_none(extraction.roles),
+        interviewer=get_first_or_none(extraction.interviewers),
+        interview_date=get_first_or_none(extraction.dates),
+        interview_time=get_first_or_none(extraction.times),
+        duration=get_first_or_none(extraction.durations),
+        location=get_first_or_none(extraction.locations),
+        status=status,
+        raw_entities=json.dumps(extraction.dict())
+    )
 
 
 def text_similarity(text1: str, text2: str) -> float:

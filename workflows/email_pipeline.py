@@ -41,10 +41,8 @@
 
 
 
-
-
 # workflows/email_pipeline.py
-# PURE BUSINESS LOGIC - No orchestration, just the core email processing steps
+# core email processing steps
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))

@@ -6,10 +6,10 @@ This module provides SQLite-based storage for interview data with duplicate dete
 CRUD operations, and interview lifecycle tracking.
 """
 
-from .storage import InterviewStore
+from .storage import InterviewStorage
 from .lookup import InterviewLookup
 from .updater import InterviewUpdater
 
-__all__ = ["InterviewStore", "InterviewLookup", "InterviewUpdater"]
+__all__ = ["InterviewStorage", "InterviewLookup", "InterviewUpdater"]
 
 __version__ = "1.0.0"

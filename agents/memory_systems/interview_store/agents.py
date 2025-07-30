@@ -1,3 +1,4 @@
+# agents/memory_systems/interview_store/agents.py
 """
 Interview Store Agent
 
@@ -17,7 +18,7 @@ Input:
     - "entities": (dict) Extracted entities from Entity Extractor (for store action)
     - "email_id": (str) Optional email identifier
     - "interview_id": (int) Interview ID (for update/query actions)
-    - "status": (str) New status (for update_status action)
+    - "status": (str) New status (for update_status action) --> ("preparing", "prepped", "scheduled", "completed", "cancelled")
     - "query_params": (dict) Parameters for querying (candidate, company, role, etc.)
 
 Output:
@@ -36,10 +37,10 @@ from pathlib import Path
 from difflib import SequenceMatcher
 import re
 
-from agents.base_agent import BaseAgent, AgentInput, AgentOutput
+from shared.models import AgentInput, AgentOutput, EntityExtractionResult, InterviewData
+from agents.base_agent import BaseAgent
 from .interview_db import InterviewDB
 from .interview_utils import get_first_or_none, create_content_hash, calculate_similarity, parse_date
-from agents.base_agent import BaseAgent, AgentInput, AgentOutput
 
 
 class InterviewStore(InterviewDB, BaseAgent):
