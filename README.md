@@ -9,7 +9,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/Kathy331/resume-ai-agents">
-    <img src="images/inky.png" alt="Logo" width="80" height="80">
+    <img src="ui/images/inky.png" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">Resume AI Agents</h3>
@@ -166,9 +166,9 @@ Once the app is running, you can:
 
 Kathy Chen - [@Linkedin](https://www.linkedin.com/in/kathy-chen-b35b532a6/) - email: kathychen331@outlook.com
 
-Joyce Zou - [@Linkedin](https://www.linkedin.com/in/joyce-zou-57196a26b/) - email: joyce.zou.27@dartmouth.edu
+Grace Chen - [@Linkedin](https://www.linkedin.com/in/chen-p-grace/) - email: 
 
-Rachael Huang - [@Linkedin](https://www.linkedin.com/in/rachaelhuang/) - email: rachael.huang.27@dartmouth.edu
+Julianna Bracamonte - [@Linkedin](https://www.linkedin.com/in/julianna-bracamonte-759644237/) - email: 
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
