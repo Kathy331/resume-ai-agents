@@ -1,8 +1,8 @@
 # workflows/email_pipeline.py
 """
-Email Pipeline with LangGraph Chains
+Email Pipeline with LangGraph Workflows
 
-This pipeline implements sophisticated conditional routing:
+This pipeline implements sophisticated conditional routing using LangGraph StateGraph:
 1. Email Classification
 2. Entity Extraction (for Interview_invite emails)
 3. Similarity Check (against existing interview memory)

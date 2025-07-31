@@ -26,7 +26,7 @@
 2. **fetch_emails** - Retrieve emails from specified folder
 3. **classify_emails** - Categorize emails (Interview_invite, Personal, etc.)
 4. **setup_enhanced_pipeline** - Initialize enhanced processing agents
-5. **process_interviews** - Advanced interview processing chain:
+5. **process_interviews** - Advanced interview processing workflow:
    - Entity extraction (Company, Role, Date, Interviewer)
    - Memory similarity search
    - Conditional research based on similarity scores
