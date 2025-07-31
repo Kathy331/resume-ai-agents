@@ -217,20 +217,22 @@ def get_llm_client(model: str = "gpt-4o-mini") -> LLMClient:
 
 
 # Function to call the LLM with a prompt (async version)
-async def call_llm(prompt: str, model: str = "gpt-3.5-turbo") -> str:
+async def call_llm(prompt: str, model: str = "gpt-3.5-turbo", max_tokens: int = 1000, temperature: float = 0.0) -> str:
   """
   Calls OpenAI LLM with the given prompt, with caching and fallback support.
   
   Args:
       prompt (str): The input prompt to send to the model.
       model (str): Model name to use.
+      max_tokens (int): Maximum tokens to generate.
+      temperature (float): Temperature for response variability.
 
   Returns:
       str: The response text from the LLM.
   """
   # Check cache first
   if openai_cache:
-      cached_response = openai_cache.get(prompt, model, 1000, 0.0)
+      cached_response = openai_cache.get(prompt, model, max_tokens, temperature)
       if cached_response:
           print(f"🗄️ Using cached response for async call")
           return cached_response
@@ -242,7 +244,7 @@ async def call_llm(prompt: str, model: str = "gpt-3.5-turbo") -> str:
       
       # Cache the mock response
       if openai_cache:
-          openai_cache.set(prompt, model, 1000, 0.0, mock_response, "async_call")
+          openai_cache.set(prompt, model, max_tokens, temperature, mock_response, "async_call")
       
       return mock_response
   
@@ -254,14 +256,15 @@ async def call_llm(prompt: str, model: str = "gpt-3.5-turbo") -> str:
           {"role": "system", "content": "You are a helpful assistant."},
           {"role": "user", "content": prompt}
         ],
-        temperature=0  # deterministic output for keyword extraction
+        max_tokens=max_tokens,
+        temperature=temperature
       )
       
       response_text = response.choices[0].message.content
       
       # Cache the response
       if openai_cache:
-          openai_cache.set(prompt, model, 1000, 0.0, response_text, "async_call")
+          openai_cache.set(prompt, model, max_tokens, temperature, response_text, "async_call")
       
       return response_text
       
@@ -272,6 +275,6 @@ async def call_llm(prompt: str, model: str = "gpt-3.5-turbo") -> str:
     
     # Cache the mock response
     if openai_cache:
-        openai_cache.set(prompt, model, 1000, 0.0, mock_response, "async_call_fallback")
+        openai_cache.set(prompt, model, max_tokens, temperature, mock_response, "async_call_fallback")
     
     return mock_response

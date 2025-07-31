@@ -116,20 +116,55 @@ async def generate_comprehensive_prep_guide():
     workflow_results = MockResearchData.create_mock_workflow_results()
     
     print_section("SYSTEM INFORMATION", "🤖")
-    print("   🔧 Engine: Interview Prep Intelligence Agent (IPIA)")
+    print("   🔧 Engine: Interview Prep Intelligence Agent (IPIA) v2.0")
     print("   🧠 AI Techniques: Chain-of-Thought, Multi-Agent RAG, Strategic Prompting")
+    print("   🔄 Research Flow: Deep Research → Synthesis → Reflection → Dynamic Questions")
     print("   📊 Cache Status: Active (reduces API costs)")
     print("   🎯 Context-Aware: Yes (adapts to company culture)")
+    print("   ⚡ New Features: Content Synthesis, Reflection Loops, Dynamic Question Generation")
     
     # Process through IPIA
     print_section("PROCESSING INTERVIEWS", "🚀")
     print("   🧩 Extracting research contexts...")
     print("   🧠 Running multi-agent analysis...")
-    print("   ❓ Generating strategic questions...")
+    print("   🌐 Performing deep web research...")
+    print("   🔬 Synthesizing insights with LLM...")
+    print("   🔄 Running reflection loops...")
+    print("   ❓ Generating dynamic questions...")
     print("   📝 Creating prep summaries...")
     
     try:
-        deep_research_output = await pipeline.process_workflow_results(workflow_results, user_profile)
+        # Create research contexts directly for enhanced pipeline testing
+        from workflows.deep_research_pipeline import ResearchContext
+        
+        research_contexts = [
+            ResearchContext(
+                interview_id="seeds_ai_researcher_001",
+                company_name="SEEDS",
+                role_title="AI Researcher",
+                interviewer_name="Dr. Emily Chen",
+                quality_score=0.85,
+                research_confidence=0.9
+            ),
+            ResearchContext(
+                interview_id="juteq_cloud_engineer_001", 
+                company_name="JUTEQ",
+                role_title="Cloud Engineer",
+                interviewer_name="Alex Rodriguez",
+                quality_score=0.88,
+                research_confidence=0.92
+            )
+        ]
+        
+        # Create enhanced research input
+        from workflows.deep_research_pipeline import DeepResearchInput
+        deep_research_input = DeepResearchInput(
+            research_contexts=research_contexts,
+            user_profile=user_profile
+        )
+        
+        # Process through enhanced pipeline with REAL research
+        deep_research_output = await pipeline.async_process(deep_research_input)
         
         if not deep_research_output or not deep_research_output.prep_summaries:
             print("   ❌ No prep summaries generated")
@@ -200,12 +235,24 @@ async def generate_comprehensive_prep_guide():
         
         print("\n📊 CACHE PERFORMANCE:")
         from shared.openai_cache import OpenAICache
-        cache = OpenAICache()
-        stats = cache.get_cache_stats()
-        print(f"   • Cache Entries: {stats['total_entries']}")
-        print(f"   • Companies Cached: {len(stats['companies_cached'])}")
-        if stats['companies_cached']:
-            print(f"   • Cached: {', '.join(stats['companies_cached'])}")
+        from shared.tavily_client import get_tavily_cache_stats
+        
+        # OpenAI Cache Stats
+        openai_cache = OpenAICache()
+        openai_stats = openai_cache.get_cache_stats()
+        print(f"   🤖 OpenAI Cache Entries: {openai_stats['total_entries']}")
+        print(f"   🤖 OpenAI Companies Cached: {len(openai_stats['companies_cached'])}")
+        if openai_stats['companies_cached']:
+            print(f"   🤖 OpenAI Cached: {', '.join(openai_stats['companies_cached'])}")
+        
+        # Tavily Cache Stats
+        tavily_stats = get_tavily_cache_stats()
+        if tavily_stats.get('cache_enabled', False):
+            print(f"   🌐 Tavily Cache Entries: {tavily_stats.get('total_entries', 0)}")
+            print(f"   🌐 Tavily Cache Hits: {tavily_stats.get('cache_hits', 0)}")
+            print(f"   🌐 Tavily API Calls Saved: ${tavily_stats.get('estimated_savings', 0):.2f}")
+        else:
+            print(f"   🌐 Tavily Cache: {tavily_stats.get('message', 'Not available')}")
         
         print_banner("PREP GUIDE COMPLETE - GOOD LUCK! 🍀", "🎉")
         
