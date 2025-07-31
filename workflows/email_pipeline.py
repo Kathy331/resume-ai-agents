@@ -53,13 +53,65 @@ def fetch_and_parse_emails(service, folder_name, max_results=10):
     except Exception as e:
         raise EmailPipelineError(f"Failed to fetch emails from {folder_name}: {str(e)}")
 
-def classify_emails(emails):
+def classify_emails(emails, user_email=None):
     """
-    Pure function: emails -> classified emails
-    Returns structured data, doesn't print or route
+    Classify emails using the EmailClassifierAgent
     
-    TEMPORARY IMPLEMENTATION: Uses simple rule-based classification
-    TODO: Replace with AI-based EmailClassifierAgent when ready
+    Args:
+        emails: List of email dictionaries
+        user_email: Optional user email for personal classification
+        
+    Returns:
+        Dict with classified emails by category
+    """
+    try:
+        from agents.email_classifier.agent import EmailClassifierAgent
+        from shared.models import AgentInput
+        
+        # Initialize the classifier agent
+        classifier = EmailClassifierAgent({})
+        
+        # Prepare input data
+        agent_input = AgentInput(data={
+            'emails': emails,
+            'user_email': user_email or ''
+        })
+        
+        # Execute classification (synchronous version)
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        result = loop.run_until_complete(classifier.execute(agent_input))
+        
+        if not result.success:
+            print(f"⚠️ Email classification failed: {result.errors}")
+            return _fallback_classify_emails(emails)
+        
+        # Convert from agent output format to expected format
+        classified = {
+            'Personal_sent': [email for email in emails if email.get('id') in result.data.get('personal', [])],
+            'Interview_invite': [email for email in emails if email.get('id') in result.data.get('interview', [])],
+            'Others': [email for email in emails if email.get('id') in result.data.get('other', [])]
+        }
+        
+        return classified
+        
+    except Exception as e:
+        print(f"⚠️ EmailClassifierAgent not available, using fallback: {str(e)}")
+        return _fallback_classify_emails(emails)
+
+def _fallback_classify_emails(emails):
+    """
+    Fallback classification using simple rules
+    (Previous temporary implementation)
+    """
+    """
+    Fallback classification using simple rules
+    (Previous temporary implementation)
     """
     classified = {
         'Personal_sent': [],
@@ -71,7 +123,7 @@ def classify_emails(emails):
         subject = email.get('subject', '').lower()
         sender = email.get('sender', '').lower()
         
-        # TEMPORARY RULES - replace with AI classification
+        # Simple rule-based classification as fallback
         # Interview-related keywords
         interview_keywords = ['interview', 'invitation', 'invite', 'schedule', 'meeting', 'call', 'chat', 'discussion', 'screening', 'phone screen', 'video call', 'zoom', 'hiring', 'position', 'role', 'job', 'opportunity', 'application']
         
@@ -209,12 +261,48 @@ class EmailPipeline:
             return result
     
     async def _classify_email(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Classify email using simple classification function"""
+        """Classify email using EmailClassifierAgent"""
         try:
-            # Use the simple classifier (now available in this file)
-            # TODO: Replace with AI-based EmailClassifierAgent when ready
+            from agents.email_classifier.agent import EmailClassifierAgent
+            
+            # Initialize the classifier agent
+            classifier = EmailClassifierAgent({})
+            
+            # Prepare input data
+            agent_input = AgentInput(data={
+                'emails': [email_data],  # Wrap single email in list
+                'user_email': ''  # Could be passed as parameter if needed
+            })
+            
+            # Execute classification
+            result = await classifier.execute(agent_input)
+            
+            if not result.success:
+                return {'success': False, 'error': result.errors}
+            
+            # Determine the category for this email
+            email_id = email_data.get('id')
+            category = 'Others'  # default
+            
+            if email_id in result.data.get('interview', []):
+                category = 'Interview_invite'
+            elif email_id in result.data.get('personal', []):
+                category = 'Personal_sent'
+            elif email_id in result.data.get('other', []):
+                category = 'Others'
+            
+            return {
+                'success': True,
+                'category': category,
+                'confidence': 0.9,  # EmailClassifierAgent confidence
+                'metadata': {'classifier': 'EmailClassifierAgent'}
+            }
+            
+        except Exception as e:
+            # Fallback to simple classification
+            print(f"⚠️ EmailClassifierAgent failed, using fallback: {str(e)}")
             emails = [email_data]  # Wrap in list as expected by classify_emails
-            classified = classify_emails(emails)
+            classified = _fallback_classify_emails(emails)
             
             # Determine the category for this email
             category = 'Others'  # default
@@ -226,8 +314,8 @@ class EmailPipeline:
             return {
                 'success': True,
                 'category': category,
-                'confidence': 0.8,  # Simple classifier confidence
-                'metadata': {'classifier': 'temporary_simple_rules'}
+                'confidence': 0.6,  # Fallback classifier confidence
+                'metadata': {'classifier': 'fallback_simple_rules'}
             }
         except Exception as e:
             return {'success': False, 'error': str(e)}

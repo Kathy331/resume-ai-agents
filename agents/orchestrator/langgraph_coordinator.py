@@ -23,6 +23,7 @@ class EmailWorkflowState(TypedDict):
     """Enhanced state object that flows through the LangGraph workflow"""
     folder_name: str
     max_results: int
+    user_email: str  # User email for personal classification
     gmail_service: Any
     raw_emails: List[Dict]
     classified_emails: Dict[str, List]
@@ -36,11 +37,12 @@ class EmailWorkflowState(TypedDict):
     research_performed_count: int  # New: Track how many interviews got research
     memory_hits_count: int  # New: Track how many were found in memory
 
-def initialize_state(folder_name: str, max_results: int = 10) -> EmailWorkflowState:
+def initialize_state(folder_name: str, max_results: int = 10, user_email: str = "") -> EmailWorkflowState:
     """Create initial state for the enhanced workflow"""
     return EmailWorkflowState(
         folder_name=folder_name,
         max_results=max_results,
+        user_email=user_email,  # Add user_email for classification
         gmail_service=None,
         raw_emails=[],
         classified_emails={},
@@ -85,10 +87,14 @@ def fetch_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
         return state
 
 def classify_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
-    """Node: Classify emails into categories"""
+    """Node: Classify emails using EmailClassifierAgent"""
     try:
         from workflows.email_pipeline import classify_emails
-        classified = classify_emails(state["raw_emails"])
+        
+        # Get user_email from state if available, or use a default
+        user_email = state.get('user_email', '')  # Could be set during initialization
+        
+        classified = classify_emails(state["raw_emails"], user_email=user_email)
         state["classified_emails"] = classified
         
         # Smart routing decision
@@ -96,7 +102,7 @@ def classify_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
         if interview_count > 0:
             state["should_notify"] = True
             
-        print(f"✅ Classified emails: {interview_count} interviews, "
+        print(f"✅ Classified emails using EmailClassifierAgent: {interview_count} interviews, "
               f"{len(classified.get('Personal_sent', []))} personal, "
               f"{len(classified.get('Others', []))} others")
         return state

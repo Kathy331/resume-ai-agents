@@ -33,9 +33,14 @@ class WorkflowRunner:
         self.log_results = log_results
         self.execution_history = []
     
-    def run_email_pipeline(self, folder_name: str, max_results: int = 10) -> Dict[str, Any]:
+    def run_email_pipeline(self, folder_name: str, max_results: int = 10, user_email: str = "") -> Dict[str, Any]:
         """
         Main entry point - runs the email pipeline and handles results
+        
+        Args:
+            folder_name: Gmail folder to process
+            max_results: Maximum number of emails to process
+            user_email: User's email for personal classification
         """
         if not folder_name:
             raise ValueError("folder_name argument is required and cannot be empty.")
@@ -49,7 +54,7 @@ class WorkflowRunner:
             
             # Create workflow and initial state
             workflow = build_email_workflow()
-            initial_state = initialize_state(folder_name, max_results)
+            initial_state = initialize_state(folder_name, max_results, user_email)
             
             # Execute the workflow
             final_state = workflow.invoke(initial_state)
@@ -160,17 +165,21 @@ class WorkflowRunner:
         """Return execution history for analytics/debugging"""
         return self.execution_history
     
-    async def run_email_pipeline_async(self, folder_name: str, max_results: int = 10):
+    async def run_email_pipeline_async(self, folder_name: str, max_results: int = 10, user_email: str = ""):
         """Async version for integration with async frameworks"""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.run_email_pipeline, folder_name, max_results)
+        return await loop.run_in_executor(None, self.run_email_pipeline, folder_name, max_results, user_email)
 
 # Entry point
 if __name__ == "__main__":
     runner = WorkflowRunner(enable_notifications=True, log_results=True)
     
-    # Run the pipeline
-    result = runner.run_email_pipeline(folder_name='test', max_results=10)
+    # Run the pipeline with EmailClassifierAgent
+    result = runner.run_email_pipeline(
+        folder_name='test', 
+        max_results=10, 
+        user_email='user@example.com'  # Replace with actual user email
+    )
     
     # You can also access execution history
     # print(f"\nExecution history: {len(runner.get_execution_history())} runs")

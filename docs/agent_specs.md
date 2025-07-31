@@ -32,16 +32,23 @@ This document outlines the design and functionality of each agent in the system.
 
 ### Email Classifier Agent
 
-- **Folder:** `agents/email_classifier/`  
-- **Purpose:** Classifies emails into categories like interview invites, personal, promotional, etc.  
-- **Components:** `agent.py`, `ner.py`, `sentiment.py`, `config.py`  
-- **Input:** Raw email text and metadata  
-- **Output:** Category label (Interview_invite, Personal, Other), confidence scores, routing decisions  
-- **Technologies:** Rule-based filters, NLP classification, sentiment analysis, named entity recognition  
-- **Key Features:**
-  - **Multi-modal Classification**: Combines rule-based and ML approaches
-  - **Sentiment Analysis**: Understands email tone and urgency
-  - **Context Awareness**: Considers sender, subject, and content patterns
+| **Class**   | `EmailClassifierAgent`                 |
+|-------------|----------------------------------------|
+| **Folder**  | `agents/email_classifier/`            |
+| **Purpose** | Classifies emails into categories: interview invites, personal emails, and others. Supports intelligent routing. |
+| **Input**   | List of email dictionaries with id, subject, body, from, to fields. Optional user_email for personal classification. |
+| **Output**  | Dictionary with 'interview', 'personal', 'other' keys containing email IDs for each category |
+| **Tech**    | Keyword-based classification with comprehensive interview-related pattern matching |
+| **Features** | 
+- **Multi-category Classification**: Automatically categorizes emails into Interview, Personal, and Other buckets
+- **Personal Email Detection**: Identifies emails sent by the user when user_email is provided  
+- **Interview Detection**: Advanced pattern recognition for various interview-related keywords and phrases
+- **Production Ready**: Fully integrated into the email processing pipeline with fallback support
+
+**Integration Status**: ✅ **ACTIVE** - Replaces previous temporary email classification rules. Used by:
+- `workflows/email_pipeline.py` - Main email processing pipeline
+- `agents/orchestrator/langgraph_coordinator.py` - LangGraph workflow coordinator  
+- `agents/orchestrator/workflow_runner.py` - Workflow execution engine
 
 ### Job Matcher Agent
 
