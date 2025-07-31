@@ -13,7 +13,7 @@
   ```
 
 ### **Enhanced Email Pipeline**
-- **Location**: `workflows/enhanced_email_pipeline.py`
+- **Location**: `workflows/email_pipeline.py`
 - **Purpose**: Advanced email processing with memory-based deduplication
 - **Features**:
   - Intelligent similarity matching

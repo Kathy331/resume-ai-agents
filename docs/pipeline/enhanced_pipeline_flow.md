@@ -66,7 +66,7 @@ The `EmailWorkflowState` carries data through each node:
     'raw_emails': List[Dict],
     'classified_emails': Dict[str, List],
     'interview_processing_results': List[Dict],  # Enhanced results
-    'enhanced_pipeline': EnhancedEmailPipeline,
+    'email_pipeline': EmailPipeline,
     'research_performed_count': int,
     'memory_hits_count': int,
     'summaries': List[Dict],

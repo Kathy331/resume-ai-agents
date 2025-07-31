@@ -1,6 +1,6 @@
-# workflows/enhanced_email_pipeline.py
+# workflows/email_pipeline.py
 """
-Enhanced Email Pipeline with LangGraph Chains
+Email Pipeline with LangGraph Chains
 
 This pipeline implements sophisticated conditional routing:
 1. Email Classification
@@ -135,8 +135,8 @@ def clean_email_content(text: str) -> str:
     
     return text.strip()
 
-class EnhancedEmailPipeline:
-    """Enhanced email processing with intelligent routing and memory"""
+class EmailPipeline:
+    """Email processing with intelligent routing and memory"""
     
     def __init__(self):
         # Import agents here to avoid circular imports
@@ -359,11 +359,11 @@ class EnhancedEmailPipeline:
             return {'success': False, 'error': str(e)}
 
 # Convenience functions for LangGraph integration
-def create_enhanced_pipeline():
-    """Factory function to create enhanced pipeline"""
-    return EnhancedEmailPipeline()
+def create_email_pipeline():
+    """Factory function to create email pipeline"""
+    return EmailPipeline()
 
-async def process_classified_interviews(classified_emails: Dict[str, List], pipeline: EnhancedEmailPipeline) -> List[Dict]:
+async def process_classified_interviews(classified_emails: Dict[str, List], pipeline: EmailPipeline) -> List[Dict]:
     """Process all interview invites through enhanced pipeline"""
     results = []
     interview_emails = classified_emails.get('Interview_invite', [])

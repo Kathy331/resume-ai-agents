@@ -20,7 +20,7 @@ from typing import Dict, List, Any
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from agents.entity_extractor.agent import EntityExtractor
-from workflows.enhanced_email_pipeline import EnhancedEmailPipeline
+from workflows.email_pipeline import EmailPipeline
 from shared.models import AgentInput
 
 
@@ -211,7 +211,7 @@ async def test_complete_pipeline():
     """Test complete pipeline with realistic email examples"""
     print_header("COMPLETE PIPELINE INTEGRATION TESTS")
     
-    pipeline = EnhancedEmailPipeline()
+    pipeline = EmailPipeline()
     
     test_emails = [
         {
