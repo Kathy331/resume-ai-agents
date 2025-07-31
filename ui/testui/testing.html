@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Application Workflow UI</title>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --secondary: #2e7d32;
+            --accent: #7b1fa2;
+            --light: #f5f5f5;
+            --dark: #212121;
+            --gray: #757575;
+            --border-radius: 8px;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f0f2f5;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary), #42a5f5);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            font-size: 2rem;
+        }
+        
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .container {
+            display: flex;
+            min-height: calc(100vh - 70px);
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+        
+        .section {
+            margin-bottom: 2rem;
+        }
+        
+        .section-title {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+            color: var(--primary);
+        }
+        
+        .workflow-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .step-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .step-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 0.8rem;
+        }
+        
+        .step-icon {
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+        
+        .step-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .step-description {
+            color: var(--gray);
+            margin-bottom: 1rem;
+        }
+        
+        .step-features {
+            list-style-type: none;
+        }
+        
+        .step-features li {
+            padding: 0.3rem 0;
+            display: flex;
+            align-items: flex-start;
+        }
+        
+        .step-features li:before {
+            content: "•";
+            color: var(--secondary);
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+            margin-right: 0.5em;
+        }
+        
+        .upload-area {
+            border: 2px dashed #bdbdbd;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+            background: #fafafa;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--primary);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--gray);
+            margin-bottom: 1rem;
+        }
+        
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            background: #1565c0;
+        }
+        
+        .btn-secondary {
+            background: var(--secondary);
+        }
+        
+        .btn-secondary:hover {
+            background: #1b5e20;
+        }
+        
+        .btn-accent {
+            background: var(--accent);
+        }
+        
+        .btn-accent:hover {
+            background: #6a1b9a;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-active {
+            background-color: #4caf50;
+        }
+        
+        .status-pending {
+            background-color: #ffc107;
+        }
+        
+        .status-inactive {
+            background-color: #9e9e9e;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            margin: 1.5rem 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--secondary);
+            width: 65%;
+        }
+        
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0.5rem 0;
+        }
+        
+        .stat-label {
+            color: var(--gray);
+        }
+        
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .input-group input, 
+        .input-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+        }
+        
+        .input-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+            }
+            
+            .dashboard-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">🎯</div>
+            <div class="logo-text">JobFlow AI</div>
+        </div>
+        <div>
+            <button class="btn">User Profile</button>
+        </div>
+    </header>
+    
+    <div class="container">
+        <aside class="sidebar">
+            <div class="section">
+                <h2 class="section-title">Workflow Navigation</h2>
+                <div class="workflow-steps">
+                    <div class="step-card">
+                        <div class="step-header">
+                            <div class="step-icon">⭐</div>
+                            <div class="step-title">Resume Upload</div>
+                        </div>
+                        <p>Upload your resume for processing</p>
+                        <span class="status-indicator status-active"></span> Completed
+                    </div>
+                    
+                    <div class="step-card">
+                        <div class="step-header">
+                            <div class="step-icon">🔍</div>
+                            <div class="step-title">Resume Analysis</div>
+                        </div>
+                        <p>Extracting skills and experience</p>
+                        <span class="status-indicator status-active"></span> Completed
+                    </div>
+                    
+                    <div class="step-card">
+                        <div class="step-header">
+                            <div class="step-icon">📋</div>
+                            <div class="step-title">Job Description</div>
+                        </div>
+                        <p>Input target job information</p>
+                        <span class="status-indicator status-active"></span> Completed
+                    </div>
+                    
+                    <div class="step-card">
+                        <div class="step-header">
+                            <div class="step-icon">🎯</div>
+                            <div class="step-title">Job Matching</div>
+                        </div>
+                        <p>Comparing your profile with job</p>
+                        <span class="status-indicator status-active"></span> Completed
+                    </div>
+                    
+                    <div class="step-card">
+                        <div class="step-header">
+                            <div class="step-icon">📧</div>
+                            <div class="step-title">Email Drafting</div>
+                        </div>
+                        <p>Creating personalized outreach</p>
+                        <span class="status-indicator status-pending"></span> In Progress
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">System Status</h2>
+                <div class="stat-card">
+                    <div class="stat-value">87%</div>
+                    <div class="stat-label">Workflow Progress</div>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-value">4</div>
+                    <div class="stat-label">Emails Drafted</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-value">2</div>
+                    <div class="stat-label">Interviews Scheduled</div>
+                </div>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-value">12</div>
+                    <div class="stat-label">Applications Sent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">3</div>
+                    <div class="stat-label">Responses Received</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">78%</div>
+                    <div class="stat-label">Match Average</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">1</div>
+                    <div class="stat-label">Upcoming Interviews</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">Job Application Workflow</h2>
+                
+                <div class="step-card">
+                    <div class="step-header">
+                        <div class="step-icon">📧</div>
+                        <div class="step-title">Email Draft Review</div>
+                    </div>
+                    <p class="step-description">Review and edit the generated email before sending</p>
+                    
+                    <div class="input-group">
+                        <label for="email-subject">Subject Line</label>
+                        <input type="text" id="email-subject" value="Exploring Opportunities at Tech Innovations Inc.">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="email-content">Email Content</label>
+                        <textarea id="email-content">Dear Sarah Johnson,
+
+I came across your profile while researching Tech Innovations Inc. and was impressed by your work on sustainable cloud solutions. As a software engineer with 5 years of experience in cloud technologies and environmental sustainability, I believe my skills align well with your team's focus on green technology.
+
+In my previous role at GreenTech Solutions, I reduced server energy consumption by 30% through infrastructure optimization. I'm particularly excited about Tech Innovations' commitment to carbon-neutral operations and would love to contribute to your sustainability initiatives.
+
+I would appreciate the opportunity to discuss how my experience can support your team's goals. Are you available for a brief conversation next week?
+
+Best regards,
+Alex Morgan
+Software Engineer</textarea>
+                    </div>
+                    
+                    <div class="actions">
+                        <button class="btn btn-secondary">Save Draft</button>
+                        <button class="btn">Send Email</button>
+                        <button class="btn btn-accent">Generate New Version</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">Upload New Job Description</h2>
+                
+                <div class="upload-area">
+                    <div class="upload-icon">📋</div>
+                    <h3>Upload Job Description</h3>
+                    <p>Drag & drop or click to upload a job posting</p>
+                    <p>Supported formats: PDF, DOCX, TXT</p>
+                    <button class="btn" style="margin-top: 1rem;">Select File</button>
+                </div>
+                
+                <div class="input-group" style="margin-top: 1.5rem;">
+                    <label for="job-url">Or Enter Job Posting URL</label>
+                    <input type="text" id="job-url" placeholder="https://...">
+                </div>
+                
+                <button class="btn" style="margin-top: 1rem;">Process Job Description</button>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        // Simulate workflow progress updates
+        document.addEventListener('DOMContentLoaded', function() {
+            // Simulate file upload interaction
+            const uploadArea = document.querySelector('.upload-area');
+            const fileButton = uploadArea.querySelector('.btn');
+            
+            uploadArea.addEventListener('click', function(e) {
+                if (e.target !== fileButton) {
+                    fileButton.click();
+                }
+            });
+            
+            fileButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // In a real app, this would trigger file selection
+                alert('File selection dialog would open here');
+            });
+            
+            // Simulate email sending
+            const sendButton = document.querySelector('.btn:not(.btn-secondary):not(.btn-accent)');
+            sendButton.addEventListener('click', function() {
+                if (confirm('Are you sure you want to send this email?')) {
+                    alert('Email sent successfully! The workflow will proceed to scheduling follow-ups.');
+                    // Update status indicators
+                    document.querySelectorAll('.status-indicator')[4].className = 'status-indicator status-active';
+                }
+            });
+            
+            // Simulate new version generation
+            const regenerateButton = document.querySelector('.btn-accent');
+            regenerateButton.addEventListener('click', function() {
+                const emailContent = document.getElementById('email-content');
+                emailContent.value = `Dear Sarah,
+
+I hope this email finds you well. I'm reaching out regarding potential opportunities at Tech Innovations Inc. After reviewing your company's impressive work in sustainable technology, I believe my experience in cloud infrastructure and environmental solutions could be valuable to your team.
+
+In my current role as Senior Software Engineer at GreenTech, I've led projects that reduced our carbon footprint by 35% through server optimization and renewable energy adoption. I'm particularly drawn to Tech Innovations' Green Cloud Initiative and would be excited to contribute to similar projects.
+
+Would you be available for a brief discussion next week?
+
+Best regards,
+Alex Morgan`;
+                
+                alert('New email version generated based on your profile and recent interactions');
+            });
+        });
+    </script>
+</body>
+</html>

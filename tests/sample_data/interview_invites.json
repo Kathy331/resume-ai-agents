@@ -1,0 +1,58 @@
+[
+  {
+    "subject": "Interview for Software Engineer at Launchpad AI",
+    "body": "Hi Jamie,\n\nThanks for your application for the Software Engineer position at Launchpad AI. We were impressed with your resume and would like to schedule a 45-minute technical interview with our engineering team.\n\nPlease let us know your availability for this week.\n\nBest,\nRecruiting Team\nLaunchpad AI",
+    "from_email": "recruiter@launchpadai.com"
+  },
+  {
+    "subject": "Reminder: Startup Shell Interviews - Fall 2024 (Kathy Chen)",
+    "body": "Hi Kathy,\n\nThis is a reminder that your Startup Shell Fall 2024 interview is scheduled for:\n\n📅 Thursday, August 23, 2025  \n🕒 7:30pm – 8:00pm (EDT)  \n📍 Location: Startup Shell (Iribe Center, Room 1105) or Zoom (link provided in confirmation email)\n\nPlease reach out if you need to reschedule.\n\nThanks,\nCara Murphy\nStartup Shell",
+    "from_email": "caramurphy@startupshell.org"
+  },
+  {
+    "subject": "Interview for Product Manager at NovaWorks",
+    "body": "Hi Taylor,\n\nThanks for your interest in the Product Manager role at NovaWorks. We'd like to invite you to a 30-minute behavioral interview with our Head of Product.\n\nPlease use the link below to pick a time that works best for you:\nhttps://calendly.com/novaworks-interview/pm-round1\n\nWe look forward to speaking with you!\n\nBest,\nHR Team\nNovaWorks",
+    "from_email": "careers@novaworks.com"
+  },
+  {
+    "subject": "Interview for Backend Engineer at CloudSpire",
+    "body": "Hi Jordan,\n\nWe’ve reviewed your application for the Backend Engineer position at CloudSpire. We’d love to move forward with a coding interview.\n\n🗓 Date: Monday, August 5, 2025  \n⏰ Time: 2:00pm – 3:00pm (PST)  \n📍 Format: Remote (Zoom link will be sent 24 hours before)\n\nLet us know if this time works or if you'd prefer a different slot.\n\nBest,\nTalent Acquisition\nCloudSpire",
+    "from_email": "talent@cloudspire.io"
+  },
+  {
+    "subject": "Interview for Data Scientist at QuantMind",
+    "body": "Hi Riley,\n\nWe’re excited to move you forward to the next round for the Data Scientist role at QuantMind. The interview will focus on your past experience and a brief case study.\n\nInterview Details:  \n- Duration: 60 minutes  \n- Format: Zoom (camera on preferred)  \n- Date Options: Aug 6, 7, or 8 — please indicate preference\n\nThank you for your continued interest.\n\nBest regards,\nQuantMind Hiring Team",
+    "from_email": "hr@quantmind.ai"
+  },
+  {
+    "subject": "Interview Scheduled: AI Research Internship at Cognivault",
+    "body": "Dear Aiden,\n\nWe’re pleased to inform you that your interview for the AI Research Internship has been scheduled.\n\n📅 Friday, August 2, 2025  \n🕓 4:00pm – 4:45pm (EDT)  \n🧠 Topic: Research experience, ML background, and project discussion\n\nJoin link: https://zoom.us/j/8123456789\n\nBest,\nDr. S. Patel\nCognivault AI Labs",
+    "from_email": "spatel@cognivault.ai"
+  },
+  {
+    "subject": "Next Steps: SWE Intern at Bitwise Labs",
+    "body": "Hey Sam,\n\nGreat chatting during the recruiter screen! We'd like to schedule your next technical round for the Software Engineering Internship.\n\nThe interview will be 60 minutes with Sarah Chen and Marcus Rodriguez from our engineering team. It'll include coding challenges and a few systems questions.\n\nPlease confirm if Friday at 11am EST works.\n\nThanks,\nLena\nBitwise Labs Recruiting",
+    "from_email": "lena.huang@bitwiselabs.dev"
+  },
+  {
+    "subject": "Behavioral Interview Invitation – UX Intern at Ripple Design",
+    "body": "Hello Morgan,\n\nWe're excited to invite you to a behavioral interview for the UX Internship position at Ripple Design. The 30-minute interview will cover your design thinking, collaboration style, and past work.\n\nYou'll be interviewing with David Kim, our Head of UX Design.\n\nPlease reply with your availability for next week.\n\nThanks,\nRipple Design Recruiting",
+    "from_email": "jobs@rippleux.com"
+  },
+  {
+    "subject": "Interview for Full Stack Developer at Orbit",
+    "body": "Hi Alex,\n\nFollowing your coding challenge submission, we'd like to invite you to a final interview for the Full Stack Developer role at Orbit. This will be a 90-minute session with our CTO Elena Vasquez and Engineering Lead Jake Thompson.\n\nYou can schedule the interview using this link: https://orbit.dev/interview-booking\n\nLooking forward to it!\n\nSincerely,\nTeam Orbit",
+    "from_email": "hiring@orbit.dev"
+  },
+  {
+    "subject": "Technical Interview - Senior Data Engineer at TechFlow",
+    "body": "Hi Casey,\n\nWe'd like to schedule your technical interview for the Senior Data Engineer position at TechFlow.\n\nInterview Details:\n📅 Wednesday, August 14, 2025\n🕒 2:30pm - 4:00pm (PST)\n👥 Interviewers: Dr. Lisa Park (VP Engineering) and Ahmed Hassan (Principal Data Engineer)\n📍 Format: Zoom (link will be provided)\n\nThe session will cover system design, data architecture, and coding challenges.\n\nPlease confirm your availability.\n\nBest regards,\nTechFlow Talent Team",
+    "from_email": "careers@techflow.io"
+  },
+  {
+    "subject": "Interview for Frontend Engineer at PixelWave",
+    "body": "Hi John,\n\nYour interview for the position of Frontend Engineer at PixelWave is scheduled on August 10, 2025 at 3:00 PM.\n\nInterview with: Rachel Martinez (Senior Frontend Engineer) and Tom Wilson (Engineering Manager)\n\nThe interview will focus on React, TypeScript, and frontend architecture patterns.\n\nZoom link: https://pixelwave.zoom.us/j/123456789\n\nBest,\nPixelWave Hiring Team",
+    "from_email": "hiring@pixelwave.dev"
+  }
+
+]
