@@ -31,8 +31,16 @@ def add_patterns(nlp: Language):
         [{"LOWER": "full"}, {"LOWER": "stack"}, {"LOWER": "developer"}],
         [{"LOWER": "data"}, {"LOWER": "scientist"}],
         [{"LOWER": "product"}, {"LOWER": "manager"}],
+        [{"LOWER": "marketing"}, {"LOWER": "manager"}],
+        [{"LOWER": "brand"}, {"LOWER": "marketing"}, {"LOWER": "manager"}],
+        [{"LOWER": "engineering"}, {"LOWER": "manager"}],
         [{"LOWER": "ux"}, {"LOWER": {"IN": ["intern", "designer"]}}],
         [{"LOWER": "ui"}, {"LOWER": "designer"}],
+        
+        # Generic manager titles
+        [{"IS_TITLE": True}, {"LOWER": "manager"}],
+        [{"IS_TITLE": True}, {"LOWER": "director"}],
+        [{"IS_TITLE": True}, {"LOWER": "lead"}],
         
         # Internship roles
         [{"LOWER": "software"}, {"LOWER": "engineering"}, {"LOWER": "internship"}],
@@ -47,20 +55,31 @@ def add_patterns(nlp: Language):
 
     # COMPANY - More precise company name extraction
     matcher.add("COMPANY", [
-        # Companies after "at" - capture what follows, not the "at"
-        [{"LOWER": "at"}, {"IS_TITLE": True, "POS": "PROPN", "LOWER": {"NOT_IN": ["bitwise", "launchpad", "orbit", "ripple", "cognivault"]}}, {"IS_TITLE": True, "POS": "PROPN", "OP": "?"}],
+        # Companies after "at" - exclude job titles and roles
+        [{"LOWER": "at"}, {"POS": "PROPN", 
+          "LOWER": {"NOT_IN": ["marketing", "engineering", "software", "product", "data", "brand", "senior", "junior", "lead", "director", "manager", "bitwise", "launchpad", "orbit", "ripple", "cognivault"]}}, 
+         {"POS": "PROPN", "OP": "?"}],
         
-        # Specific known company patterns
+        # Specific known company patterns (expanded list)
         [{"LOWER": "launchpad"}, {"LOWER": "ai"}],
         [{"LOWER": "startup"}, {"LOWER": "shell"}],
         [{"LOWER": "bitwise"}, {"LOWER": "labs"}],
         [{"LOWER": "ripple"}, {"LOWER": "design"}],
         [{"LOWER": "cognivault"}, {"LOWER": "ai", "OP": "?"}, {"LOWER": "labs", "OP": "?"}],
-        [{"IS_TITLE": True, "LOWER": {"IN": ["novaworks", "cloudspire", "quantmind", "orbit", "pixelwave", "openai"]}}],
         
-        # Two-word company names (but exclude team references)
-        [{"IS_TITLE": True, "POS": "PROPN", "LOWER": {"NOT_IN": ["recruiting", "hr", "hiring", "talent", "team"]}}, 
-         {"IS_TITLE": True, "POS": "PROPN", "LOWER": {"NOT_IN": ["team", "recruiting", "hiring"]}}],
+        # Single word well-known companies
+        [{"IS_TITLE": True, "LOWER": {"IN": ["novaworks", "cloudspire", "quantmind", "orbit", "pixelwave", "openai", "canva", "dropbox", "google", "microsoft", "apple", "facebook", "meta", "amazon", "netflix", "spotify", "uber", "lyft", "airbnb", "stripe", "zoom", "slack", "notion", "figma", "github", "gitlab", "atlassian", "salesforce", "oracle", "ibm", "intel", "nvidia", "amd", "tesla", "spacex", "techcorp", "dasher"]}}],
+        
+        # Two-word company names after "with" or "for" - be more restrictive
+        [{"LOWER": {"IN": ["with", "for"]}}, {"IS_TITLE": True, "POS": "PROPN", 
+          "LOWER": {"NOT_IN": ["marketing", "engineering", "software", "product", "data", "brand", "senior", "junior", "lead", "director", "manager", "recruiting", "hr", "hiring", "talent", "team", "dear", "hi", "hello"]}}, 
+         {"IS_TITLE": True, "POS": "PROPN", 
+          "LOWER": {"NOT_IN": ["manager", "director", "lead", "team", "recruiting", "hiring", "engineering", "marketing", "candidate", "there"]}}],
+        
+        # Company names in professional context (avoid greetings)
+        [{"IS_TITLE": True, "POS": "PROPN", "LOWER": {"NOT_IN": ["dear", "hi", "hello", "hey", "best", "thanks", "sincerely", "regards"]}, 
+          "LOWER": {"NOT_IN": ["marketing", "engineering", "software", "product", "data", "brand", "senior", "junior", "lead", "director", "manager", "recruiting", "hr", "hiring", "talent", "team"]}}, 
+         {"LOWER": {"IN": ["recruiting", "team", "hr"]}}],
     ])
 
     # DURATION - More comprehensive time durations

@@ -129,12 +129,14 @@ class InterviewStore(InterviewDB, BaseAgent):
                 return AgentOutput(
                     success=False,
                     data={},
+                    metadata={"action": action, "timestamp": datetime.now().isoformat()},
                     errors=[f"Unknown action: {action}"]
                 )
                 
             return AgentOutput(
                 success=True,
                 data=result,
+                metadata={"action": action, "timestamp": datetime.now().isoformat()},
                 errors=None
             )
             
@@ -142,6 +144,7 @@ class InterviewStore(InterviewDB, BaseAgent):
             return AgentOutput(
                 success=False,
                 data={},
+                metadata={"action": input_data.data.get("action", "unknown"), "timestamp": datetime.now().isoformat()},
                 errors=[str(e)]
             )
 

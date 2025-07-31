@@ -18,6 +18,7 @@ Email -> Classify -> [If Interview] -> Extract Entities -> Check Memory ->
 import os
 import sys
 import asyncio
+import re
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 
@@ -71,7 +72,10 @@ def classify_emails(emails):
         sender = email.get('sender', '').lower()
         
         # TEMPORARY RULES - replace with AI classification
-        if 'interview' in subject or 'invitation' in subject:
+        # Interview-related keywords
+        interview_keywords = ['interview', 'invitation', 'invite', 'schedule', 'meeting', 'call', 'chat', 'discussion', 'screening', 'phone screen', 'video call', 'zoom', 'hiring', 'position', 'role', 'job', 'opportunity', 'application']
+        
+        if any(keyword in subject for keyword in interview_keywords):
             classified['Interview_invite'].append(email)
         elif 'dinner' in subject or 'plans' in subject or 'from kathy' in subject:
             classified['Personal_sent'].append(email)
@@ -109,6 +113,27 @@ def format_email_summaries(classified_emails):
         })
     
     return summaries
+
+def clean_email_content(text: str) -> str:
+    """Clean email content by removing URLs, tracking links, and noise"""
+    if not text:
+        return text
+    
+    # Remove URLs and tracking links
+    text = re.sub(r'https?://[^\s\]]+', '', text)
+    
+    # Remove email addresses in brackets/links
+    text = re.sub(r'\[[^\]]*@[^\]]*\]', '', text)
+    
+    # Remove calendar tracking text
+    text = re.sub(r'Reply for \S+@\S+', '', text)
+    text = re.sub(r'mark_sender_as_known\S*', '', text)
+    
+    # Remove extra whitespace and clean up formatting
+    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'\n\s*\n', '\n\n', text)
+    
+    return text.strip()
 
 class EnhancedEmailPipeline:
     """Enhanced email processing with intelligent routing and memory"""
@@ -210,8 +235,21 @@ class EnhancedEmailPipeline:
     async def _extract_entities(self, email_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract entities using EntityExtractorAgent"""
         try:
+            # Combine subject and body for better entity extraction
+            subject = email_data.get('subject', '')
+            body = email_data.get('body', '')
+            
+            # Clean the content to remove tracking URLs and noise
+            clean_subject = clean_email_content(subject)
+            clean_body = clean_email_content(body)
+            
+            # Use both cleaned subject and body for entity extraction
+            combined_text = f"{clean_subject}\n\n{clean_body}".strip()
+            if not combined_text:
+                combined_text = clean_subject  # Fallback to just subject if body is empty
+                
             agent_input = AgentInput(data={
-                'text': email_data.get('body', ''),
+                'text': combined_text,
                 'email_id': email_data.get('id')
             })
             entities_output = await self.entity_extractor.execute(agent_input)
