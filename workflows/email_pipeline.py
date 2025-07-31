@@ -251,6 +251,10 @@ class EmailPipeline:
                         result['memory_updated'] = memory_update.get('success', False)
                     else:
                         print(f"🔄 Skipping research for {entities_result['data'].get('COMPANY', ['Unknown'])[0]} - similar interview already prepped")
+                        
+                        # Still try to update memory with any missing entity information
+                        memory_update = await self._update_memory(entities_result['data'], None)
+                        result['memory_updated'] = memory_update.get('success', False)
             
             result['processing_time'] = (datetime.now() - start_time).total_seconds()
             return result

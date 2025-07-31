@@ -135,8 +135,27 @@ class EntityExtractor(BaseAgent):
             # === INTERVIEWER ===
             elif label == "INTERVIEWER":
                 for ent in span.ents:
-                    if ent.label_ == "PERSON" and ent.text not in entities["INTERVIEWER"]:
-                        entities["INTERVIEWER"].append(ent.text)
+                    if ent.label_ == "PERSON":
+                        # Handle multi-line person entities (e.g., "Archana\nDandilyonn SEEDS Team")
+                        # Extract just the first line/name
+                        person_text = ent.text.strip()
+                        if '\n' in person_text:
+                            # Take the first line, which is usually the person's name
+                            first_line = person_text.split('\n')[0].strip()
+                            if first_line and len(first_line) >= 2:
+                                person_text = first_line
+                        
+                        # Clean up the person name
+                        person_text = person_text.replace('\n', ' ').strip()
+                        
+                        # Skip if it looks like an organization or email
+                        if any(word in person_text.lower() for word in [
+                            "team", "company", "corp", "inc", "ltd", "llc", "@", ".com"
+                        ]):
+                            continue
+                            
+                        if person_text not in entities["INTERVIEWER"] and len(person_text) >= 2:
+                            entities["INTERVIEWER"].append(person_text)
                 continue  # Skip adding raw INTERVIEWER span later
 
             # === COMPANY ===

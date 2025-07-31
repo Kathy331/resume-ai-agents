@@ -178,6 +178,23 @@ def add_patterns(nlp: Language):
         [{"LOWER": "best"}, {"LOWER": "regards"}, {"IS_PUNCT": True, "OP": "?"}, 
          {"ENT_TYPE": "PERSON", "OP": "+"}],
         
+        # Extended signature patterns for various closing styles
+        [{"LOWER": "with"}, {"LOWER": {"IN": ["warmth", "excitement", "gratitude", "appreciation"]}}, 
+         {"IS_PUNCT": True, "OP": "?"}, {"IS_SPACE": True, "OP": "*"}, {"ENT_TYPE": "PERSON", "OP": "+"}],
+        [{"LOWER": "with"}, {"LOWER": {"IN": ["warmth", "excitement", "gratitude", "appreciation"]}}, 
+         {"LOWER": "and"}, {"LOWER": {"IN": ["excitement", "gratitude", "appreciation", "joy"]}},
+         {"IS_PUNCT": True, "OP": "?"}, {"IS_SPACE": True, "OP": "*"}, {"ENT_TYPE": "PERSON", "OP": "+"}],
+        
+        # More flexible signature patterns that handle line breaks
+        [{"LOWER": "excitement"}, {"IS_PUNCT": True}, {"IS_SPACE": True, "OP": "*"}, 
+         {"ENT_TYPE": "PERSON", "LENGTH": {">=": 3}}],
+        [{"LOWER": {"IN": ["warmth", "gratitude", "excitement"]}}, {"IS_PUNCT": True}, 
+         {"IS_SPACE": True, "OP": "*"}, {"ENT_TYPE": "PERSON", "LENGTH": {">=": 3}}],
+        
+        # Names that appear alone on a line (common in email signatures)
+        [{"ENT_TYPE": "PERSON", "IS_TITLE": True, "LENGTH": {">=": 3}, 
+          "LOWER": {"NOT_IN": ["seedling", "calamari", "dear", "hi", "hello", "hey", "google", "zoom", "meet"]}}],
+        
         # Names with titles/positions in signatures
         [{"ENT_TYPE": "PERSON", "OP": "+"}, {"LOWER": {"IN": ["founder", "ceo", "recruiter", "hr", "manager", "director"]}}],
         [{"ENT_TYPE": "PERSON", "OP": "+"}, {"TEXT": ","}, {"LOWER": {"IN": ["founder", "ceo", "recruiter", "hr", "manager", "director"]}}],
