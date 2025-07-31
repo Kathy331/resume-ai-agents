@@ -5,7 +5,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-from google_apis_start import create_service
+from shared.google_oauth.google_apis_start import create_service
 ### (B-Email Functions)
 
 ### READING EMAILS
@@ -83,6 +83,7 @@ def get_email_message_details(service, msg_id):
     body = extract_body(payload)
 
     return {
+        'id': msg_id,
         'subject': subject,
         'sender': sender,
         'recipients': recipients,
