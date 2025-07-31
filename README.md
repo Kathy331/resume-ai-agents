@@ -191,7 +191,7 @@ Once the app is running, you can:
 
 Kathy Chen - [@Linkedin](https://www.linkedin.com/in/kathy-chen-b35b532a6/) - email: kathychen331@outlook.com
 
-Grace Chen - [@Linkedin](https://www.linkedin.com/in/chen-p-grace/) - email: 
+Grace Chen - [@Linkedin](https://www.linkedin.com/in/chen-p-grace/) - email: chenpgrace1@gmail.com
 
 Julianna Bracamonte - [@Linkedin](https://www.linkedin.com/in/julianna-bracamonte-759644237/) - email: 
 
@@ -217,8 +217,3 @@ Julianna Bracamonte - [@Linkedin](https://www.linkedin.com/in/julianna-bracamont
 [stars-url]: https://github.com/Kathy331/resume-ai-agents/stargazers
 [issues-shield]: https://img.shields.io/github/issues/Kathy331/resume-ai-agents.svg?style=flat-square
 [issues-url]: https://github.com/Kathy331/resume-ai-agents/issues
-
-### 8. Secret Files
-In order to run the Google OAuth and APIs, you must have a copy of "client_secret.json" inside the google_oauth folder (.../resume-ai-agents/shared/google_oauth).
-
-To get this .json file, notify Grace (jjgacer) about it!
