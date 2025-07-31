@@ -1,0 +1,40 @@
+Jane Smith  
+Email: jane.smith@example.com  
+Phone: (555) 987-6543  
+LinkedIn: linkedin.com/in/janesmith  
+Location: San Francisco, CA  
+
+Professional Summary:  
+Detail-oriented Software Engineer with 5+ years of experience designing, developing, and deploying scalable web applications. Proven expertise in full-stack development, cloud infrastructure, and Agile methodologies. Passionate about clean code, collaborative development, and mentoring junior engineers.
+
+Technical Skills:  
+Languages: Python, JavaScript (React, Node.js), Java  
+Cloud & DevOps: AWS, Docker, Kubernetes, GitHub Actions  
+Databases: PostgreSQL, MongoDB  
+Other: GraphQL, REST APIs, CI/CD pipelines, TDD  
+
+Experience:  
+
+**Senior Software Engineer – Dropbox**  
+*San Francisco, CA | June 2021 – Present*  
+- Led a team of 4 engineers to redesign the document collaboration platform using React and Node.js  
+- Spearheaded the migration of legacy services to Kubernetes, reducing deployment time by 40%  
+- Implemented GraphQL API layer, improving client-side performance by 25%  
+
+**Software Engineer – Atlassian**  
+*Mountain View, CA | Aug 2018 – May 2021*  
+- Built REST APIs and UI components for Jira Software used by over 1M users  
+- Created internal tools to automate onboarding workflows, saving 200+ hours annually  
+- Mentored 3 junior developers, promoting a strong engineering culture  
+
+Education:  
+B.S. in Computer Science  
+University of California, Berkeley – May 2018  
+
+Certifications:  
+AWS Certified Developer – Associate (2020)  
+ScrumMaster (CSM) – Scrum Alliance  
+
+Projects:  
+- **Open Source Contributor**, FastAPI (2022): Improved dependency injection system and documented async patterns  
+- **Hackathon Winner**, Tech4Good SF (2019): Built a community mental health resource finder using Google Maps API  
