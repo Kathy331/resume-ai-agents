@@ -1,4 +1,4 @@
-# Enhanced Email Pipeline Flow with LangGraph
+# Email Pipeline Flow with LangGraph
 
 ## Flow Diagram
 
