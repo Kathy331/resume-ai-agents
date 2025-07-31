@@ -86,30 +86,84 @@ This document outlines the design and functionality of each agent in the system.
 
 ## Tier 3: Research Intelligence
 
-### Company Researcher
+### Company Research Agent
 
-- **File:** `agents/research_engine/company_researcher.py`  
-- **Purpose:** Gathers comprehensive insights about target companies using AI-powered web search.  
-- **Components:** `company_researcher.py`, `research_orchestrator.py`, `config.py`  
-- **Input:** Company name from extracted entities  
-- **Output:** Company overview, recent news, culture insights, funding status, strategic direction  
-- **Technologies:** Tavily AI API, prompt-based summarization, structured data extraction  
+**Status**: `PRODUCTION`
 
-### Interviewer Researcher
+**Purpose**: Deep company intelligence gathering using multi-source web research
 
-- **File:** `agents/research_engine/interviewer_researcher.py`  
-- **Purpose:** Researches professional background and context for interview personalization.  
-- **Input:** Interviewer name, company context  
-- **Output:** Professional background, role details, potential conversation starters  
-- **Technologies:** Tavily AI search, LinkedIn intelligence, professional network analysis  
+**Capabilities**:
+- Company profile analysis (leadership, culture, recent news)
+- Financial health assessment and growth trajectory evaluation
+- Product portfolio and competitive positioning research
+- Recent developments and strategic direction analysis
 
-### Role Researcher
+**Implementation**:
+- Web scraping through Tavily API for comprehensive data gathering
+- Multi-source aggregation with credibility scoring
+- Structured output format for downstream agent consumption
+- Rate-limited API calls with intelligent retry mechanisms
 
-- **File:** `agents/research_engine/role_researcher.py`  
-- **Purpose:** Analyzes job roles and industry trends for interview preparation.  
-- **Input:** Role title and company context  
-- **Output:** Role expectations, skill requirements, industry benchmarks, career progression paths  
-- **Technologies:** Market intelligence APIs, trend analysis, structured role profiling  
+**Integration**:
+- Feeds into Interview Preparation Pipeline
+- Provides context for Email Writer Agent personalization
+- Supports LinkedIn Finder Agent with company insights
+
+### Interview Prep Intelligence Agent (IPIA)
+
+**Status**: `PRODUCTION`
+
+**Purpose**: Multi-agent system for comprehensive interview preparation through intelligent context analysis and strategic question generation
+
+**Architecture**: Multi-agent system with three specialized components:
+- **Context Decomposer**: Chain-of-thought analysis for situation understanding
+- **Question Generator**: Strategy-aware question formulation across multiple domains
+- **Prep Summarizer**: Comprehensive preparation package assembly
+
+**Core Capabilities**:
+- **Context Analysis**: Deep comprehension of company culture, role requirements, and interview dynamics
+- **Multi-Domain Question Generation**: Company-focused, role-specific, behavioral, and strategic questions
+- **Differentiated Strategy**: Adapts questioning approach based on company type and industry
+- **Comprehensive Prep Packages**: Structured outputs with talking points, question categorization, and strategic recommendations
+
+**Technical Implementation**:
+- **Chain-of-Thought Reasoning**: Structured analytical process for context understanding
+- **Template-Based Generation**: Domain-specific question templates with dynamic customization
+- **Quality Assessment**: Built-in evaluation metrics for question relevance and strategic value
+- **Memory Integration**: Leverages historical interview data and company research
+
+**AI Techniques Used**:
+- Few-shot prompting for consistent output structure
+- Chain-of-thought reasoning for deep context analysis
+- Template-based generation with dynamic customization
+- Multi-agent coordination for specialized task distribution
+
+**Input Requirements**:
+- Company name and context information
+- Role details and requirements
+- Interview stage and format
+- User background and experience level
+
+**Output Structure**:
+- **Context Analysis**: Situation understanding and strategic insights
+- **Question Categories**: 
+  - Company Strategy & Vision (3-4 questions)
+  - Role-Specific & Technical (3-4 questions)
+  - Behavioral & Cultural (3-4 questions)
+  - Strategic & Forward-Looking (3-4 questions)
+- **Preparation Summary**: Key talking points, strategic recommendations, and success metrics
+
+**Integration Points**:
+- **Deep Research Pipeline**: Primary integration point for workflow orchestration
+- **Research Engine**: Consumes company and role intelligence
+- **Memory Systems**: Stores preparation packages and tracks interview outcomes
+- **Email Pipeline**: Triggered by interview invitation detection
+
+**Performance Metrics**:
+- Generates 12-16 strategic questions per interview context
+- Differentiates questioning strategy based on company characteristics
+- Achieves high relevance scores through context-aware generation
+- Supports iterative refinement based on user feedback  
 
 ---
 

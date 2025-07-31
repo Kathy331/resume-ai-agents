@@ -21,6 +21,39 @@
   - Lifecycle state management
   - Conditional processing based on interview history
 
+### **Deep Research Pipeline**
+- **Location**: `workflows/deep_research_pipeline.py`
+- **Purpose**: Advanced interview preparation through multi-agent intelligence analysis
+- **Features**:
+  - Integration with Interview Prep Intelligence Agent (IPIA)
+  - Multi-domain question generation
+  - Strategic preparation package assembly
+  - Context-aware analysis and recommendations
+- **Usage**:
+  ```python
+  from workflows.deep_research_pipeline import process
+  result = await process(context)
+  ```
+
+### **Interview Prep Intelligence Agent (IPIA)**
+- **Location**: `agents/interview_prep_intelligence/`
+- **Purpose**: Multi-agent system for comprehensive interview preparation
+- **Components**:
+  - **Context Decomposer**: Chain of thought analysis for situation understanding
+  - **Question Generator**: Strategy aware question formulation across domains
+  - **Prep Summarizer**: Comprehensive preparation package assembly
+- **Features**:
+  - Chain of thought reasoning for deep context analysis
+  - Template based generation with dynamic customization
+  - Multi agent coordination for specialized task distribution
+  - Quality assessment with relevance scoring
+- **Usage**:
+  ```python
+  from agents.interview_prep_intelligence.agent import InterviewPrepIntelligenceAgent
+  agent = InterviewPrepIntelligenceAgent()
+  result = await agent.process(context)
+  ```
+
 ### **Entity Extraction Tools**
 
 #### **Custom NER Model Training**
@@ -80,6 +113,64 @@
   pytest tests/test_agents/test_keyword_extractor.py
   ```
 
+#### **IPIA Testing Suite**
+- **Location**: `tests/test_interview_prep_intelligence/`
+- **Purpose**: Comprehensive testing for Interview Prep Intelligence Agent system
+- **Components**:
+  - **Email Processing Tests**: `test_seeds_juteq_emails.py` - Tests with real SEEDS and JUTEQ email contexts
+  - **System Demo**: `demo_deep_research_system.py` - Interactive demonstration of IPIA capabilities
+  - **Integration Tests**: `integration_example.py` - End-to-end pipeline testing
+  - **Comprehensive Prep Guide**: `comprehensive_prep_guide.py` - Detailed interview preparation report generator
+- **Features**:
+  - Multi-context differentiation testing (sustainability vs. tech companies)
+  - Question quality assessment and strategic value validation
+  - Performance metrics tracking (12-16 questions per context)
+  - Chain-of-thought reasoning validation
+  - Detailed prep reports with strategic recommendations
+- **Usage**:
+  ```bash
+  # Run IPIA-specific tests
+  pytest tests/test_interview_prep_intelligence/
+  
+  # Run demo system
+  python tests/test_interview_prep_intelligence/demo_deep_research_system.py
+  
+  # Generate comprehensive prep guide
+  python tests/test_interview_prep_intelligence/comprehensive_prep_guide.py
+  ```
+
+### **OpenAI Caching System**
+
+#### **OpenAI Cache Management**
+- **Location**: `shared/openai_cache.py`
+- **Purpose**: Reduce API costs and improve development speed with intelligent response caching
+- **Features**:
+  - File-based persistent caching with TTL (Time-To-Live)
+  - Company-specific cache tracking for SEEDS and JUTEQ
+  - Automatic cache expiration (default: 1 week)
+  - Mock response generation when API key unavailable
+  - Cache statistics and performance monitoring
+- **Cache Directory**: `.openai_cache/` (auto-created, gitignored)
+- **Usage**:
+  ```python
+  from shared.openai_cache import OpenAICache
+  
+  # Create cache instance
+  cache = OpenAICache()
+  
+  # Check cache stats
+  stats = cache.get_cache_stats()
+  print(f"Cached companies: {stats['companies_cached']}")
+  
+  # Clear cache if needed
+  cleared = cache.clear()
+  ```
+- **Benefits**:
+  - Significant cost reduction during development
+  - Faster response times for repeated queries
+  - Offline development capability with mock responses
+  - Company-specific cache organization
+
 #### **Sample Data Management**
 - **Location**: `tests/sample_data/`
 - **Files**: `resumes.json`, `sample_emails.json`, `interview_invites.json`
@@ -119,17 +210,31 @@
 3. **API Limits**: Monitor token usage, especially during development
 4. **Documentation**: Update docs when adding new tools or features
 
+### **IPIA Development Guidelines**
+1. **Multi-Agent Coordination**: Test individual components before integration
+2. **Context Analysis**: Validate chain-of-thought reasoning with diverse contexts
+3. **Question Quality**: Ensure strategic value and relevance in generated questions
+4. **Template Management**: Maintain consistency across different company types
+5. **Performance Monitoring**: Track question generation metrics and user feedback
+6. **Cache Management**: Leverage OpenAI caching for development and testing
+7. **Company Restriction**: Focus on SEEDS and JUTEQ company contexts for testing
+8. **Mock Response Quality**: Ensure mock responses maintain realistic structure and content
+
 ### **Debugging Tools**
 - **Logging**: Comprehensive logging throughout the pipeline
 - **Error Handling**: Robust error handling with retry mechanisms
 - **State Inspection**: LangGraph state visualization for workflow debugging
+- **IPIA Tracing**: Individual agent component debugging and performance analysis
 
 ### **Performance Optimization**
 - **Caching**: Research result caching to reduce API calls
+- **OpenAI Caching**: Intelligent response caching with company-specific tracking
 - **Async Processing**: Concurrent email and research processing
 - **Memory Management**: Efficient database queries and memory usage
   - **Where:** Data manipulation in UI dashboards, CSV processing, metrics calculation
   - **Why:** Essential for data analysis and manipulation, particularly useful for processing interview statistics and generating insights
+- **Mock Responses**: Fallback system for development without API keys
+- **Cache-First Strategy**: Check cache before making expensive API calls
 
 #### 🔗 Integrations & APIs
 * ![Gmail API](https://img.shields.io/badge/Gmail_API-EA4335?style=flat-square&logo=gmail&logoColor=white) **Gmail API Integration**
