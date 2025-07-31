@@ -115,6 +115,22 @@ class EntityExtractor(BaseAgent):
                     "team", "labs", "manager", "acquisition", "engineer", "invitation", "bitwise"
                 ]):
                     continue
+                    
+                # For candidate matches, extract only the name part (skip greetings)
+                # If the match starts with "Hi", "Hello", "Dear", etc., take only the name
+                candidate_text = entity_text
+                greeting_words = ["hi", "hello", "dear", "hey"]
+                words = candidate_text.split()
+                
+                if len(words) >= 2 and words[0].lower() in greeting_words:
+                    # Take only the name part (second word)
+                    candidate_text = words[1]
+                
+                # Only add if it looks like a proper name (capitalized, reasonable length)
+                if candidate_text and candidate_text[0].isupper() and 2 <= len(candidate_text) <= 20:
+                    if candidate_text not in entities["CANDIDATE"]:
+                        entities["CANDIDATE"].append(candidate_text)
+                continue  # Skip the default addition at the end
 
             # === INTERVIEWER ===
             elif label == "INTERVIEWER":
@@ -127,8 +143,27 @@ class EntityExtractor(BaseAgent):
             elif label == "COMPANY":
                 if entity_text.lower().startswith("at "):
                     entity_text = entity_text[3:].strip()
-                if any(w in entity_text.lower() for w in ["team", "recruiting", "hiring", "acquisition"]):
+                    
+                # Skip partial/invalid company extractions
+                invalid_company_phrases = [
+                    "team", "recruiting", "hiring", "acquisition", "with google", "for internship", 
+                    "google meet", "zoom meeting", "zoom call", "meet", "call", "session",
+                    "opportunity", "interview", "meeting", "with", "for"
+                ]
+                
+                if any(phrase in entity_text.lower() for phrase in invalid_company_phrases):
                     continue
+                    
+                # Skip if it's just a platform/tool name without context
+                platform_tools = ["zoom", "google", "meet", "teams", "slack"]
+                if entity_text.lower() in platform_tools:
+                    continue
+                    
+                # Only keep if it looks like a real company name
+                if len(entity_text.strip()) >= 3 and not entity_text.lower().startswith(('hi ', 'hello ', 'dear ')):
+                    if entity_text not in entities["COMPANY"]:
+                        entities["COMPANY"].append(entity_text)
+                continue  # Skip the default addition
 
             # === DATE ===
             elif label == "DATE":

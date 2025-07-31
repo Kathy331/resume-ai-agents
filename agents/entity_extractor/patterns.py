@@ -9,17 +9,13 @@ def add_patterns(nlp: Language):
     # CANDIDATE - Only actual person names, exclude greetings and company/role words
     matcher.add("CANDIDATE", [
         # Names after greetings - capture ONLY the name, not the greeting
-        [{"LOWER": "hi"}, {"IS_TITLE": True, "POS": "PROPN", "LENGTH": {">=": 3}, 
-          "LOWER": {"NOT_IN": ["software", "product", "data", "backend", "frontend", "full", "engineering", "research", "interview", "shell", "design", "labs", "team", "recruiting", "talent", "acquisition", "online", "event", "options", "center", "jul", "tue", "senior", "principal", "technical"]}}],
-        [{"LOWER": "hello"}, {"IS_TITLE": True, "POS": "PROPN", "LENGTH": {">=": 3},
-          "LOWER": {"NOT_IN": ["software", "product", "data", "backend", "frontend", "full", "engineering", "research", "interview", "shell", "design", "labs", "team", "recruiting", "talent", "acquisition", "online", "event", "options", "center", "jul", "tue", "senior", "principal", "technical"]}}],
-        [{"LOWER": "dear"}, {"IS_TITLE": True, "POS": "PROPN", "LENGTH": {">=": 3},
-          "LOWER": {"NOT_IN": ["software", "product", "data", "backend", "frontend", "full", "engineering", "research", "interview", "shell", "design", "labs", "team", "recruiting", "talent", "acquisition", "online", "event", "options", "center", "jul", "tue", "senior", "principal", "technical"]}}],
-        [{"LOWER": "hey"}, {"IS_TITLE": True, "POS": "PROPN", "LENGTH": {">=": 3},
-          "LOWER": {"NOT_IN": ["software", "product", "data", "backend", "frontend", "full", "engineering", "research", "interview", "shell", "design", "labs", "team", "recruiting", "talent", "acquisition", "online", "event", "options", "center", "jul", "tue", "senior", "principal", "technical"]}}],
+        # More flexible approach: any proper noun after greeting, but exclude business terms
+        [{"LOWER": {"IN": ["hi", "hello", "dear", "hey"]}}, 
+         {"IS_TITLE": True, "POS": "PROPN", "LENGTH": {">=": 3}, 
+          "LOWER": {"NOT_IN": ["google", "zoom", "meet", "teams", "slack", "software", "product", "data", "backend", "frontend", "full", "engineering", "research", "interview", "shell", "design", "labs", "team", "recruiting", "talent", "acquisition", "online", "event", "options", "center", "jul", "tue", "wed", "thu", "fri", "sat", "sun", "senior", "principal", "technical", "marketing", "manager", "director", "internship", "opportunity", "candidate", "there", "everyone", "all", "applicant", "intern", "student"]}}],
         
-        # Standalone names (but exclude names that appear after "with", "interviewers:", etc.)
-        # This is tricky - we need context-aware matching
+        # Do NOT match standalone names without clear context - too error-prone
+        # Only match names when they clearly appear in candidate context
     ])
 
     # ROLE - Job positions and roles (more specific patterns)
@@ -57,7 +53,7 @@ def add_patterns(nlp: Language):
     matcher.add("COMPANY", [
         # Companies after "at" - exclude job titles and roles
         [{"LOWER": "at"}, {"POS": "PROPN", 
-          "LOWER": {"NOT_IN": ["marketing", "engineering", "software", "product", "data", "brand", "senior", "junior", "lead", "director", "manager", "bitwise", "launchpad", "orbit", "ripple", "cognivault"]}}, 
+          "LOWER": {"NOT_IN": ["marketing", "engineering", "software", "product", "data", "brand", "senior", "junior", "lead", "director", "manager", "google", "zoom", "meet", "internship", "opportunity", "interview", "session", "call", "meeting"]}}, 
          {"POS": "PROPN", "OP": "?"}],
         
         # Specific known company patterns (expanded list)
@@ -66,19 +62,20 @@ def add_patterns(nlp: Language):
         [{"LOWER": "bitwise"}, {"LOWER": "labs"}],
         [{"LOWER": "ripple"}, {"LOWER": "design"}],
         [{"LOWER": "cognivault"}, {"LOWER": "ai", "OP": "?"}, {"LOWER": "labs", "OP": "?"}],
+        [{"LOWER": "techflow"}],
+        [{"LOWER": "pixelwave"}],
+        [{"LOWER": "juteq"}],
+        [{"LOWER": "seeds"}],
         
-        # Single word well-known companies
-        [{"IS_TITLE": True, "LOWER": {"IN": ["novaworks", "cloudspire", "quantmind", "orbit", "pixelwave", "openai", "canva", "dropbox", "google", "microsoft", "apple", "facebook", "meta", "amazon", "netflix", "spotify", "uber", "lyft", "airbnb", "stripe", "zoom", "slack", "notion", "figma", "github", "gitlab", "atlassian", "salesforce", "oracle", "ibm", "intel", "nvidia", "amd", "tesla", "spacex", "techcorp", "dasher"]}}],
+        # Single word well-known companies (exclude platform/tool names)
+        [{"IS_TITLE": True, "LOWER": {"IN": ["novaworks", "cloudspire", "quantmind", "orbit", "pixelwave", "techflow", "juteq", "seeds", "openai", "canva", "dropbox", "microsoft", "apple", "facebook", "meta", "amazon", "netflix", "spotify", "uber", "lyft", "airbnb", "stripe", "slack", "notion", "figma", "github", "gitlab", "atlassian", "salesforce", "oracle", "ibm", "intel", "nvidia", "amd", "tesla", "spacex", "techcorp", "dasher"]}}],
         
-        # Two-word company names after "with" or "for" - be more restrictive
-        [{"LOWER": {"IN": ["with", "for"]}}, {"IS_TITLE": True, "POS": "PROPN", 
-          "LOWER": {"NOT_IN": ["marketing", "engineering", "software", "product", "data", "brand", "senior", "junior", "lead", "director", "manager", "recruiting", "hr", "hiring", "talent", "team", "dear", "hi", "hello"]}}, 
-         {"IS_TITLE": True, "POS": "PROPN", 
-          "LOWER": {"NOT_IN": ["manager", "director", "lead", "team", "recruiting", "hiring", "engineering", "marketing", "candidate", "there"]}}],
+        # DO NOT match phrases like "with Google Meet", "for Internship", etc.
+        # Only match actual company names in proper context
         
-        # Company names in professional context (avoid greetings)
-        [{"IS_TITLE": True, "POS": "PROPN", "LOWER": {"NOT_IN": ["dear", "hi", "hello", "hey", "best", "thanks", "sincerely", "regards"]}, 
-          "LOWER": {"NOT_IN": ["marketing", "engineering", "software", "product", "data", "brand", "senior", "junior", "lead", "director", "manager", "recruiting", "hr", "hiring", "talent", "team"]}}, 
+        # Company names with recruiting/team context
+        [{"IS_TITLE": True, "POS": "PROPN", 
+          "LOWER": {"NOT_IN": ["dear", "hi", "hello", "hey", "best", "thanks", "sincerely", "regards", "google", "zoom", "meet", "internship", "opportunity", "interview", "session", "call", "meeting", "marketing", "engineering", "software", "product", "data", "brand", "senior", "junior", "lead", "director", "manager", "recruiting", "hr", "hiring", "talent", "team", "with", "for"]}}, 
          {"LOWER": {"IN": ["recruiting", "team", "hr"]}}],
     ])
 
@@ -169,9 +166,21 @@ def add_patterns(nlp: Language):
         # Names in parentheses patterns
         [{"TEXT": "("}, {"ENT_TYPE": "PERSON", "OP": "+"}, {"TEXT": ")"}],
 
-        # Signature patterns
-        [{"LOWER": {"IN": ["best", "regards", "thanks", "sincerely"]}},
-        {"ENT_TYPE": "PERSON", "OP": "+"}],
+        # Self-introduction patterns like "I'm [Name]"
+        [{"LOWER": "i"}, {"LOWER": "am"}, {"ENT_TYPE": "PERSON", "OP": "+"}],
+        [{"LOWER": "i"}, {"TEXT": "'m"}, {"ENT_TYPE": "PERSON", "OP": "+"}],
+        [{"LOWER": "this"}, {"LOWER": "is"}, {"ENT_TYPE": "PERSON", "OP": "+"}],
+        [{"LOWER": "my"}, {"LOWER": "name"}, {"LOWER": "is"}, {"ENT_TYPE": "PERSON", "OP": "+"}],
+
+        # Signature patterns - names after common signature words
+        [{"LOWER": {"IN": ["best", "regards", "thanks", "sincerely"]}}, 
+         {"IS_PUNCT": True, "OP": "?"}, {"ENT_TYPE": "PERSON", "OP": "+"}],
+        [{"LOWER": "best"}, {"LOWER": "regards"}, {"IS_PUNCT": True, "OP": "?"}, 
+         {"ENT_TYPE": "PERSON", "OP": "+"}],
+        
+        # Names with titles/positions in signatures
+        [{"ENT_TYPE": "PERSON", "OP": "+"}, {"LOWER": {"IN": ["founder", "ceo", "recruiter", "hr", "manager", "director"]}}],
+        [{"ENT_TYPE": "PERSON", "OP": "+"}, {"TEXT": ","}, {"LOWER": {"IN": ["founder", "ceo", "recruiter", "hr", "manager", "director"]}}],
         
         # Sender name patterns
         [{"LOWER": "from"}, {"ENT_TYPE": "PERSON", "OP": "+"}],
