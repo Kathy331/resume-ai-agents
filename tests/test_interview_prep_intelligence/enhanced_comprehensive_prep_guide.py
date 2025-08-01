@@ -7,6 +7,7 @@ Provides specific, researched guidance with actionable steps instead of generic 
 import asyncio
 import sys
 import os
+import re
 from datetime import datetime
 from typing import Dict, List, Any
 
@@ -139,6 +140,129 @@ def calculate_name_confidence(candidate_name: str, original_name: str, context: 
     return min(confidence, 1.0)
 
 
+def analyze_linkedin_profile_content(content: str, company_name: str) -> Dict[str, Any]:
+    """Deep analysis of LinkedIn profile content to find hidden company connections"""
+    import re
+    
+    analysis = {
+        'volunteer_connections': [],
+        'about_section_mentions': [],
+        'experience_connections': [],
+        'education_connections': [],
+        'company_confidence': 0.0,
+        'connection_types': []
+    }
+    
+    content_lower = content.lower()
+    company_lower = company_name.lower()
+    
+    # Enhanced patterns for volunteer/founding activities
+    volunteer_patterns = [
+        rf'founder[^\n]*{re.escape(company_lower)}[^\n]*',
+        rf'{re.escape(company_lower)}[^\n]*founder[^\n]*',
+        rf'volunteer[^\n]*{re.escape(company_lower)}[^\n]*',
+        rf'{re.escape(company_lower)}[^\n]*volunteer[^\n]*',
+        rf'non-?profit[^\n]*{re.escape(company_lower)}[^\n]*',
+        rf'{re.escape(company_lower)}[^\n]*non-?profit[^\n]*',
+        rf'board[^\n]*{re.escape(company_lower)}[^\n]*',
+        rf'{re.escape(company_lower)}[^\n]*board[^\n]*'
+    ]
+    
+    # Look for volunteer/founding mentions
+    for pattern in volunteer_patterns:
+        matches = re.findall(pattern, content_lower, re.IGNORECASE | re.MULTILINE)
+        for match in matches:
+            if 'founder' in match or 'co-founder' in match:
+                analysis['volunteer_connections'].append({
+                    'type': 'founder',
+                    'text': match.strip(),
+                    'confidence': 0.9
+                })
+                analysis['company_confidence'] += 0.9
+                analysis['connection_types'].append('founder')
+            elif 'volunteer' in match:
+                analysis['volunteer_connections'].append({
+                    'type': 'volunteer',
+                    'text': match.strip(),
+                    'confidence': 0.8
+                })
+                analysis['company_confidence'] += 0.8
+                analysis['connection_types'].append('volunteer')
+            elif 'board' in match:
+                analysis['volunteer_connections'].append({
+                    'type': 'board',
+                    'text': match.strip(),
+                    'confidence': 0.7
+                })
+                analysis['company_confidence'] += 0.7
+                analysis['connection_types'].append('board')
+    
+    # Look for experience section mentions
+    experience_patterns = [
+        rf'experience[^\n]*{re.escape(company_lower)}[^\n]*',
+        rf'{re.escape(company_lower)}[^\n]*experience[^\n]*',
+        rf'work[^\n]*{re.escape(company_lower)}[^\n]*',
+        rf'{re.escape(company_lower)}[^\n]*work[^\n]*'
+    ]
+    
+    for pattern in experience_patterns:
+        matches = re.findall(pattern, content_lower, re.IGNORECASE | re.MULTILINE)
+        for match in matches:
+            analysis['experience_connections'].append({
+                'text': match.strip(),
+                'confidence': 0.6
+            })
+            analysis['company_confidence'] += 0.6
+    
+    # Look for about section mentions
+    about_patterns = [
+        rf'about[^\n]*{re.escape(company_lower)}[^\n]*',
+        rf'{re.escape(company_lower)}[^\n]*about[^\n]*',
+        rf'launched[^\n]*{re.escape(company_lower)}[^\n]*',
+        rf'{re.escape(company_lower)}[^\n]*launched[^\n]*'
+    ]
+    
+    for pattern in about_patterns:
+        matches = re.findall(pattern, content_lower, re.IGNORECASE | re.MULTILINE)
+        for match in matches:
+            analysis['about_section_mentions'].append({
+                'text': match.strip(),
+                'confidence': 0.7
+            })
+            analysis['company_confidence'] += 0.7
+    
+    # Cap confidence at 1.0 but allow high scores for multiple connections
+    analysis['company_confidence'] = min(analysis['company_confidence'], 2.0)
+    
+    return analysis
+
+
+def check_early_termination_conditions(sources: List[Dict], company_name: str) -> bool:
+    """Check if we have found high-confidence company-connected profiles that warrant early termination"""
+    company_lower = company_name.lower()
+    high_confidence_company_sources = []
+    
+    for source in sources:
+        content = source.get('content', '').lower()
+        title = source.get('title', '').lower()
+        url = source.get('url', '').lower()
+        
+        # Check for company connection
+        has_company = company_lower in content or company_lower in title or company_lower in url
+        
+        # Check for LinkedIn profile (high-quality source)
+        is_linkedin_profile = 'linkedin.com' in url and '/in/' in url
+        
+        # Check for recent activity or professional context
+        has_professional_context = any(term in content for term in ['linkedin', 'professional', 'experience', 'work', 'career'])
+        
+        if has_company and (is_linkedin_profile or has_professional_context):
+            high_confidence_company_sources.append(source)
+    
+    # If we have 2+ high-confidence company-connected sources, we can terminate early
+    return len(high_confidence_company_sources) >= 2
+
+
 def generate_refined_queries(name_clues: Dict, original_name: str, company_name: str, iteration: int) -> List[str]:
     """Generate refined search queries based on discovered clues"""
     queries = []
@@ -149,21 +273,30 @@ def generate_refined_queries(name_clues: Dict, original_name: str, company_name:
         queries.extend([
             f'"{best_name}" {company_name} LinkedIn',
             f'"{best_name}" site:linkedin.com/in/',
-            f'{best_name} {company_name} profile'
+            f'{best_name} {company_name} profile',
+            f'"{best_name}" volunteer {company_name}',        # NEW: Volunteer search with best name
+            f'"{best_name}" founder {company_name}',          # NEW: Founder search with best name
+            f'site:linkedin.com/in/ "{best_name}" {company_name}'  # NEW: Specific LinkedIn site search
         ])
     
     # Use other name variations
     for variation in name_clues['new_variations'][:2]:  # Limit to 2 variations per iteration
         queries.extend([
             f'"{variation}" {company_name}',
-            f'{variation} site:linkedin.com'
+            f'{variation} site:linkedin.com',
+            f'"{variation}" volunteer {company_name}',        # NEW: Volunteer search for variations
+            f'site:linkedin.com/in/ "{variation}"'            # NEW: Direct LinkedIn profile search
         ])
     
     # Company-focused searches if we have company connections
     if name_clues['company_connections'] and iteration <= 4:
+        # Enhanced company relationship searches
         queries.extend([
             f'{company_name} team members staff',
             f'{company_name} leadership founders employees',
+            f'{company_name} founder volunteer board',  # NEW: Look for leadership roles
+            f'"{original_name}" founder {company_name}',  # NEW: Founder relationship
+            f'"{original_name}" volunteer {company_name}',  # NEW: Volunteer relationship
             f'"{original_name}" OR "{name_clues["best_clue"]}" {company_name}' if name_clues['best_clue'] else f'{original_name} {company_name} about'
         ])
     
@@ -192,13 +325,18 @@ async def research_interviewer_with_tavily(interviewer_name: str, company_name: 
     search_iterations = []
     max_iterations = 8  # Prevent infinite loops
     
-    # Phase 1: Initial broad search
+    # Phase 1: Initial broad search with enhanced founder/volunteer detection
     print("   📊 **PHASE 1: Initial Broad Discovery**")
     initial_queries = [
         f'{interviewer_name} LinkedIn {company_name}',
         f'"{interviewer_name}" {company_name}',
         f'{interviewer_name} {company_name} profile',
-        f'"{interviewer_name}" site:linkedin.com'
+        f'"{interviewer_name}" site:linkedin.com',
+        f'{interviewer_name} founder {company_name}',      # NEW: Founder relationship
+        f'{interviewer_name} volunteer {company_name}',    # NEW: Volunteer relationship
+        f'{company_name} founder team leadership',         # NEW: Company leadership search
+        f'"{interviewer_name}" site:linkedin.com/in/ {company_name}',  # NEW: Deep LinkedIn search
+        f'linkedin.com/in/ {interviewer_name} volunteering {company_name}'  # NEW: Volunteering focus
     ]
     
     if email_context:
@@ -328,9 +466,21 @@ async def research_interviewer_with_tavily(interviewer_name: str, company_name: 
                 print(f"         Reasons: {', '.join(validation['reasons'])}")
             if source.get('discovered_from'):
                 print(f"         Discovered from: {source['discovered_from']}")
+            
+            # Show LinkedIn analysis results if available
+            if validation.get('linkedin_analysis') and validation['linkedin_analysis']['company_confidence'] > 0.5:
+                linkedin_analysis = validation['linkedin_analysis']
+                print(f"         🔍 LinkedIn Analysis: Found {len(linkedin_analysis['volunteer_connections'])} volunteer connections")
+                for conn in linkedin_analysis['volunteer_connections'][:1]:  # Show first connection
+                    print(f"            └─ {conn['type'].title()}: {conn['text'][:80]}...")
         else:
             rejected_sources.append(source)
             print(f"      ❌ REJECTED: {source['title'][:50]}... (confidence: {validation['confidence']:.2f})")
+            # Show why LinkedIn profiles were rejected
+            if 'linkedin.com/in/' in source['url'] and validation.get('linkedin_analysis'):
+                linkedin_analysis = validation['linkedin_analysis']
+                if linkedin_analysis['company_confidence'] < 0.5:
+                    print(f"         🔍 LinkedIn Analysis: No strong {company_name} connections found (confidence: {linkedin_analysis['company_confidence']:.2f})")
     
     # Phase 4: Deep Information Extraction with Iteration Context
     print("   🎯 **PHASE 4: Deep Information Extraction**")
@@ -338,15 +488,15 @@ async def research_interviewer_with_tavily(interviewer_name: str, company_name: 
     linkedin_profiles = []
     real_info_found = {}
     
-    # Sort validated sources by confidence, iteration (newer = better), and profile type priority
+    # Sort validated sources by COMPANY CONNECTION FIRST, then profile type and confidence
     validated_sources.sort(key=lambda x: (
-        x['validation']['profile_type'] == 'linkedin_profile',  # Prioritize individual profiles
-        x['validation']['company_connection'],  # Then company connection  
-        x.get('iteration', 1),  # Prefer later iterations (more refined)
-        x['validation']['confidence']  # Finally confidence score
+        x['validation']['company_connection'],  # HIGHEST PRIORITY: Company connection
+        x['validation']['profile_type'] == 'linkedin_profile',  # Then individual LinkedIn profiles
+        x['validation']['confidence'],  # Then confidence score
+        x.get('iteration', 1)  # Finally prefer later iterations (more refined)
     ), reverse=True)
     
-    # Find primary profile (highest confidence with company connection from latest iterations)
+    # Find primary profile (MUST have company connection, prefer LinkedIn profiles)
     for source in validated_sources:
         if source['validation']['company_connection'] and not primary_profile:
             primary_profile = source
@@ -354,6 +504,7 @@ async def research_interviewer_with_tavily(interviewer_name: str, company_name: 
             print(f"      🎯 PRIMARY PROFILE{iteration_info}: {source['title']}")
             print(f"         URL: {source['url']}")
             print(f"         Profile Type: {source['validation']['profile_type']}")
+            print(f"         Company Connection: ✅ CONFIRMED")
             if source.get('discovered_from'):
                 print(f"         Discovery Path: {source['discovered_from']}")
             break
@@ -371,17 +522,49 @@ async def research_interviewer_with_tavily(interviewer_name: str, company_name: 
         content_lower = content.lower()
         
         # Extract role information (prioritize primary profile and latest iterations)
+        # Enhanced role extraction for founder/volunteer relationships
         source_priority = (source == primary_profile) or (source.get('iteration', 1) > 2)
         if source_priority or company_name.lower() in content_lower:
-            if 'founder' in content_lower and company_name.lower() in content_lower:
-                real_info_found['role'] = 'Founder'
-                real_info_found['role_source'] = {'url': url, 'title': title, 'iteration': source.get('iteration', 1)}
-            elif 'ceo' in content_lower and company_name.lower() in content_lower:
-                real_info_found['role'] = 'CEO'
-                real_info_found['role_source'] = {'url': url, 'title': title, 'iteration': source.get('iteration', 1)}
-            elif 'cto' in content_lower and company_name.lower() in content_lower:
-                real_info_found['role'] = 'CTO'
-                real_info_found['role_source'] = {'url': url, 'title': title, 'iteration': source.get('iteration', 1)}
+            
+            # Enhanced founder detection patterns
+            founder_patterns = [
+                f'founder.*{company_name.lower()}',
+                f'{company_name.lower()}.*founder',
+                f'co-founder.*{company_name.lower()}',
+                f'{company_name.lower()}.*co-founder',
+                f'founded.*{company_name.lower()}',
+                f'started.*{company_name.lower()}'
+            ]
+            
+            # Check for founder relationships first (highest priority)
+            import re
+            for pattern in founder_patterns:
+                if re.search(pattern, content_lower, re.IGNORECASE):
+                    real_info_found['role'] = f'Founder of {company_name}'
+                    real_info_found['role_source'] = {
+                        'url': url, 
+                        'title': title, 
+                        'iteration': source.get('iteration', 1),
+                        'connection_type': 'founder'
+                    }
+                    break
+            
+            # If no founder relationship found, check for other roles
+            if 'role' not in real_info_found:
+                if 'ceo' in content_lower and company_name.lower() in content_lower:
+                    real_info_found['role'] = 'CEO'
+                    real_info_found['role_source'] = {'url': url, 'title': title, 'iteration': source.get('iteration', 1)}
+                elif 'cto' in content_lower and company_name.lower() in content_lower:
+                    real_info_found['role'] = 'CTO'
+                    real_info_found['role_source'] = {'url': url, 'title': title, 'iteration': source.get('iteration', 1)}
+                elif 'volunteer' in content_lower and company_name.lower() in content_lower:
+                    real_info_found['role'] = f'Volunteer at {company_name}'
+                    real_info_found['role_source'] = {
+                        'url': url, 
+                        'title': title, 
+                        'iteration': source.get('iteration', 1),
+                        'connection_type': 'volunteer'
+                    }
         
         # Extract technical expertise
         tech_terms = ['ai', 'cloud', 'devops', 'kubernetes', 'aws', 'azure', 'python', 'javascript', 'machine learning', 'saas', 'cloud-native', 'generative ai', 'agentai']
@@ -450,7 +633,7 @@ async def research_interviewer_with_tavily(interviewer_name: str, company_name: 
 
 
 def validate_source_relevance_enhanced(source: Dict, interviewer_name: str, company_name: str, discovered_names: set) -> Dict[str, Any]:
-    """Enhanced validation that considers discovered name variations from iterative search"""
+    """Enhanced validation that considers discovered name variations from iterative search and deep LinkedIn analysis"""
     url = source.get('url', '')
     title = source.get('title', '')
     content = source.get('content', '')
@@ -464,14 +647,69 @@ def validate_source_relevance_enhanced(source: Dict, interviewer_name: str, comp
         'company_connection': False,
         'name_match': False,
         'profile_type': 'unknown',
-        'discovered_name_match': False
+        'discovered_name_match': False,
+        'linkedin_analysis': None
     }
     
-    # Check company connection (highest priority)
-    if company_lower in content_lower or company_lower in url.lower() or company_lower in title.lower():
-        validation_result['company_connection'] = True
-        validation_result['confidence'] += 0.5
-        validation_result['reasons'].append(f"Company '{company_name}' mentioned")
+    # ENHANCED: Deep LinkedIn profile analysis for hidden company connections
+    if 'linkedin.com/in/' in url:
+        linkedin_analysis = analyze_linkedin_profile_content(content, company_name)
+        validation_result['linkedin_analysis'] = linkedin_analysis
+        
+        # If LinkedIn analysis found strong company connections, boost confidence significantly
+        if linkedin_analysis['company_confidence'] > 0.5:
+            validation_result['company_connection'] = True
+            validation_result['confidence'] += linkedin_analysis['company_confidence']
+            
+            # Add specific reasons based on what was found
+            for connection_type in set(linkedin_analysis['connection_types']):
+                validation_result['reasons'].append(f"LinkedIn {connection_type} connection to '{company_name}'")
+            
+            # Add sample evidence
+            if linkedin_analysis['volunteer_connections']:
+                sample_evidence = linkedin_analysis['volunteer_connections'][0]['text'][:100]
+                validation_result['reasons'].append(f"Evidence: \"{sample_evidence}...\"")
+    
+    # Check company connection (HIGHEST PRIORITY - heavily weighted) - FALLBACK if LinkedIn analysis missed it
+    if not validation_result['company_connection']:
+        # Enhanced detection for various role contexts (founder, volunteer, board member, etc.)
+        company_contexts = [
+            f"founder {company_lower}",
+            f"{company_lower} founder",
+            f"co-founder {company_lower}", 
+            f"{company_lower} co-founder",
+            f"founded {company_lower}",
+            f"started {company_lower}",
+            f"volunteer {company_lower}",
+            f"{company_lower} volunteer",
+            f"board {company_lower}",
+            f"{company_lower} board",
+            f"advisor {company_lower}",
+            f"{company_lower} advisor"
+        ]
+        
+        company_connection_strength = 0.0
+        connection_type = "mentioned"
+        
+        if company_lower in content_lower or company_lower in url.lower() or company_lower in title.lower():
+            validation_result['company_connection'] = True
+            company_connection_strength = 0.7  # Base company connection
+            
+            # Enhanced role detection with higher confidence for leadership roles
+            for context in company_contexts:
+                if context in content_lower:
+                    if "founder" in context or "co-founder" in context:
+                        company_connection_strength = 0.9  # HIGHEST for founders
+                        connection_type = "founder/co-founder"
+                        break
+                    elif "volunteer" in context or "board" in context or "advisor" in context:
+                        company_connection_strength = 0.8  # HIGH for volunteer leadership
+                        connection_type = "volunteer/leadership"
+                        break
+            
+            validation_result['confidence'] += company_connection_strength
+            validation_result['reasons'].append(f"Company '{company_name}' {connection_type}")
+            validation_result['connection_type'] = connection_type
     
     # Check original name variations
     name_parts = interviewer_name.lower().split()
@@ -526,11 +764,15 @@ def validate_source_relevance_enhanced(source: Dict, interviewer_name: str, comp
                     validation_result['confidence'] -= 0.3
                     validation_result['reasons'].append(f"Warning: Current role at {other_company} (might be wrong person)")
     
-    # Enhanced relevance decision considering discovered names
-    validation_result['is_relevant'] = validation_result['confidence'] > 0.4 and (
-        validation_result['company_connection'] or 
-        validation_result['discovered_name_match'] or
-        (validation_result['name_match'] and validation_result['confidence'] > 0.6)
+    # ENHANCED: Heavily penalize sources without company connection when name-only matches exist
+    if not validation_result['company_connection'] and (validation_result['name_match'] or validation_result['discovered_name_match']):
+        validation_result['confidence'] *= 0.6  # Reduce confidence by 40% for name-only matches
+        validation_result['reasons'].append("Name match but no company connection (lower priority)")
+    
+    # Enhanced relevance decision - REQUIRE company connection OR very high confidence name match
+    validation_result['is_relevant'] = (
+        validation_result['company_connection'] or  # Company connection always relevant
+        (validation_result['confidence'] > 0.8 and validation_result['discovered_name_match'])  # Very high confidence name match
     )
     
     return validation_result
@@ -931,7 +1173,7 @@ async def generate_enhanced_prep_guide():
     pipeline = DeepResearchPipeline()
     user_profile = create_sample_user_profile()
     
-    # Example interview scenarios
+    # Example interview scenarios - TESTING ARCHANA ONLY
     interviews = [
         {
             "company_name": "Dandilyonn",
@@ -940,15 +1182,7 @@ async def generate_enhanced_prep_guide():
             "interview_date": "August 8, 2025",
             "interview_time": "2 PM - 4 PM ET",
             "contact_deadline": "Friday, August 2, 2025"
-        },
-        {
-            "company_name": "JUTEQ",
-            "role_title": "Cloud Engineer Intern",
-            "interviewer_name": "Rakesh Kumar",
-            "interview_date": "August 6-7, 2025",
-            "interview_time": "10 AM - 4 PM ET",
-            "contact_deadline": "Friday, August 2, 2025"
-        },
+        }
     ]
     
     for interview in interviews:
