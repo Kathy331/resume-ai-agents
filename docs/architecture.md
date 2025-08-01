@@ -94,10 +94,12 @@ This pipeline is foundational in enabling smart interview prep generation and ap
 
 #### Core Logic Nodes:
 - **Orchestrator**: LangGraph-powered coordinator routing classified emails
-- **Classifier Module**: 
-  - Interview solicitations filter
-  - Personal/seamail rules inference
-  - Discard flagging for spam/bulk content
+- **EmailClassifierAgent**: 
+  - **Production-ready** intelligent email classification
+  - **Interview Detection**: Advanced pattern matching for interview invitations, scheduling, confirmations
+  - **Personal Email Recognition**: Identifies user-sent emails when user_email provided
+  - **Fallback Support**: Graceful degradation to rule-based classification if agent fails
+  - **Integration**: Fully integrated into `workflows/email_pipeline.py` and orchestration layer
 
 #### Personalization Layers:
 - **Vector Store Ingest**: Analyzes user writing style and thematic elements

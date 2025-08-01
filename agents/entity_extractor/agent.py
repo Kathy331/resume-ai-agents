@@ -115,20 +115,74 @@ class EntityExtractor(BaseAgent):
                     "team", "labs", "manager", "acquisition", "engineer", "invitation", "bitwise"
                 ]):
                     continue
+                    
+                # For candidate matches, extract only the name part (skip greetings)
+                # If the match starts with "Hi", "Hello", "Dear", etc., take only the name
+                candidate_text = entity_text
+                greeting_words = ["hi", "hello", "dear", "hey"]
+                words = candidate_text.split()
+                
+                if len(words) >= 2 and words[0].lower() in greeting_words:
+                    # Take only the name part (second word)
+                    candidate_text = words[1]
+                
+                # Only add if it looks like a proper name (capitalized, reasonable length)
+                if candidate_text and candidate_text[0].isupper() and 2 <= len(candidate_text) <= 20:
+                    if candidate_text not in entities["CANDIDATE"]:
+                        entities["CANDIDATE"].append(candidate_text)
+                continue  # Skip the default addition at the end
 
             # === INTERVIEWER ===
             elif label == "INTERVIEWER":
                 for ent in span.ents:
-                    if ent.label_ == "PERSON" and ent.text not in entities["INTERVIEWER"]:
-                        entities["INTERVIEWER"].append(ent.text)
+                    if ent.label_ == "PERSON":
+                        # Handle multi-line person entities (e.g., "Archana\nDandilyonn SEEDS Team")
+                        # Extract just the first line/name
+                        person_text = ent.text.strip()
+                        if '\n' in person_text:
+                            # Take the first line, which is usually the person's name
+                            first_line = person_text.split('\n')[0].strip()
+                            if first_line and len(first_line) >= 2:
+                                person_text = first_line
+                        
+                        # Clean up the person name
+                        person_text = person_text.replace('\n', ' ').strip()
+                        
+                        # Skip if it looks like an organization or email
+                        if any(word in person_text.lower() for word in [
+                            "team", "company", "corp", "inc", "ltd", "llc", "@", ".com"
+                        ]):
+                            continue
+                            
+                        if person_text not in entities["INTERVIEWER"] and len(person_text) >= 2:
+                            entities["INTERVIEWER"].append(person_text)
                 continue  # Skip adding raw INTERVIEWER span later
 
             # === COMPANY ===
             elif label == "COMPANY":
                 if entity_text.lower().startswith("at "):
                     entity_text = entity_text[3:].strip()
-                if any(w in entity_text.lower() for w in ["team", "recruiting", "hiring", "acquisition"]):
+                    
+                # Skip partial/invalid company extractions
+                invalid_company_phrases = [
+                    "team", "recruiting", "hiring", "acquisition", "with google", "for internship", 
+                    "google meet", "zoom meeting", "zoom call", "meet", "call", "session",
+                    "opportunity", "interview", "meeting", "with", "for"
+                ]
+                
+                if any(phrase in entity_text.lower() for phrase in invalid_company_phrases):
                     continue
+                    
+                # Skip if it's just a platform/tool name without context
+                platform_tools = ["zoom", "google", "meet", "teams", "slack"]
+                if entity_text.lower() in platform_tools:
+                    continue
+                    
+                # Only keep if it looks like a real company name
+                if len(entity_text.strip()) >= 3 and not entity_text.lower().startswith(('hi ', 'hello ', 'dear ')):
+                    if entity_text not in entities["COMPANY"]:
+                        entities["COMPANY"].append(entity_text)
+                continue  # Skip the default addition
 
             # === DATE ===
             elif label == "DATE":
