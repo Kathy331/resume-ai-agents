@@ -150,7 +150,7 @@ Ensure you have Python 3.10+
    ``` 
    make sure to also download spacy model before running workflow_runner.py
    ```bash
-    pip install -m spacy download en_core_web_sm
+    python -m spacy download en_core_web_sm
    ``` 
 4. Copy .env.example to .env and fill in your:
     - OpenAI API Key (create one here: https://platform.openai.com/api-keys)
