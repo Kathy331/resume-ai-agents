@@ -147,19 +147,30 @@ Ensure you have Python 3.10+
 3. Install Python dependencies:
    ```bash
    pip install -r requirements.txt
-   ```
+   ``` 
+   make sure to also download spacy model before running workflow_runner.py
+   ```bash
+    python -m spacy download en_core_web_sm
+   ``` 
+4. Copy .env.example to .env and fill in your:
+    - OpenAI API Key (create one here: https://platform.openai.com/api-keys)
+    - Tavily API Key (create one here: https://www.tavily.com/)
+    - Google API credentials 
+   ```bash
+    cp .env.example .env
+   ``` 
 
-4. Run the Streamlit app:
+5. Run the Streamlit app:
    ```bash
    streamlit run ui/app.py
    ```
 
-5. Optional: Use Docker for containerized deployment:
+6. Optional: Use Docker for containerized deployment:
     Download Docker for Mac or Windows: https://www.docker.com/  
    ```bash
    docker compose up --build 
    ```
-6. Testing:
+7. Testing:
     to run all test you could run: 
     ```bash
     pytest
