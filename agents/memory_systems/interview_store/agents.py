@@ -103,8 +103,8 @@ class InterviewStore(InterviewDB, BaseAgent):
             return "interview_id" in input_data.data
         elif action == "get_duplicates":
             return "entities" in input_data.data
-        elif action in ["get_history", "query_similar"]:
-            return "query_params" in input_data.data
+        elif action in ["get_history", "query_similar", "get_unprepped"]:
+            return "query_params" in input_data.data or action == "get_unprepped"
             
         return True
 
@@ -125,16 +125,20 @@ class InterviewStore(InterviewDB, BaseAgent):
                 result = await self._get_history(input_data.data)
             elif action == "query_similar":
                 result = await self._query_similar(input_data.data)
+            elif action == "get_unprepped":
+                result = await self._get_unprepped_interviews(input_data.data)
             else:
                 return AgentOutput(
                     success=False,
                     data={},
+                    metadata={"action": action, "timestamp": datetime.now().isoformat()},
                     errors=[f"Unknown action: {action}"]
                 )
                 
             return AgentOutput(
                 success=True,
                 data=result,
+                metadata={"action": action, "timestamp": datetime.now().isoformat()},
                 errors=None
             )
             
@@ -142,6 +146,7 @@ class InterviewStore(InterviewDB, BaseAgent):
             return AgentOutput(
                 success=False,
                 data={},
+                metadata={"action": input_data.data.get("action", "unknown"), "timestamp": datetime.now().isoformat()},
                 errors=[str(e)]
             )
 
@@ -183,11 +188,49 @@ class InterviewStore(InterviewDB, BaseAgent):
         duplicates = await self._find_similar_interviews(entities)
         
         if duplicates:
-            return {
-                "action": "similar_found",
-                "similar_interviews": duplicates,
-                "message": f"Found {len(duplicates)} similar interview(s)"
-            }
+            # Check if we should update existing records with missing information
+            updated_any = False
+            for similar_interview in duplicates:
+                interview_id = similar_interview['interview_id']
+                updates_needed = []
+                update_values = []
+                
+                # Check what information is missing and can be updated
+                if not similar_interview.get('interviewer') and interviewer:
+                    updates_needed.append("interviewer = ?")
+                    update_values.append(interviewer)
+                
+                if not similar_interview.get('role') and role:
+                    updates_needed.append("role = ?")
+                    update_values.append(role)
+                
+                # Add other fields that might be missing
+                if updates_needed:
+                    update_query = f"""
+                        UPDATE interviews 
+                        SET {', '.join(updates_needed)}, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """
+                    update_values.append(interview_id)
+                    
+                    with self.get_connection() as conn:
+                        conn.execute(update_query, update_values)
+                    
+                    updated_any = True
+                    print(f"✅ Updated interview {interview_id} with missing information: {', '.join([u.split(' = ')[0] for u in updates_needed])}")
+            
+            if updated_any:
+                return {
+                    "action": "similar_found_and_updated",
+                    "similar_interviews": duplicates,
+                    "message": f"Found {len(duplicates)} similar interview(s) and updated missing information"
+                }
+            else:
+                return {
+                    "action": "similar_found",
+                    "similar_interviews": duplicates,
+                    "message": f"Found {len(duplicates)} similar interview(s)"
+                }
         
         # Store new interview
         with self.get_connection() as conn:
@@ -379,3 +422,88 @@ class InterviewStore(InterviewDB, BaseAgent):
                 continue
         
         return None
+    
+    async def _get_unprepped_interviews(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Get interviews that need research (status != 'prepped')"""
+        try:
+            max_results = data.get('max_results', 10)
+            priority_filter = data.get('priority_filter', 'all')
+            exclude_statuses = data.get('exclude_statuses', ['prepped', 'completed', 'archived'])
+            
+            # Build WHERE clause for status filtering
+            status_placeholders = ','.join(['?' for _ in exclude_statuses])
+            where_clause = f"status NOT IN ({status_placeholders})"
+            
+            # Build query parameters
+            query_params = list(exclude_statuses)
+            
+            # Add priority filter if specified
+            if priority_filter != 'all':
+                where_clause += " AND priority = ?"
+                query_params.append(priority_filter)
+            
+            # Execute query using the connection from parent class
+            with self.get_connection() as conn:
+                query = f"""
+                    SELECT id, candidate_name, company_name, role, interviewer, interview_date, 
+                           interview_time, duration, status, raw_entities,
+                           created_at, updated_at
+                    FROM interviews 
+                    WHERE {where_clause}
+                    ORDER BY 
+                        created_at DESC
+                    LIMIT ?
+                """
+                query_params.append(max_results)
+                
+                cursor = conn.execute(query, query_params)
+                rows = cursor.fetchall()
+            
+            # Convert rows to interview dictionaries
+            interviews = []
+            for row in rows:
+                # Parse entities JSON if available
+                entities = {}
+                if row[9]:  # raw_entities column
+                    try:
+                        entities = json.loads(row[9])
+                    except json.JSONDecodeError:
+                        entities = {}
+                
+                # Merge database column information into entities if missing
+                # This ensures that updated database fields are available in entities
+                if row[2] and not entities.get('COMPANY'):  # company_name
+                    entities['COMPANY'] = [row[2]]
+                if row[3] and not entities.get('ROLE'):  # role
+                    entities['ROLE'] = [row[3]]
+                if row[4] and not entities.get('INTERVIEWER'):  # interviewer
+                    entities['INTERVIEWER'] = [row[4]]
+                
+                interview_dict = {
+                    'id': row[0],
+                    'candidate': row[1],
+                    'company': row[2],
+                    'role': row[3],
+                    'interviewer': row[4],
+                    'interview_date': row[5],
+                    'interview_time': row[6],
+                    'duration': row[7],
+                    'status': row[8] or 'preparing',
+                    'priority': 'normal',  # Default priority since it's not in current schema
+                    'entities': entities,  # Now includes updated database information
+                    'email_subject': f"Interview with {row[2] or 'Company'}" if row[2] else "Interview Invitation",
+                    'created_at': row[10],
+                    'updated_at': row[11]
+                }
+                interviews.append(interview_dict)
+            
+            return {
+                'interviews': interviews,
+                'count': len(interviews),
+                'max_results': max_results,
+                'priority_filter': priority_filter,
+                'excluded_statuses': exclude_statuses
+            }
+            
+        except Exception as e:
+            raise Exception(f"Failed to get unprepped interviews: {str(e)}")

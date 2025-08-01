@@ -1,5 +1,11 @@
 # shared/google_oauth/google_email_playground.py
-from google_email_functions import init_gmail_service, create_draft_email, list_draft_email_messages, get_draft_email_details,send_draft_email, get_email_messages, get_email_message_details 
+from shared.google_oauth.google_email_functions import (
+    init_gmail_service, create_draft_email, list_draft_email_messages,
+    get_draft_email_details, send_draft_email, get_email_messages, get_email_message_details
+)
+# pressing the "run python file" button doesn't work for me, so
+# I just changed the imports. Now to run this file, you have to run this:
+# python -m shared.google_oauth.google_email_playground
 
 ### (C-Testing Emails)
 ### THIS FILE IS CONNECTED TO google_api_all_functions.py
@@ -9,7 +15,7 @@ client_file = 'client_secret.json'
 service = init_gmail_service(client_file)
 
 # the folder name here determines which label to read emails from
-messages = get_email_messages(service, folder_name='test', max_results=5)
+messages = get_email_messages(service, folder_name='test', max_results=10)
 for msg in messages:
     details = get_email_message_details(service, msg['id'])
     if details:
@@ -43,3 +49,21 @@ for draft in drafts:
 
 # SENDING ONE DRAFT EMAIL
 send_draft_email(service, 'r-3249868396202777246')  # draft id is found from before
+
+# GET SPECIFIC EMAIL DETAILS
+email_id = '198587a3f3fe94fb'  # replace with a valid email ID
+email_details = get_email_message_details(service, email_id)
+if email_details:
+    print(f"Message ID: {email_details['id']}")
+    print(f"Subject: {email_details['subject']}")
+    print(f"From: {email_details['sender']}")
+    print(f"Recipients: {email_details['recipients']}")
+    print(f"Body: {email_details['body'][:100]}...")  # Print first 100 characters of body
+    print(f"Snippet: {email_details['snippet']}")
+    print(f"Has Attachments: {email_details['has_attachments']}")
+    print(f"Date: {email_details['date']}")
+    print(f"Star: {email_details['star']}")
+    print(f"Label: {email_details['label']}")
+    print('-' * 50)
+else:
+    print(f"No details found for Email ID {email_id}")

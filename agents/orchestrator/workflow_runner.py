@@ -33,9 +33,14 @@ class WorkflowRunner:
         self.log_results = log_results
         self.execution_history = []
     
-    def run_email_pipeline(self, folder_name: str, max_results: int = 10) -> Dict[str, Any]:
+    def run_email_pipeline(self, folder_name: str, max_results: int = 10, user_email: str = "") -> Dict[str, Any]:
         """
         Main entry point - runs the email pipeline and handles results
+        
+        Args:
+            folder_name: Gmail folder to process
+            max_results: Maximum number of emails to process
+            user_email: User's email for personal classification
         """
         if not folder_name:
             raise ValueError("folder_name argument is required and cannot be empty.")
@@ -49,7 +54,7 @@ class WorkflowRunner:
             
             # Create workflow and initial state
             workflow = build_email_workflow()
-            initial_state = initialize_state(folder_name, max_results)
+            initial_state = initialize_state(folder_name, max_results, user_email)
             
             # Execute the workflow
             final_state = workflow.invoke(initial_state)
@@ -102,6 +107,10 @@ class WorkflowRunner:
     def _handle_post_processing(self, result: Dict[str, Any]):
         """Handle post-processing: notifications, logging, external integrations"""
         
+        # Add type information for consistency BEFORE storing in history
+        if 'type' not in result:
+            result['type'] = 'email_pipeline'
+        
         # Log results
         if self.log_results:
             self._log_execution_result(result)
@@ -110,7 +119,7 @@ class WorkflowRunner:
         if self.enable_notifications and result.get('should_notify'):
             self._send_notifications(result)
         
-        # Store execution history
+        # Store execution history (after type is set)
         self.execution_history.append(result)
         
         # Display results to user
@@ -160,17 +169,404 @@ class WorkflowRunner:
         """Return execution history for analytics/debugging"""
         return self.execution_history
     
-    async def run_email_pipeline_async(self, folder_name: str, max_results: int = 10):
+    async def run_email_pipeline_async(self, folder_name: str, max_results: int = 10, user_email: str = ""):
         """Async version for integration with async frameworks"""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.run_email_pipeline, folder_name, max_results)
+        return await loop.run_in_executor(None, self.run_email_pipeline, folder_name, max_results, user_email)
+    
+    def run_research_pipeline(self, max_interviews: int = 10, priority_filter: str = "all") -> Dict[str, Any]:
+        """
+        Run the research engine pipeline for unprepped interviews
+        
+        Args:
+            max_interviews: Maximum number of interviews to research
+            priority_filter: Filter by priority level (all, high, normal, low)
+        """
+        print(f"🔬 Starting Research Engine Pipeline for unprepped interviews")
+        start_time = datetime.now()
+        
+        try:
+            # Import and run the research pipeline
+            from workflows.research_engine_pipeline import create_research_pipeline
+            
+            # Create pipeline
+            pipeline = create_research_pipeline()
+            
+            # Execute the research pipeline asynchronously
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                execution_result = loop.run_until_complete(
+                    pipeline.run_research_pipeline(max_interviews, priority_filter)
+                )
+            finally:
+                loop.close()
+            
+            # Process results
+            execution_result['runner_processing_time'] = (datetime.now() - start_time).total_seconds()
+            
+            # Handle post-processing
+            self._handle_research_post_processing(execution_result)
+            
+            return execution_result
+            
+        except Exception as e:
+            error_result = {
+                'success': False,
+                'error': str(e),
+                'max_interviews': max_interviews,
+                'priority_filter': priority_filter,
+                'runner_processing_time': (datetime.now() - start_time).total_seconds(),
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            if self.log_results:
+                print(f"💥 Research Pipeline failed: {str(e)}")
+            
+            return error_result
+    
+    def _handle_research_post_processing(self, result: Dict[str, Any]):
+        """Handle post-processing for research pipeline results"""
+        try:
+            # Log results
+            if self.log_results and result.get('success'):
+                self._display_research_results(result)
+            
+            # Add to execution history
+            self.execution_history.append({
+                'type': 'research_pipeline',
+                'timestamp': result.get('timestamp'),
+                'success': result.get('success'),
+                'interviews_researched': result.get('interviews_researched', 0),
+                'processing_time': result.get('processing_time', 0)
+            })
+            
+            # Send notifications if enabled
+            if self.enable_notifications and result.get('interviews_researched', 0) > 0:
+                self._send_research_notification(result)
+                
+        except Exception as e:
+            print(f"⚠️ Post-processing error: {str(e)}")
+    
+    def _display_research_results(self, result: Dict[str, Any]):
+        """Display formatted research results to the user"""
+        if not result['success']:
+            print(f"❌ Research Pipeline Failed: {result.get('error', 'Unknown error')}")
+            return
+            
+        print(f"\n🔬 Research Engine Pipeline Results:")
+        print("=" * 80)
+        print(f"📊 Interviews Found: {result.get('interviews_found', 0)}")
+        print(f"✅ Successfully Researched: {result.get('interviews_researched', 0)}")
+        print(f"❌ Failed Research: {result.get('failed_research', 0)}")
+        print(f"📈 Average Quality Score: {result.get('average_quality', 0):.2f}")
+        print(f"⏱️  Processing Time: {result.get('processing_time', 0):.2f}s")
+        
+        # Display detailed results for each interview
+        research_results = result.get('research_results', [])
+        if research_results:
+            print(f"\n📋 Detailed Interview Research Results:")
+            print("=" * 80)
+            
+            for i, res in enumerate(research_results, 1):
+                # Get company name
+                company = "Unknown Company"
+                if hasattr(res, 'company_research') and res.company_research and res.company_research.get('data'):
+                    company_data = res.company_research['data']
+                    if isinstance(company_data, dict):
+                        company = company_data.get('company_name', company_data.get('name', company))
+                elif hasattr(res, 'company_name'):
+                    company = res.company_name or 'Unknown Company'
+                elif hasattr(res, 'interview_id'):
+                    company = f"Interview {res.interview_id}"
+                
+                quality_score = getattr(res, 'quality_score', 0.0)
+                processing_time = getattr(res, 'processing_time', 0.0)
+                
+                print(f"\n🎯 INTERVIEW {i}: {company}")
+                print(f"   📈 Quality Score: {quality_score:.2f} | ⏱️ Time: {processing_time:.1f}s")
+                print("-" * 60)
+                
+                # Show Company Research Results
+                if hasattr(res, 'company_research') and res.company_research:
+                    print("🏢 COMPANY RESEARCH:")
+                    company_data = res.company_research.get('data', {})
+                    if isinstance(company_data, dict) and 'search_results' in company_data:
+                        search_results = company_data['search_results']
+                        if isinstance(search_results, list) and search_results:
+                            print(f"   📊 Found {len(search_results)} company results:")
+                            for j, sr in enumerate(search_results[:3], 1):  # Show top 3
+                                title = sr.get('title', 'No title')[:50] + ('...' if len(sr.get('title', '')) > 50 else '')
+                                url = sr.get('url', 'No URL')
+                                print(f"     {j}. {title}")
+                                print(f"        🔗 {url}")
+                        else:
+                            print("   ✅ Company research completed (no detailed results)")
+                    else:
+                        print("   ✅ Company research completed")
+                else:
+                    print("🏢 COMPANY RESEARCH: ❌ Not performed")
+                
+                # Show Interviewer Research Results  
+                if hasattr(res, 'interviewer_research') and res.interviewer_research:
+                    print("👤 INTERVIEWER RESEARCH:")
+                    interviewer_data = res.interviewer_research.get('data', {})
+                    if isinstance(interviewer_data, dict) and 'search_results' in interviewer_data:
+                        search_results = interviewer_data['search_results']
+                        if isinstance(search_results, list) and search_results:
+                            print(f"   📊 Found {len(search_results)} interviewer results:")
+                            for j, sr in enumerate(search_results[:3], 1):  # Show top 3
+                                title = sr.get('title', 'No title')[:50] + ('...' if len(sr.get('title', '')) > 50 else '')
+                                url = sr.get('url', 'No URL')
+                                print(f"     {j}. {title}")
+                                print(f"        🔗 {url}")
+                        else:
+                            print("   ✅ Interviewer research completed (no detailed results)")
+                    else:
+                        print("   ✅ Interviewer research completed")
+                else:
+                    print("👤 INTERVIEWER RESEARCH: ❌ Not performed")
+                
+                # Show Role Research Results
+                if hasattr(res, 'role_research') and res.role_research:
+                    print("💼 ROLE RESEARCH:")
+                    role_data = res.role_research.get('data', {})
+                    if isinstance(role_data, dict) and 'search_results' in role_data:
+                        search_results = role_data['search_results']
+                        if isinstance(search_results, list) and search_results:
+                            print(f"   📊 Found {len(search_results)} role results:")
+                            for j, sr in enumerate(search_results[:3], 1):  # Show top 3
+                                title = sr.get('title', 'No title')[:50] + ('...' if len(sr.get('title', '')) > 50 else '')
+                                url = sr.get('url', 'No URL')
+                                print(f"     {j}. {title}")
+                                print(f"        🔗 {url}")
+                        else:
+                            print("   ✅ Role research completed (no detailed results)")
+                    else:
+                        print("   ✅ Role research completed")
+                else:
+                    print("💼 ROLE RESEARCH: ❌ Not performed")
+                    
+                if i < len(research_results):  # Add separator between interviews
+                    print()
+        
+        print("=" * 80)
+    
+    def _send_research_notification(self, result: Dict[str, Any]):
+        """Send notification about research completion (placeholder)"""
+        # This could be extended to send email, Slack, or other notifications
+        researched_count = result.get('interviews_researched', 0)
+        avg_quality = result.get('average_quality', 0)
+        
+        print(f"🔔 Notification: {researched_count} interviews researched with {avg_quality:.1%} average quality")
+
+    def demo_research_engine(self, company_name: str = "JUTEQ", role_title: str = "AI Engineer") -> Dict[str, Any]:
+        """
+        Demo the research engine with real Tavily API calls
+        
+        Args:
+            company_name: Company to research
+            role_title: Role to research
+        """
+        print(f"🚀 RESEARCH ENGINE DEMO")
+        print(f"🎯 Researching: {company_name} - {role_title}")
+        print("=" * 50)
+        
+        try:
+            # Check if Tavily API key is available
+            import os
+            if not os.getenv('TAVILY_API_KEY'):
+                print("⚠️  TAVILY_API_KEY not found - using simulation mode")
+                return self._demo_simulation(company_name, role_title)
+            
+            # Import search function
+            from shared.tavily_client import search_tavily
+            
+            # Research company
+            print(f"\n🏢 Researching {company_name}...")
+            company_query = f"{company_name} company overview industry technology"
+            company_results = search_tavily(company_query, search_depth="advanced", max_results=5)
+            
+            # Research role
+            print(f"💼 Researching {role_title} role...")
+            role_query = f"{role_title} {company_name} job requirements skills salary"
+            role_results = search_tavily(role_query, search_depth="basic", max_results=4)
+            
+            # Generate summary
+            print(f"\n📊 RESEARCH SUMMARY:")
+            print(f"✅ Company results: {len(company_results)} sources found")
+            print(f"✅ Role results: {len(role_results)} sources found")
+            
+            if company_results:
+                print(f"\n🏢 Company insights:")
+                for i, result in enumerate(company_results[:2], 1):
+                    title = result.get('title', 'No title')[:60]
+                    print(f"  {i}. {title}{'...' if len(result.get('title', '')) > 60 else ''}")
+            
+            if role_results:
+                print(f"\n💼 Role insights:")
+                for i, result in enumerate(role_results[:2], 1):
+                    title = result.get('title', 'No title')[:60]
+                    print(f"  {i}. {title}{'...' if len(result.get('title', '')) > 60 else ''}")
+            
+            return {
+                'success': True,
+                'company_results': len(company_results),
+                'role_results': len(role_results),
+                'company_name': company_name,
+                'role_title': role_title
+            }
+            
+        except Exception as e:
+            print(f"❌ Demo failed: {str(e)}")
+            return {'success': False, 'error': str(e)}
+    
+    def _demo_simulation(self, company_name: str, role_title: str) -> Dict[str, Any]:
+        """Simulation mode when no API key available"""
+        print(f"\n📝 SIMULATION MODE:")
+        print(f"🏢 Would research: {company_name} company overview and industry")
+        print(f"💼 Would research: {role_title} market data and requirements")
+        print(f"💡 Set TAVILY_API_KEY to see real results!")
+        
+        return {
+            'success': True,
+            'simulation': True,
+            'company_name': company_name,
+            'role_title': role_title
+        }
+    
+    def clear_tavily_cache(self) -> Dict[str, Any]:
+        """
+        Clear the Tavily research cache to force fresh API calls
+        
+        Returns:
+            Dictionary with clearing results
+        """
+        try:
+            import shutil
+            import os
+            
+            cache_dir = ".tavily_cache"
+            
+            if not os.path.exists(cache_dir):
+                return {
+                    'success': True,
+                    'message': 'Cache directory does not exist - nothing to clear',
+                    'files_removed': 0
+                }
+            
+            # Count files before removal
+            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
+            files_count = len(cache_files)
+            
+            # Remove the entire cache directory
+            shutil.rmtree(cache_dir)
+            
+            print(f"🗑️  Cleared Tavily cache: {files_count} cached queries removed")
+            
+            return {
+                'success': True,
+                'message': f'Successfully cleared cache - {files_count} files removed',
+                'files_removed': files_count
+            }
+            
+        except Exception as e:
+            error_msg = f"Failed to clear cache: {str(e)}"
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'error': error_msg,
+                'files_removed': 0
+            }
+    
+    def get_tavily_cache_info(self) -> Dict[str, Any]:
+        """
+        Get information about the current Tavily cache
+        
+        Returns:
+            Dictionary with cache information
+        """
+        try:
+            import os
+            
+            cache_dir = ".tavily_cache"
+            
+            if not os.path.exists(cache_dir):
+                return {
+                    'cache_exists': False,
+                    'cached_queries': 0,
+                    'message': 'No cache directory found'
+                }
+            
+            # Count cache files
+            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
+            files_count = len(cache_files)
+            
+            # Calculate total cache size
+            total_size = 0
+            for file in cache_files:
+                file_path = os.path.join(cache_dir, file)
+                total_size += os.path.getsize(file_path)
+            
+            size_mb = total_size / (1024 * 1024)  # Convert to MB
+            
+            return {
+                'cache_exists': True,
+                'cached_queries': files_count,
+                'cache_size_mb': round(size_mb, 2),
+                'cache_directory': cache_dir,
+                'message': f'Cache contains {files_count} queries ({size_mb:.2f} MB)'
+            }
+            
+        except Exception as e:
+            return {
+                'cache_exists': False,
+                'error': str(e),
+                'message': f'Error accessing cache: {str(e)}'
+            }
 
 # Entry point
 if __name__ == "__main__":
     runner = WorkflowRunner(enable_notifications=True, log_results=True)
     
-    # Run the pipeline
-    result = runner.run_email_pipeline(folder_name='test', max_results=10)
+    # Get interview folder from environment variable
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    interview_folder = os.getenv('INTERVIEW_FOLDER', 'INBOX').strip('"').strip("'")
+    if not interview_folder:
+        interview_folder = 'INBOX'  # fallback to INBOX if not set
+    
+    print(f"📁 Using folder from INTERVIEW_FOLDER: {interview_folder}")
+    
+    # Example 1: Run the email pipeline with EmailClassifierAgent
+    print("🚀 Running Email Pipeline...")
+    email_result = runner.run_email_pipeline(
+        folder_name=interview_folder, 
+        max_results=10, 
+        user_email='user@example.com'  # Replace with actual user email
+    )
+    
+    # Example 2: Run the research pipeline for unprepped interviews
+    print("\n🔬 Running Research Engine Pipeline...")
+    research_result = runner.run_research_pipeline(
+        max_interviews=5,
+        priority_filter='all'
+    )
+    
+    # Example 3: Demo the research engine with live API calls
+    print("\n🎯 Running Research Engine Demo...")
+    demo_result = runner.demo_research_engine(
+        company_name="QuantMind",
+        role_title="Data Scientist"
+    )
     
     # You can also access execution history
-    # print(f"\nExecution history: {len(runner.get_execution_history())} runs")
+    print(f"\n📊 Execution history: {len(runner.get_execution_history())} total runs")
+    for run in runner.get_execution_history():
+        run_type = run.get('type', 'unknown_pipeline')
+        success_icon = '✅' if run.get('success', False) else '❌'
+        processing_time = run.get('processing_time', run.get('execution_time', 0))
+        print(f"  - {run_type}: {success_icon} ({processing_time:.1f}s)")

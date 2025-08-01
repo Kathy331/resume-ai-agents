@@ -16,13 +16,11 @@
 
 import os
 import sys
-import os
-import sys
 
 # Ensure current file's directory is in Python path (helps with relative imports)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from .google_apis_start import create_service  
+from .google_apis_start import create_service
 
 def get_gmail_service():
     current_dir = os.path.dirname(os.path.abspath(__file__))

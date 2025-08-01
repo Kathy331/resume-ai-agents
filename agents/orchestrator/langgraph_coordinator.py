@@ -23,11 +23,12 @@ class EmailWorkflowState(TypedDict):
     """Enhanced state object that flows through the LangGraph workflow"""
     folder_name: str
     max_results: int
+    user_email: str  # User email for personal classification
     gmail_service: Any
     raw_emails: List[Dict]
     classified_emails: Dict[str, List]
     interview_processing_results: List[Dict]  # New: Results from enhanced interview processing
-    enhanced_pipeline: Any  # New: Enhanced pipeline instance
+    email_pipeline: Any  # Email pipeline instance
     summaries: List[Dict]
     error: str
     retry_count: int
@@ -36,16 +37,17 @@ class EmailWorkflowState(TypedDict):
     research_performed_count: int  # New: Track how many interviews got research
     memory_hits_count: int  # New: Track how many were found in memory
 
-def initialize_state(folder_name: str, max_results: int = 10) -> EmailWorkflowState:
+def initialize_state(folder_name: str, max_results: int = 10, user_email: str = "") -> EmailWorkflowState:
     """Create initial state for the enhanced workflow"""
     return EmailWorkflowState(
         folder_name=folder_name,
         max_results=max_results,
+        user_email=user_email,  # Add user_email for classification
         gmail_service=None,
         raw_emails=[],
         classified_emails={},
         interview_processing_results=[],
-        enhanced_pipeline=None,
+        email_pipeline=None,
         summaries=[],
         error="",
         retry_count=0,
@@ -85,10 +87,14 @@ def fetch_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
         return state
 
 def classify_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
-    """Node: Classify emails into categories"""
+    """Node: Classify emails using EmailClassifierAgent"""
     try:
         from workflows.email_pipeline import classify_emails
-        classified = classify_emails(state["raw_emails"])
+        
+        # Get user_email from state if available, or use a default
+        user_email = state.get('user_email', '')  # Could be set during initialization
+        
+        classified = classify_emails(state["raw_emails"], user_email=user_email)
         state["classified_emails"] = classified
         
         # Smart routing decision
@@ -96,7 +102,7 @@ def classify_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
         if interview_count > 0:
             state["should_notify"] = True
             
-        print(f"✅ Classified emails: {interview_count} interviews, "
+        print(f"✅ Classified emails using EmailClassifierAgent: {interview_count} interviews, "
               f"{len(classified.get('Personal_sent', []))} personal, "
               f"{len(classified.get('Others', []))} others")
         return state
@@ -104,11 +110,11 @@ def classify_emails_node(state: EmailWorkflowState) -> EmailWorkflowState:
         state["error"] = f"Classification failed: {str(e)}"
         return state
 
-def setup_enhanced_pipeline_node(state: EmailWorkflowState) -> EmailWorkflowState:
+def setup_email_pipeline_node(state: EmailWorkflowState) -> EmailWorkflowState:
     """Node: Initialize enhanced pipeline for interview processing"""
     try:
-        from workflows.enhanced_email_pipeline import create_enhanced_pipeline
-        state["enhanced_pipeline"] = create_enhanced_pipeline()
+        from workflows.email_pipeline import create_email_pipeline
+        state["email_pipeline"] = create_email_pipeline()
         print("✅ Enhanced pipeline initialized")
         return state
     except Exception as e:
@@ -119,13 +125,13 @@ def process_interviews_node(state: EmailWorkflowState) -> EmailWorkflowState:
     """Node: Process interview invites through enhanced pipeline"""
     try:
         import asyncio
-        from workflows.enhanced_email_pipeline import process_classified_interviews
+        from workflows.email_pipeline import process_classified_interviews
         
         # Process interview invites with entity extraction, memory check, and conditional research
         # Use asyncio.run to handle the async function
         results = asyncio.run(process_classified_interviews(
             state["classified_emails"], 
-            state["enhanced_pipeline"]
+            state["email_pipeline"]
         ))
         
         state["interview_processing_results"] = results
@@ -214,11 +220,11 @@ def route_after_classification(state: EmailWorkflowState) -> str:
     # Check if we have interview invites to process
     interview_count = len(state["classified_emails"].get('Interview_invite', []))
     if interview_count > 0:
-        return "setup_enhanced_pipeline"
+        return "setup_email_pipeline"
     else:
         return "format_output"
 
-def route_after_enhanced_setup(state: EmailWorkflowState) -> str:
+def route_after_pipeline_setup(state: EmailWorkflowState) -> str:
     """Route: Continue to interview processing or handle errors"""
     if state["error"]:
         return "error_handler"
@@ -250,7 +256,7 @@ def build_email_workflow():
     workflow.add_node("setup_gmail", setup_gmail_node)
     workflow.add_node("fetch_emails", fetch_emails_node)
     workflow.add_node("classify_emails", classify_emails_node)
-    workflow.add_node("setup_enhanced_pipeline", setup_enhanced_pipeline_node)  # New
+    workflow.add_node("setup_email_pipeline", setup_email_pipeline_node)
     workflow.add_node("process_interviews", process_interviews_node)  # New
     workflow.add_node("format_output", format_output_node)
     workflow.add_node("error_handler", error_handler_node)
@@ -271,7 +277,7 @@ def build_email_workflow():
     workflow.add_conditional_edges("classify_emails", route_after_classification)
     
     # Enhanced pipeline setup -> process interviews (or error)
-    workflow.add_conditional_edges("setup_enhanced_pipeline", route_after_enhanced_setup)
+    workflow.add_conditional_edges("setup_email_pipeline", route_after_pipeline_setup)
     
     # Process interviews -> format output (or error)
     workflow.add_conditional_edges("process_interviews", route_after_interview_processing)

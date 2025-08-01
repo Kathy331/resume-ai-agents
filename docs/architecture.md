@@ -5,12 +5,13 @@
 **Project Name:** Job Application AI System  
 **Goal:** End-to-end AI-powered job application and interview preparation platform featuring specialized agents working in coordinated workflows to automate candidate outreach, research, email intelligence, and behavioral interviewing.
 
-The system consists of **five integrated pipelines** that work together to provide comprehensive job search assistance:
+The system consists of **six integrated pipelines** that work together to provide comprehensive job search assistance:
 1. **Job Application Pipeline** - Smart matching and application automation
 2. **Resume Processing Pipeline** - Context-aware resume parsing and skill extraction
 3. **Email AI Agent Pipeline** - Intelligent email classification and automated responses  
 4. **Interview Preparation Engine** - Multi-source research and question synthesis
-5. **Integration Layer** - Unified context sharing and feedback optimization
+5. **Deep Research Pipeline** - Advanced interview intelligence through multi-agent analysis
+6. **Integration Layer** - Unified context sharing and feedback optimization
 
 ---
 
@@ -21,10 +22,12 @@ The system follows a **multi-pipeline architecture** centered around an intellig
 ```
 📄 Job App Pipeline ↔ 🧠 Shared Memory ↔ 📧 Email Pipeline
          ↘              ↗                ↙
-       🎯 Interview Prep Engine ↔ 🔁 Feedback Loop ↔ 📈 Research Hub
+    🎯 Interview Prep Engine ↔ 🔁 Feedback Loop ↔ 📈 Research Hub
+              ↕
+    🤖 Deep Research Pipeline (IPIA System)
 ```
 
-Each pipeline operates independently while seamlessly exchanging insights through the **Integration Layer**, ensuring cohesive and evolving job search strategies across domains.
+Each pipeline operates independently while seamlessly exchanging insights through the **Integration Layer**, ensuring cohesive and evolving job search strategies across domains. The **Deep Research Pipeline** provides advanced interview intelligence through multi-agent analysis.
 
 ---
 
@@ -94,10 +97,12 @@ This pipeline is foundational in enabling smart interview prep generation and ap
 
 #### Core Logic Nodes:
 - **Orchestrator**: LangGraph-powered coordinator routing classified emails
-- **Classifier Module**: 
-  - Interview solicitations filter
-  - Personal/seamail rules inference
-  - Discard flagging for spam/bulk content
+- **EmailClassifierAgent**: 
+  - **Production-ready** intelligent email classification
+  - **Interview Detection**: Advanced pattern matching for interview invitations, scheduling, confirmations
+  - **Personal Email Recognition**: Identifies user-sent emails when user_email provided
+  - **Fallback Support**: Graceful degradation to rule-based classification if agent fails
+  - **Integration**: Fully integrated into `workflows/email_pipeline.py` and orchestration layer
 
 #### Personalization Layers:
 - **Vector Store Ingest**: Analyzes user writing style and thematic elements
@@ -200,6 +205,60 @@ All designed to enhance ecosystemically managed readiness rather than temporary 
 
 ---
 
+### 6. **Deep Research Pipeline** 🤖
+
+**Purpose:** Advanced interview preparation through multi-agent intelligence analysis, providing strategic question generation and comprehensive preparation packages.
+
+**Core Architecture:** Multi-agent system featuring the Interview Prep Intelligence Agent (IPIA) with three specialized components working in coordination.
+
+#### Key Components:
+
+**Interview Prep Intelligence Agent (IPIA):**
+- **Context Decomposer**: Chain-of-thought analysis for deep situation understanding
+- **Question Generator**: Strategy-aware question formulation across multiple domains  
+- **Prep Summarizer**: Comprehensive preparation package assembly with strategic insights
+
+#### Advanced AI Techniques:
+- **Chain-of-Thought Reasoning**: Structured analytical process for context comprehension
+- **Few-Shot Prompting**: Consistent output structure across different interview contexts
+- **Template-Based Generation**: Domain-specific question templates with dynamic customization
+- **Multi-Agent Coordination**: Specialized task distribution for optimized performance
+
+#### Processing Flow:
+```
+Research Context Input → Context Decomposer (CoT Analysis) → Question Generator (Multi-Domain) → 
+Prep Summarizer (Package Assembly) → Strategic Interview Preparation Package
+```
+
+#### Output Categories:
+- **Company Strategy & Vision**: Strategic insights and forward-looking questions
+- **Role-Specific & Technical**: Position-focused and technical competency questions
+- **Behavioral & Cultural**: Culture fit and experience-based behavioral questions
+- **Strategic & Forward-Looking**: Industry trends and future-oriented discussions
+
+#### Integration Points:
+- **Workflow Runner**: Primary orchestration through `deep_research_pipeline.py`
+- **Research Engine**: Consumes multi-source company and role intelligence
+- **Email Pipeline**: Triggered by interview invitation classification
+- **Memory Systems**: Stores preparation packages and tracks interview outcomes
+
+#### Performance Characteristics:
+- Generates 12-16 strategic questions per interview context
+- Differentiates strategy based on company characteristics (e.g., sustainability vs. tech focus)
+- Context-aware question prioritization and strategic recommendation generation
+- Quality assessment with relevance scoring and strategic value evaluation
+
+**Data Flow Example:**
+```
+Interview Email Detection → Entity Extraction → Research Aggregation → 
+IPIA Context Analysis → Multi-Domain Question Generation → 
+Comprehensive Prep Package → User Delivery + Memory Storage
+```
+
+This pipeline represents the most advanced component of the system, utilizing cutting-edge AI techniques to provide personalized, strategic interview preparation that adapts to specific company cultures and role requirements.
+
+---
+
 ## Integration Layer 🔗
 
 ### 🧠 Shared Memory Layer:
@@ -272,12 +331,20 @@ root/
 │   ├── resume_analyzer.py
 │   ├── job_matcher.py
 │   ├── linkedin_finder.py
-│   └── email_writer.py
+│   ├── email_writer.py
+│   └── interview_prep_intelligence/
+│       ├── agent.py
+│       ├── context_decomposer.py
+│       ├── question_generator.py
+│       ├── prep_summarizer.py
+│       ├── models.py
+│       └── config.py
 │
 ├── workflows/
 │   ├── application_workflow.py
 │   ├── interview_prep_flow.py
-│   └── email_agent_flow.py
+│   ├── email_agent_flow.py
+│   └── deep_research_pipeline.py
 │
 ├── shared/
 │   ├── context_bridge.py
@@ -287,6 +354,12 @@ root/
 │
 ├── experiments/
 │   └── persona_testing_suite.py
+│
+├── tests/
+│   └── test_interview_prep_intelligence/
+│       ├── test_seeds_juteq_emails.py
+│       ├── demo_deep_research_system.py
+│       └── integration_example.py
 │
 └── config/
     └── priority_options.yaml
@@ -320,6 +393,19 @@ If Fresh Request Collected, Be Ready Request Initiated to Company/Person/Role An
 Extract Final Results Then Feed Into Tailored Question Builder System →
 Create Custom Prep Card Bundle With Experience Anchors Embedded →
 Sent Securely as Highlighted Data Blob(s) inside Upcoming Date Alert & Link Preloads Page for Presentation
+```
+
+### 3. **Advanced Deep Research Intelligence Processing**
+```
+Interview Context Detected →
+Deep Research Pipeline Triggered via Workflow Runner →
+Multi-Source Company Intelligence Gathered (Tavily API + Research Engine) →
+IPIA Context Decomposer Analyzes Situation (Chain-of-Thought Processing) →
+Question Generator Creates Multi-Domain Strategic Questions →
+Prep Summarizer Assembles Comprehensive Package with Talking Points →
+Quality Assessment & Strategic Value Scoring Applied →
+Final Package Delivered with 12-16 Categorized Questions →
+Memory Storage for Future Reference & Feedback Integration
 ```
 
 ---

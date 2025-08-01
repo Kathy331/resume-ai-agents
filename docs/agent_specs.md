@@ -32,12 +32,37 @@ This document outlines the design and functionality of each agent in the system.
 
 ### Email Classifier Agent
 
-- **Folder:** `agents/email_classifier/`  
-- **Purpose:** Classifies emails into categories like interview invites, personal, spam, etc.  
-- **Components:** `agent.py`, `ner.py`, `sentiment.py`, `config.py`  
-- **Input:** Email text  
-- **Output:** Category label, intent confidence, optional next-action  
-- **Technologies:** Rule-based filters + LLM/NLP classification  
+| **Class**   | `EmailClassifierAgent`                 |
+|-------------|----------------------------------------|
+| **Folder**  | `agents/email_classifier/`            |
+| **Purpose** | Classifies emails into categories: interview invites, personal emails, and others. Supports intelligent routing. |
+| **Input**   | List of email dictionaries with id, subject, body, from, to fields. Optional user_email for personal classification. |
+| **Output**  | Dictionary with 'interview', 'personal', 'other' keys containing email IDs for each category |
+| **Tech**    | Keyword-based classification with comprehensive interview-related pattern matching |
+| **Features** | 
+- **Multi-category Classification**: Automatically categorizes emails into Interview, Personal, and Other buckets
+- **Personal Email Detection**: Identifies emails sent by the user when user_email is provided  
+- **Interview Detection**: Advanced pattern recognition for various interview-related keywords and phrases
+- **Production Ready**: Fully integrated into the email processing pipeline with fallback support
+
+**Integration Status**: ✅ **ACTIVE** - Replaces previous temporary email classification rules. Used by:
+- `workflows/email_pipeline.py` - Main email processing pipeline
+- `agents/orchestrator/langgraph_coordinator.py` - LangGraph workflow coordinator  
+- `agents/orchestrator/workflow_runner.py` - Workflow execution engine
+
+### Job Matcher Agent
+
+- **Folder:** `agents/job_matcher/`  
+- **Purpose:** Matches job descriptions with user profiles and resumes using semantic similarity.  
+- **Components:** `agent.py`, `similarity_engine.py`, `job_scraper.py`, `config.py`  
+- **Input:** Job descriptions, resume data, user preferences  
+- **Output:** Compatibility scores, skill gap analysis, match recommendations  
+- **Technologies:** Semantic similarity algorithms, job data scraping, skill mapping, ML-based matching  
+- **Key Features:**
+  - **Semantic Matching**: Advanced similarity scoring beyond keyword matching
+  - **Skill Gap Analysis**: Identifies missing skills and development opportunities
+  - **Job Scraping**: Automated job description collection and parsing
+  - **Preference Learning**: Adapts to user feedback and preferences  
 
 ---
 
@@ -46,40 +71,99 @@ This document outlines the design and functionality of each agent in the system.
 ### Entity Extractor Agent
 
 - **Folder:** `agents/entity_extractor/`  
-- **Purpose:** Extracts structured metadata such as names, dates, roles from unstructured text.  
-- **Components:** `agent.py`, `regex_parser.py`, `interview_parser.py`  
-- **Input:** Raw text  
-- **Output:** Entities (company, role, interviewer, etc.) in JSON  
-- **Technologies:** Regex, spaCy NER, keyword heuristics  
+- **Purpose:** Extracts structured metadata such as names, dates, roles from unstructured email text using advanced NLP techniques.  
+- **Components:** `agent.py`, `patterns.py`, `train_ner.py`, `use_model.py`, `spacy_test.ipynb`, `invitation_email_ner_model/`  
+- **Input:** Raw email text  
+- **Output:** Structured entities (company, role, interviewer, candidate, date, location, duration) in JSON format  
+- **Technologies:** Custom spaCy NER model, pattern matching, fine-tuned entity recognition, spaCy matcher patterns
+- **Key Features:** 
+  - Custom trained NER model for interview-specific entities
+  - Advanced pattern matching for email parsing
+  - Jupyter notebook for model testing and validation
+  - Production-ready model artifacts in `invitation_email_ner_model/`  
 
 ---
 
 ## Tier 3: Research Intelligence
 
-### Company Researcher
+### Company Research Agent
 
-- **Folder:** `agents/research_engine/company_researcher.py`  
-- **Purpose:** Gathers insights about a target company.  
-- **Components:** `company_researcher.py`, `tavily_client.py`, `config.py`  
-- **Input:** Company name  
-- **Output:** Summary insights, risks, culture, funding, etc.  
-- **Technologies:** Tavily API, scraping, prompt-based summarization  
+**Status**: `PRODUCTION`
 
-### Interviewer Researcher
+**Purpose**: Deep company intelligence gathering using multi-source web research
 
-- **File:** `agents/research_engine/interviewer_researcher.py`  
-- **Purpose:** Fetches professional background for interviewers.  
-- **Input:** Name, company  
-- **Output:** Role, background summary, shared connections  
-- **Tech:** LinkedIn search (via Tavily or RAG)  
+**Capabilities**:
+- Company profile analysis (leadership, culture, recent news)
+- Financial health assessment and growth trajectory evaluation
+- Product portfolio and competitive positioning research
+- Recent developments and strategic direction analysis
 
-### Role Researcher
+**Implementation**:
+- Web scraping through Tavily API for comprehensive data gathering
+- Multi-source aggregation with credibility scoring
+- Structured output format for downstream agent consumption
+- Rate-limited API calls with intelligent retry mechanisms
 
-- **File:** `agents/research_engine/role_researcher.py`  
-- **Purpose:** Gathers information about a job role (market trends, typical skills).  
-- **Input:** Role title  
-- **Output:** Role expectations, career path, automation risk  
-- **Tech:** Prompt-based search synthesis  
+**Integration**:
+- Feeds into Interview Preparation Pipeline
+- Provides context for Email Writer Agent personalization
+- Supports LinkedIn Finder Agent with company insights
+
+### Interview Prep Intelligence Agent (IPIA)
+
+**Status**: `PRODUCTION`
+
+**Purpose**: Multi-agent system for comprehensive interview preparation through intelligent context analysis and strategic question generation
+
+**Architecture**: Multi-agent system with three specialized components:
+- **Context Decomposer**: Chain-of-thought analysis for situation understanding
+- **Question Generator**: Strategy-aware question formulation across multiple domains
+- **Prep Summarizer**: Comprehensive preparation package assembly
+
+**Core Capabilities**:
+- **Context Analysis**: Deep comprehension of company culture, role requirements, and interview dynamics
+- **Multi-Domain Question Generation**: Company-focused, role-specific, behavioral, and strategic questions
+- **Differentiated Strategy**: Adapts questioning approach based on company type and industry
+- **Comprehensive Prep Packages**: Structured outputs with talking points, question categorization, and strategic recommendations
+
+**Technical Implementation**:
+- **Chain-of-Thought Reasoning**: Structured analytical process for context understanding
+- **Template-Based Generation**: Domain-specific question templates with dynamic customization
+- **Quality Assessment**: Built-in evaluation metrics for question relevance and strategic value
+- **Memory Integration**: Leverages historical interview data and company research
+
+**AI Techniques Used**:
+- Few-shot prompting for consistent output structure
+- Chain-of-thought reasoning for deep context analysis
+- Template-based generation with dynamic customization
+- Multi-agent coordination for specialized task distribution
+
+**Input Requirements**:
+- Company name and context information
+- Role details and requirements
+- Interview stage and format
+- User background and experience level
+
+**Output Structure**:
+- **Context Analysis**: Situation understanding and strategic insights
+- **Question Categories**: 
+  - Company Strategy & Vision (3-4 questions)
+  - Role-Specific & Technical (3-4 questions)
+  - Behavioral & Cultural (3-4 questions)
+  - Strategic & Forward-Looking (3-4 questions)
+- **Preparation Summary**: Key talking points, strategic recommendations, and success metrics
+
+**Integration Points**:
+- **Deep Research Pipeline**: Primary integration point for workflow orchestration
+- **Research Engine**: Consumes company and role intelligence
+- **Memory Systems**: Stores preparation packages and tracks interview outcomes
+- **Email Pipeline**: Triggered by interview invitation detection
+
+**Performance Metrics**:
+- Generates 12-16 strategic questions per interview context
+- Differentiates questioning strategy based on company characteristics
+- Achieves high relevance scores through context-aware generation
+- Supports iterative refinement based on user feedback  
 
 ---
 
@@ -96,23 +180,52 @@ This document outlines the design and functionality of each agent in the system.
 
 ---
 
+## Tier 4.5: Memory & Intelligence Systems
+
+### Interview Store System
+
+- **Folder:** `agents/memory_systems/interview_store/`  
+- **Purpose:** Intelligent storage and retrieval of interview data with deduplication capabilities.  
+- **Components:** Multiple specialized storage and lookup agents  
+- **Key Features:**
+  - **InterviewStorage**: Stores new interview data with automatic deduplication
+  - **InterviewLookup**: Retrieves and searches existing interview records
+  - **InterviewUpdater**: Updates interview lifecycle status (preparing → prepped → completed)
+  - **Smart Deduplication**: Prevents redundant research using similarity matching
+- **Technologies:** SQLite database, similarity algorithms, lifecycle state management  
+
+### Shared Memory Layer
+
+- **File:** `agents/memory_systems/shared_memory.py`  
+- **Purpose:** Cross-agent context sharing and data persistence.  
+- **Input:** Agent outputs, research data, user preferences  
+- **Output:** Contextual memory for intelligent agent coordination  
+- **Technologies:** In-memory caching, persistent storage, context bridging  
+
+---
+
 ## Tier 5: Resume Processing
 
 ### Resume Analyzer
 
-- **Folder:** `agents/resume_processing/`  
-- **Purpose:** Extracts structured data (skills, timelines) from resume files.  
-- **Components:** `resume_extractor.py`, `resume_parser.py`, `skills_tracker.py`, `config.py`  
-- **Input:** PDF, DOCX, Notion, or plain text  
-- **Output:** JSON: Skills, timeline, projects, degrees  
-- **Technologies:** PDFMiner, python-docx, spaCy, custom taggers  
+- **Folder:** `agents/resume_analyzer/`  
+- **Purpose:** Extracts and analyzes structured data from resume documents.  
+- **Components:** `agent.py`, `parser.py`, `skills_extractor.py`, `config.py`  
+- **Input:** PDF, DOCX, or plain text resume documents  
+- **Output:** Structured JSON with skills, experience timeline, education, projects  
+- **Technologies:** Document parsing libraries, NLP extraction, skill taxonomy mapping  
+- **Key Features:**
+  - Multi-format document support
+  - Advanced skills extraction and categorization
+  - Experience timeline construction
+  - Integration with job matching algorithms
 
 ### Behavioral Prep Agent
 
-- **File:** `behavioral_prep.py`  
+- **File:** `behavioral_prep.py` (planned)  
 - **Purpose:** Generates STAR-format answers from resume highlights  
-- **Input:** Experience entry  
-- **Output:** Situation → Task → Action → Result breakdown  
+- **Input:** Experience entries from resume analysis  
+- **Output:** Structured behavioral interview responses (Situation → Task → Action → Result)  
 - **Tech:** LLM-based summarization, reflection agent  
 
 ---
@@ -121,12 +234,17 @@ This document outlines the design and functionality of each agent in the system.
 
 ### Email Writer Agent
 
-- **Folder:** `agents/email_sender/`  
-- **Purpose:** Crafts personalized outreach/follow-up emails.  
-- **Components:** `agent.py`, `template_manager.py`, `feedback.py`  
-- **Input:** Target info, email type, style preferences  
-- **Output:** Email draft  
-- **Tech:** Prompt tuning, RAG, templates, tone mirroring  
+- **Folder:** `agents/email_writer/`  
+- **Purpose:** Crafts personalized outreach and follow-up emails with intelligent tone matching.  
+- **Components:** `agent.py`, `templates.py`, `personalization.py`, `config.py`  
+- **Input:** Target information, email type, style preferences, research context  
+- **Output:** Personalized email drafts with appropriate tone and content  
+- **Technologies:** Advanced prompt engineering, template management, personalization algorithms, tone analysis  
+- **Key Features:**
+  - **Template System**: Flexible email templates for different scenarios
+  - **Personalization Engine**: Context-aware content adaptation
+  - **Tone Matching**: Adapts writing style to user preferences
+  - **Research Integration**: Incorporates company and role research for relevance  
 
 ---
 
@@ -148,11 +266,17 @@ This document outlines the design and functionality of each agent in the system.
 ### Orchestrator System
 
 - **Folder:** `agents/orchestrator/`  
-- **Purpose:** Coordinates agent workflows via routing and state management.  
-- **Components:** `router.py`, `workflow_runner.py`, `langgraph_coordinator.py`, `pipeline_manager.py`  
-- **Input:** Workflow name, input context  
-- **Output:** Aggregated pipeline output  
-- **Tech:** LangGraph, async runners, fallback logic, memory connectors  
+- **Purpose:** Coordinates complex multi-agent workflows using advanced state management and conditional routing.  
+- **Components:** `workflow_runner.py`, `langgraph_coordinator.py`  
+- **Input:** Workflow trigger, email data, state context  
+- **Output:** Coordinated pipeline results with intelligent routing decisions  
+- **Technologies:** LangGraph state machines, async workflow coordination, conditional routing logic  
+- **Key Features:**
+  - **LangGraph Integration**: Advanced state-driven workflow orchestration
+  - **Conditional Routing**: Intelligent decision-making based on email classification and memory state
+  - **State Management**: Persistent workflow state across complex multi-step processes
+  - **Error Handling**: Robust retry logic and fallback mechanisms
+  - **Memory Integration**: Leverages interview memory for intelligent processing decisions  
 
 ---
 
