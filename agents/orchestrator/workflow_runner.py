@@ -107,6 +107,10 @@ class WorkflowRunner:
     def _handle_post_processing(self, result: Dict[str, Any]):
         """Handle post-processing: notifications, logging, external integrations"""
         
+        # Add type information for consistency BEFORE storing in history
+        if 'type' not in result:
+            result['type'] = 'email_pipeline'
+        
         # Log results
         if self.log_results:
             self._log_execution_result(result)
@@ -115,12 +119,8 @@ class WorkflowRunner:
         if self.enable_notifications and result.get('should_notify'):
             self._send_notifications(result)
         
-        # Store execution history
+        # Store execution history (after type is set)
         self.execution_history.append(result)
-        
-        # Add type information for consistency
-        if 'type' not in result:
-            result['type'] = 'email_pipeline'
         
         # Display results to user
         self._display_results(result)
@@ -435,6 +435,96 @@ class WorkflowRunner:
             'company_name': company_name,
             'role_title': role_title
         }
+    
+    def clear_tavily_cache(self) -> Dict[str, Any]:
+        """
+        Clear the Tavily research cache to force fresh API calls
+        
+        Returns:
+            Dictionary with clearing results
+        """
+        try:
+            import shutil
+            import os
+            
+            cache_dir = ".tavily_cache"
+            
+            if not os.path.exists(cache_dir):
+                return {
+                    'success': True,
+                    'message': 'Cache directory does not exist - nothing to clear',
+                    'files_removed': 0
+                }
+            
+            # Count files before removal
+            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
+            files_count = len(cache_files)
+            
+            # Remove the entire cache directory
+            shutil.rmtree(cache_dir)
+            
+            print(f"🗑️  Cleared Tavily cache: {files_count} cached queries removed")
+            
+            return {
+                'success': True,
+                'message': f'Successfully cleared cache - {files_count} files removed',
+                'files_removed': files_count
+            }
+            
+        except Exception as e:
+            error_msg = f"Failed to clear cache: {str(e)}"
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'error': error_msg,
+                'files_removed': 0
+            }
+    
+    def get_tavily_cache_info(self) -> Dict[str, Any]:
+        """
+        Get information about the current Tavily cache
+        
+        Returns:
+            Dictionary with cache information
+        """
+        try:
+            import os
+            
+            cache_dir = ".tavily_cache"
+            
+            if not os.path.exists(cache_dir):
+                return {
+                    'cache_exists': False,
+                    'cached_queries': 0,
+                    'message': 'No cache directory found'
+                }
+            
+            # Count cache files
+            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
+            files_count = len(cache_files)
+            
+            # Calculate total cache size
+            total_size = 0
+            for file in cache_files:
+                file_path = os.path.join(cache_dir, file)
+                total_size += os.path.getsize(file_path)
+            
+            size_mb = total_size / (1024 * 1024)  # Convert to MB
+            
+            return {
+                'cache_exists': True,
+                'cached_queries': files_count,
+                'cache_size_mb': round(size_mb, 2),
+                'cache_directory': cache_dir,
+                'message': f'Cache contains {files_count} queries ({size_mb:.2f} MB)'
+            }
+            
+        except Exception as e:
+            return {
+                'cache_exists': False,
+                'error': str(e),
+                'message': f'Error accessing cache: {str(e)}'
+            }
 
 # Entry point
 if __name__ == "__main__":
