@@ -4,12 +4,12 @@
 Cache Manager - Simple command-line tool for managing Tavily and OpenAI caches
 
 Usage:
-    python cache_manager.py --help
-    python cache_manager.py --status
-    python cache_manager.py --clear-tavily
-    python cache_manager.py --clear-openai
-    python cache_manager.py --clear-all
-    python cache_manager.py --info
+    python agents/orchestrator/cache_manager.py --help
+    python agents/orchestrator/cache_manager.py --status
+    python agents/orchestrator/cache_manager.py --clear-tavily
+    python agents/orchestrator/cache_manager.py --clear-openai
+    python agents/orchestrator/cache_manager.py --clear-all
+    python agents/orchestrator/cache_manager.py --info
 
 This tool provides easy command-line access to cache management functions
 without needing to run the full workflow runner.
