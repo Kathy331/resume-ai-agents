@@ -81,13 +81,28 @@ def get_openai_cache_info() -> Dict[str, Any]:
         cache = OpenAICache()
         stats = cache.get_cache_stats()  # Fixed method name
         
+        # Calculate cache size
+        cache_dir = stats.get('cache_dir', '.openai_cache')
+        cache_size_bytes = 0
+        if os.path.exists(cache_dir):
+            for filename in os.listdir(cache_dir):
+                if filename.endswith('.json'):
+                    file_path = os.path.join(cache_dir, filename)
+                    cache_size_bytes += os.path.getsize(file_path)
+        
+        cache_size_mb = cache_size_bytes / (1024 * 1024)
+        total_entries = stats.get('total_entries', 0)
+        
+        # Estimate savings (rough calculation: $0.01 per response)
+        estimated_savings = total_entries * 0.01
+        
         return {
             'cache_exists': True,
-            'cached_responses': stats.get('cached_queries', 0),
-            'cache_size_mb': stats.get('cache_size_mb', 0),
-            'cache_directory': stats.get('cache_dir', '.openai_cache'),
-            'estimated_savings': stats.get('estimated_savings', 0),
-            'message': f"OpenAI cache contains {stats.get('cached_queries', 0)} responses ({stats.get('cache_size_mb', 0):.2f} MB)"
+            'cached_responses': total_entries,
+            'cache_size_mb': round(cache_size_mb, 2),
+            'cache_directory': cache_dir,
+            'estimated_savings': estimated_savings,
+            'message': f"OpenAI cache contains {total_entries} responses ({cache_size_mb:.2f} MB)"
         }
         
     except Exception as e:
