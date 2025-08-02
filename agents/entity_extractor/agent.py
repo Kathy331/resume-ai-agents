@@ -148,10 +148,20 @@ class EntityExtractor(BaseAgent):
                         # Clean up the person name
                         person_text = person_text.replace('\n', ' ').strip()
                         
-                        # Skip if it looks like an organization or email
-                        if any(word in person_text.lower() for word in [
-                            "team", "company", "corp", "inc", "ltd", "llc", "@", ".com"
-                        ]):
+                        # Skip if it looks like an organization, email, or common email formatting words
+                        invalid_person_words = [
+                            "team", "company", "corp", "inc", "ltd", "llc", "@", ".com",
+                            "format", "subject", "re", "fw", "fwd", "email", "dear", "hi", "hello",  
+                            "best", "regards", "thanks", "sincerely", "meeting", "interview",
+                            "zoom", "google", "meet", "teams", "call", "session", "opportunity",
+                            "from", "to", "cc", "bcc", "date", "time", "location", "agenda"
+                        ]
+                        
+                        if any(word in person_text.lower() for word in invalid_person_words):
+                            continue
+                        
+                        # Additional check: skip single words under 3 characters or common format words
+                        if len(person_text) < 3 or person_text.lower() in ["re", "fw", "fwd", "hi", "hey"]:
                             continue
                             
                         if person_text not in entities["INTERVIEWER"] and len(person_text) >= 2:
@@ -192,6 +202,21 @@ class EntityExtractor(BaseAgent):
             # === DURATION ===
             elif label == "DURATION":
                 if not any(w in entity_text.lower() for w in ["minute", "hour", "hr"]):
+                    continue
+
+            # Final validation for INTERVIEWER before adding
+            if label == "INTERVIEWER":
+                invalid_person_words = [
+                    "team", "company", "corp", "inc", "ltd", "llc", "@", ".com",
+                    "format", "subject", "re", "fw", "fwd", "email", "dear", "hi", "hello",  
+                    "best", "regards", "thanks", "sincerely", "meeting", "interview",
+                    "zoom", "google", "meet", "teams", "call", "session", "opportunity",
+                    "from", "to", "cc", "bcc", "date", "time", "location", "agenda"
+                ]
+                
+                if (any(word in entity_text.lower() for word in invalid_person_words) or
+                    len(entity_text.strip()) < 3 or
+                    entity_text.lower() in ["re", "fw", "fwd", "hi", "hey", "format"]):
                     continue
 
             if entity_text not in entities[label]:

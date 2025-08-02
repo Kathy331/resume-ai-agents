@@ -13,8 +13,44 @@ from difflib import SequenceMatcher
 from shared.models import EntityExtractionResult, InterviewData
 
 def get_first_or_none(items: List[str]) -> Optional[str]:
-    """Get first item from list or None."""
-    return items[0] if items else None
+    """Get first item from list or None, with data cleaning."""
+    if not items:
+        return None
+    
+    # Take the first item
+    first_item = items[0]
+    
+    # Clean up the data - remove common artifacts
+    if isinstance(first_item, str):
+        # Remove quotes, brackets, and common extraction artifacts
+        cleaned = first_item.strip().strip('"\'[](){}')
+        
+        # Handle cases where extracted text contains multiple names or formats
+        # Common patterns: "Format, Archana" -> "Archana"
+        if ',' in cleaned:
+            parts = cleaned.split(',')
+            # Look for actual names (capitalized words)
+            for part in parts:
+                part = part.strip()
+                if part and part[0].isupper() and len(part) > 2:
+                    # Skip common artifacts like "Format", "Subject", "Re", etc.
+                    if part.lower() not in ['format', 'subject', 're', 'fw', 'fwd', 'email', 'from', 'to']:
+                        return part
+        
+        # Handle cases where there are multiple words, pick the most likely name
+        words = cleaned.split()
+        if len(words) > 1:
+            # Look for capitalized words that are likely names
+            for word in words:
+                if word and word[0].isupper() and len(word) > 2:
+                    if word.lower() not in ['format', 'subject', 're', 'fw', 'fwd', 'email', 'from', 'to']:
+                        return word
+        
+        # Return cleaned version if it looks valid
+        if cleaned and len(cleaned) > 1:
+            return cleaned
+    
+    return first_item if first_item else None
 
 
 def create_content_hash(entities: Union[Dict[str, Any], EntityExtractionResult]) -> str:
@@ -43,6 +79,52 @@ def entities_to_extraction_result(entities: Dict[str, Any]) -> EntityExtractionR
     )
 
 
+def clean_interviewer_name(interviewer_list: List[str]) -> Optional[str]:
+    """Specifically clean interviewer names from extraction artifacts."""
+    if not interviewer_list:
+        return None
+    
+    # Join all items if multiple, then clean
+    raw_text = ' '.join(interviewer_list) if isinstance(interviewer_list, list) else str(interviewer_list)
+    
+    # Remove common email artifacts
+    cleaned = raw_text.strip().strip('"\'[](){}')
+    
+    # Handle comma-separated values (e.g., "Format, Archana")
+    if ',' in cleaned:
+        parts = cleaned.split(',')
+        for part in parts:
+            part = part.strip()
+            # Look for actual human names
+            if part and len(part) > 2 and part[0].isupper():
+                # Skip common email artifacts
+                if part.lower() not in ['format', 'subject', 're', 'fw', 'fwd', 'email', 'from', 'to', 'dear', 'hi', 'hello']:
+                    # Check if it looks like a name (contains only letters, spaces, hyphens, apostrophes)
+                    if all(c.isalpha() or c in " '-." for c in part):
+                        return part
+    
+    # Handle space-separated words
+    words = cleaned.split()
+    potential_names = []
+    
+    for word in words:
+        word = word.strip()
+        if word and len(word) > 2 and word[0].isupper():
+            # Skip artifacts and common words
+            if word.lower() not in ['format', 'subject', 're', 'fw', 'fwd', 'email', 'from', 'to', 'dear', 'hi', 'hello', 'best', 'regards']:
+                # Check if it looks like a name
+                if all(c.isalpha() or c in "'-." for c in word):
+                    potential_names.append(word)
+    
+    # Return the first potential name found, or the cleaned original
+    if potential_names:
+        return potential_names[0]
+    elif cleaned and len(cleaned) > 1:
+        return cleaned
+    
+    return None
+
+
 def extraction_result_to_interview_data(
     extraction: EntityExtractionResult, 
     email_id: Optional[str] = None,
@@ -54,7 +136,7 @@ def extraction_result_to_interview_data(
         candidate_name=get_first_or_none(extraction.candidates),
         company_name=get_first_or_none(extraction.companies),
         role=get_first_or_none(extraction.roles),
-        interviewer=get_first_or_none(extraction.interviewers),
+        interviewer=clean_interviewer_name(extraction.interviewers),  # Use specialized cleaning
         interview_date=get_first_or_none(extraction.dates),
         interview_time=get_first_or_none(extraction.times),
         duration=get_first_or_none(extraction.durations),

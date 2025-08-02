@@ -1311,6 +1311,13 @@ if __name__ == "__main__":
         from shared.tavily_client import search_tavily
         import time
         
+        # Clean input data before processing
+        company_name = self._clean_research_input(company_name, "company")
+        role_title = self._clean_research_input(role_title, "role")
+        interviewer_name = self._clean_research_input(interviewer_name, "interviewer")
+        
+        print(f"   🧹 Cleaned inputs - Company: '{company_name}', Role: '{role_title}', Interviewer: '{interviewer_name}'")
+        
         validation_metrics = {
             'sources_discovered': 0,
             'sources_validated': 0,
@@ -1410,6 +1417,55 @@ if __name__ == "__main__":
                 'validation_metrics': validation_metrics,
                 'error': str(e)
             }
+
+    def _clean_research_input(self, input_value: str, input_type: str) -> str:
+        """Clean and validate research input data"""
+        if not input_value:
+            return f"Unknown {input_type.title()}"
+        
+        # Handle list-like strings (e.g., "['Format', 'Archana']")
+        if input_value.startswith('[') and input_value.endswith(']'):
+            try:
+                # Try to parse as list
+                import ast
+                parsed_list = ast.literal_eval(input_value)
+                if isinstance(parsed_list, list):
+                    # For interviewer, find the most likely name
+                    if input_type == "interviewer":
+                        for item in parsed_list:
+                            item = str(item).strip()
+                            if item and len(item) > 2 and item[0].isupper():
+                                # Skip common artifacts
+                                if item.lower() not in ['format', 'subject', 're', 'fw', 'fwd', 'email']:
+                                    return item
+                    # For other types, take first non-empty item
+                    for item in parsed_list:
+                        if item and str(item).strip():
+                            return str(item).strip()
+            except:
+                pass
+        
+        # Handle comma-separated values
+        if ',' in input_value:
+            parts = input_value.split(',')
+            for part in parts:
+                part = part.strip().strip('"\'[](){}')
+                if part and len(part) > 2:
+                    if input_type == "interviewer":
+                        # Skip common email artifacts for interviewer names
+                        if part[0].isupper() and part.lower() not in ['format', 'subject', 're', 'fw', 'fwd']:
+                            return part
+                    else:
+                        return part
+        
+        # Clean the string
+        cleaned = str(input_value).strip().strip('"\'[](){}')
+        
+        # Return cleaned version or fallback
+        if cleaned and len(cleaned) > 1:
+            return cleaned
+        
+        return f"Unknown {input_type.title()}"
 
     def _validate_company_source_relevance(self, sources: list, company_name: str) -> Dict[str, Any]:
         """Validate company sources for relevance and quality"""
