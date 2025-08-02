@@ -253,32 +253,4 @@ if __name__ == "__main__":
     print(f"   Last Updated: {stats['last_updated']}")
     
     if stats['companies_cached']:
-            print(f"   Companies: {', '.join(stats['companies_cached'])}")
-
-
-# Global cache instance and utility functions
-_global_cache = None
-
-def get_global_openai_cache() -> OpenAICache:
-    """Get the global OpenAI cache instance"""
-    global _global_cache
-    if _global_cache is None:
-        _global_cache = OpenAICache()
-    return _global_cache
-
-
-def get_openai_cache_stats() -> Dict[str, Any]:
-    """Get OpenAI cache statistics from global cache"""
-    cache = get_global_openai_cache()
-    return cache.get_cache_stats()
-
-
-def clear_openai_cache() -> Dict[str, Any]:
-    """Clear the OpenAI cache"""
-    cache = get_global_openai_cache()
-    entries_cleared = cache.clear()
-    
-    return {
-        "message": f"OpenAI cache cleared - removed {entries_cleared} entries",
-        "cleared_entries": entries_cleared
-    }
+        print(f"   Companies: {', '.join(stats['companies_cached'])}")
