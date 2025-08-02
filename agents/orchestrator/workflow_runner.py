@@ -930,47 +930,185 @@ if __name__ == "__main__":
     
     def clear_tavily_cache(self) -> Dict[str, Any]:
         """
-        Clear the Tavily research cache to force fresh API calls
+        Clear the Tavily research cache using the integrated cache manager
         
         Returns:
             Dictionary with clearing results
         """
         try:
-            import shutil
-            import os
+            from agents.orchestrator.cache_manager import clear_tavily_cache
             
-            cache_dir = ".tavily_cache"
+            result = clear_tavily_cache()
             
-            if not os.path.exists(cache_dir):
-                return {
-                    'success': True,
-                    'message': 'Cache directory does not exist - nothing to clear',
-                    'files_removed': 0
-                }
+            if result['success']:
+                print(f"🗑️  Cleared Tavily cache: {result['files_removed']} cached queries removed")
+            else:
+                print(f"❌ {result['message']}")
             
-            # Count files before removal
-            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
-            files_count = len(cache_files)
-            
-            # Remove the entire cache directory
-            shutil.rmtree(cache_dir)
-            
-            print(f"🗑️  Cleared Tavily cache: {files_count} cached queries removed")
-            
-            return {
-                'success': True,
-                'message': f'Successfully cleared cache - {files_count} files removed',
-                'files_removed': files_count
-            }
+            return result
             
         except Exception as e:
-            error_msg = f"Failed to clear cache: {str(e)}"
+            error_msg = f"Failed to clear Tavily cache: {str(e)}"
             print(f"❌ {error_msg}")
             return {
                 'success': False,
                 'error': error_msg,
                 'files_removed': 0
             }
+    
+    def clear_openai_cache(self) -> Dict[str, Any]:
+        """
+        Clear the OpenAI response cache using the integrated cache manager
+        
+        Returns:
+            Dictionary with clearing results
+        """
+        try:
+            from agents.orchestrator.cache_manager import clear_openai_cache
+            
+            result = clear_openai_cache()
+            
+            if result['success']:
+                print(f"🗑️  Cleared OpenAI cache: {result['responses_removed']} cached responses removed")
+            else:
+                print(f"❌ {result['message']}")
+            
+            return result
+            
+        except Exception as e:
+            error_msg = f"Failed to clear OpenAI cache: {str(e)}"
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'error': error_msg,
+                'responses_removed': 0
+            }
+    
+    def clear_all_caches(self) -> Dict[str, Any]:
+        """
+        Clear both Tavily and OpenAI caches using the integrated cache manager
+        
+        Returns:
+            Dictionary with comprehensive clearing results
+        """
+        try:
+            from agents.orchestrator.cache_manager import clear_all_caches
+            
+            result = clear_all_caches()
+            
+            if result['success']:
+                print(f"🗑️  Cleared all caches: {result['total_items_removed']} total items removed")
+                print(f"   🔍 Tavily: {result['tavily_result']['files_removed']} files")
+                print(f"   🤖 OpenAI: {result['openai_result']['responses_removed']} responses")
+            else:
+                print("❌ Some caches failed to clear:")
+                if not result['tavily_result'].get('success'):
+                    print(f"   🔍 Tavily: {result['tavily_result']['message']}")
+                if not result['openai_result'].get('success'):
+                    print(f"   🤖 OpenAI: {result['openai_result']['message']}")
+            
+            return result
+            
+        except Exception as e:
+            error_msg = f"Failed to clear all caches: {str(e)}"
+            print(f"❌ {error_msg}")
+            return {
+                'success': False,
+                'error': error_msg,
+                'total_items_removed': 0
+            }
+    
+    def get_cache_status(self) -> Dict[str, Any]:
+        """
+        Get comprehensive status of all caches using the integrated cache manager
+        
+        Returns:
+            Dictionary with cache status information
+        """
+        try:
+            from agents.orchestrator.cache_manager import get_tavily_cache_info, get_openai_cache_info
+            
+            tavily_info = get_tavily_cache_info()
+            openai_info = get_openai_cache_info()
+            
+            total_items = tavily_info.get('cached_queries', 0) + openai_info.get('cached_responses', 0)
+            total_size = tavily_info.get('cache_size_mb', 0) + openai_info.get('cache_size_mb', 0)
+            
+            status = {
+                'success': True,
+                'tavily_cache': tavily_info,
+                'openai_cache': openai_info,
+                'summary': {
+                    'total_cached_items': total_items,
+                    'total_cache_size_mb': round(total_size, 2),
+                    'estimated_savings': openai_info.get('estimated_savings', 0),
+                    'caches_active': tavily_info['cache_exists'] or openai_info['cache_exists']
+                }
+            }
+            
+            return status
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'message': f'Failed to get cache status: {str(e)}'
+            }
+    
+    def display_cache_status(self):
+        """
+        Display comprehensive cache status using the integrated cache manager
+        """
+        try:
+            from agents.orchestrator.cache_manager import display_cache_status
+            
+            print("📊 WORKFLOW RUNNER - INTEGRATED CACHE STATUS")
+            print("=" * 70)
+            display_cache_status()
+            
+        except Exception as e:
+            print(f"❌ Failed to display cache status: {str(e)}")
+    
+    def manage_caches(self, action: str = "status") -> Dict[str, Any]:
+        """
+        Comprehensive cache management interface
+        
+        Args:
+            action: Action to perform - 'status', 'clear-tavily', 'clear-openai', 'clear-all', 'info'
+            
+        Returns:
+            Dictionary with operation results
+        """
+        print(f"🗂️  CACHE MANAGEMENT - {action.upper()}")
+        print("=" * 50)
+        
+        if action == "status":
+            self.display_cache_status()
+            return self.get_cache_status()
+        
+        elif action == "clear-tavily":
+            return self.clear_tavily_cache()
+        
+        elif action == "clear-openai":
+            return self.clear_openai_cache()
+        
+        elif action == "clear-all":
+            return self.clear_all_caches()
+        
+        elif action == "info":
+            try:
+                from agents.orchestrator.cache_manager import display_detailed_info
+                display_detailed_info()
+                return self.get_cache_status()
+            except Exception as e:
+                error_msg = f"Failed to display detailed info: {str(e)}"
+                print(f"❌ {error_msg}")
+                return {'success': False, 'error': error_msg}
+        
+        else:
+            error_msg = f"Unknown cache action: {action}. Valid actions: status, clear-tavily, clear-openai, clear-all, info"
+            print(f"❌ {error_msg}")
+            return {'success': False, 'error': error_msg}
 
     def run_deep_research_pipeline_enhanced(self, max_interviews: int = 10) -> Dict[str, Any]:
         """

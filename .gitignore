@@ -42,6 +42,7 @@ storage/outputs/
 # API cache directories
 .tavily_cache/
 .openai_cache/
+cache/
 
 # Secrets
 .env

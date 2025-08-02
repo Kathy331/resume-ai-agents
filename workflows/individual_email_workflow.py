@@ -17,6 +17,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from shared.google_oauth.google_email_setup import get_gmail_service
 from shared.google_oauth.google_email_functions import get_email_messages, get_email_message_details
+from shared.tavily_cache import cached_search_tavily, get_tavily_cache
 from agents.email_classifier.agent import EmailClassifierAgent
 from agents.entity_extractor.agent import EntityExtractor
 from agents.keyword_extractor.agent_email import EmailKeywordExtractor
@@ -44,6 +45,47 @@ class IndividualEmailWorkflow:
         # Create outputs directory structure
         self.outputs_dir = "outputs/fullworkflow"
         os.makedirs(self.outputs_dir, exist_ok=True)
+    
+    def _add_citation_with_deduplication(self, citations_database: Dict, citation: Dict, agent_source: str) -> str:
+        """
+        Add citation to database with deduplication based on URL/source
+        
+        Args:
+            citations_database: Main citations database
+            citation: Citation to add with keys 'id', 'source', 'url'
+            agent_source: Name of the agent adding the citation
+            
+        Returns:
+            The citation ID to use (either new or existing)
+        """
+        citation_url = citation.get('url', '').strip()
+        citation_source = citation.get('source', '').strip()
+        
+        # Skip irrelevant citations
+        if any(skip_term in citation_source.lower() for skip_term in ['instagram', 'istock', 'piano class', 'minor piano']):
+            return None
+        
+        # Check for existing citation with same URL or source
+        for existing_id, existing_data in citations_database.items():
+            existing_url = existing_data.get('url', '').strip()
+            existing_source = existing_data.get('source', '').strip()
+            
+            # Match by URL (primary) or source name (secondary)
+            if citation_url and existing_url and citation_url == existing_url:
+                print(f"   🔗 Reusing Citation [{existing_id}]: {citation_source} (found by {agent_source})")
+                return existing_id
+            elif not citation_url and citation_source and existing_source and citation_source.lower() == existing_source.lower():
+                print(f"   🔗 Reusing Citation [{existing_id}]: {citation_source} (found by {agent_source})")
+                return existing_id
+        
+        # Add new unique citation with sequential numbering
+        new_citation_id = str(len(citations_database) + 1)
+        citations_database[new_citation_id] = {
+            'source': citation_source,
+            'url': citation_url,
+            'agent': agent_source
+        }
+        return new_citation_id
     
     def run_complete_individual_workflow(self, max_emails: int = 10) -> Dict[str, Any]:
         """
@@ -206,6 +248,9 @@ class IndividualEmailWorkflow:
             result['research_completed'] = research_result.get('success', False)
             result['research_conducted'] = True  # Track that research pipeline was used
             
+            # Store citations database for later access
+            result['citations_database'] = research_result.get('citations_database', {})
+            
             if not result['research_completed']:
                 print("❌ Research failed - skipping prep guide generation")
                 result['errors'].append(f"Research failed: {research_result.get('error', 'Unknown')}")
@@ -237,7 +282,8 @@ class IndividualEmailWorkflow:
             prep_guide_result = self._generate_comprehensive_prep_guide(
                 entity_result.get('entities', {}), 
                 research_result,
-                company_keyword
+                company_keyword,
+                email  # Pass the original email data
             )
             result['prep_guide_generated'] = prep_guide_result.get('success', False)
             
@@ -248,7 +294,8 @@ class IndividualEmailWorkflow:
                     email, 
                     result, 
                     prep_guide_result.get('prep_guide_content', ''),
-                    company_keyword
+                    company_keyword,
+                    research_result  # Pass the full research result
                 )
                 result['output_file'] = output_file
                 print(f"📝 Saved: {output_file}")
@@ -392,6 +439,17 @@ class IndividualEmailWorkflow:
         try:
             from shared.tavily_client import search_tavily
             
+            # Display cache statistics
+            cache = get_tavily_cache()
+            cache_stats = cache.get_cache_stats()
+            print(f"   💾 TAVILY CACHE STATUS:")
+            print(f"      📁 Valid Cache Files: {cache_stats.get('valid_cache_files', 0)}")
+            print(f"      🗑️ Expired Cache Files: {cache_stats.get('expired_cache_files', 0)}")
+            print(f"      📊 Total Cached Results: {cache_stats.get('total_cached_results', 0)}")
+            
+            # Clean expired cache
+            removed = cache.clear_expired_cache()
+            
             # Handle both string and list values for entities
             def get_entity_string(entity_value):
                 if isinstance(entity_value, list):
@@ -461,8 +519,11 @@ class IndividualEmailWorkflow:
                     
                     print(f"   📊 Validation Summary: {len(company_analysis['validated_sources'])} sources validated from {company_analysis['sources_processed']} discovered")
                     
+                    # Store citations in main database with deduplication
                     for citation in company_analysis['citations']:
-                        print(f"   📝 Citation [{citation['id']}]: {citation['source']}")
+                        actual_citation_id = self._add_citation_with_deduplication(citations_database, citation, 'company_analysis')
+                        if actual_citation_id:
+                            print(f"   📝 Citation [{actual_citation_id}]: {citation['source']}")
             
             # ========== ROLE ANALYSIS AGENT ==========
             if role:
@@ -497,8 +558,11 @@ class IndividualEmailWorkflow:
                     
                     print(f"   📊 Validation Summary: {len(role_analysis['validated_sources'])} sources validated from {role_analysis['sources_processed']} discovered")
                     
+                    # Store citations in main database with deduplication
                     for citation in role_analysis['citations']:
-                        print(f"   📝 Citation [{citation['id']}]: {citation['source']}")
+                        actual_citation_id = self._add_citation_with_deduplication(citations_database, citation, 'role_analysis')
+                        if actual_citation_id:
+                            print(f"   📝 Citation [{actual_citation_id}]: {citation['source']}")
             
             # ========== INTERVIEWER ANALYSIS AGENT (LINKEDIN FOCUSED) ==========
             if interviewer:
@@ -556,8 +620,11 @@ class IndividualEmailWorkflow:
                     print(f"   📊 Validation Summary: {len(interviewer_analysis['validated_sources'])} sources validated from {interviewer_analysis['sources_processed']} discovered")
                     print(f"   🔗 LinkedIn Profiles Found: {interviewer_analysis['linkedin_profiles_found']}")
                     
+                    # Store citations in main database with deduplication
                     for citation in interviewer_analysis['citations']:
-                        print(f"   📝 Citation [{citation['id']}]: {citation['source']}")
+                        actual_citation_id = self._add_citation_with_deduplication(citations_database, citation, 'interviewer_analysis')
+                        if actual_citation_id:
+                            print(f"   📝 Citation [{actual_citation_id}]: {citation['source']}")
             
             # ========== REFLECTION LOOP SYSTEM ==========
             while reflection_loops < max_reflection_loops:
@@ -600,6 +667,8 @@ class IndividualEmailWorkflow:
             # Final quality assessment
             research_quality = "EXCELLENT" if overall_confidence >= 0.85 else "HIGH" if overall_confidence >= 0.7 else "MEDIUM" if overall_confidence >= 0.5 else "LOW"
             print(f"   🏆 Research Quality: {research_quality}")
+            
+            print(f"   📝 Total Citations: {len(citations_database)} unique citations generated")
             
             return {
                 'success': True,
@@ -790,7 +859,7 @@ class IndividualEmailWorkflow:
             print(f"❌ Keyword extraction error: {str(e)}")
             return "Unknown_Company"
     
-    def _generate_comprehensive_prep_guide(self, entities: Dict[str, Any], research_result: Dict[str, Any], company_keyword: str) -> Dict[str, Any]:
+    def _generate_comprehensive_prep_guide(self, entities: Dict[str, Any], research_result: Dict[str, Any], company_keyword: str, email: Dict[str, Any]) -> Dict[str, Any]:
         """Generate comprehensive prep guide with sophisticated research citations"""
         try:
             from shared.llm_client import call_llm
@@ -798,6 +867,13 @@ class IndividualEmailWorkflow:
             company = entities.get('company', 'Unknown Company')
             role = entities.get('role', 'Unknown Role')
             interviewer = entities.get('interviewer', 'Unknown Interviewer')
+            dates = entities.get('date', [])
+            format_type = entities.get('format', 'Unknown Format')
+            
+            # Extract specific email details for actionable advice
+            email_subject = email.get('subject', '')
+            email_body = email.get('body', '')
+            from_sender = email.get('from', '')
             
             research_data = research_result.get('research_data', {})
             citations_database = research_result.get('citations_database', {})
@@ -806,9 +882,15 @@ class IndividualEmailWorkflow:
             context_with_citations = self._build_sophisticated_research_context(research_data, citations_database)
             
             prompt = f"""
-            Generate a comprehensive interview preparation guide based on sophisticated research analysis:
+            Generate a comprehensive interview preparation guide based on this SPECIFIC interview email and sophisticated research:
             
-            **Interview Details:**
+            **SPECIFIC INTERVIEW EMAIL:**
+            From: {from_sender}
+            Subject: {email_subject}
+            Interview Dates: {', '.join(dates) if dates else 'Not specified'}
+            Format: {format_type}
+            
+            **Extracted Details:**
             - Company: {company}
             - Role: {role}
             - Interviewer: {interviewer}
@@ -816,23 +898,41 @@ class IndividualEmailWorkflow:
             **Sophisticated Research Context with Citations:**
             {context_with_citations}
             
-            Please provide a detailed prep guide with the following sections:
+            Create a SPECIFIC and ACTIONABLE prep guide with these sections:
             
-            1. **Before the Interview** - Personalized preparation steps with industry context
-            2. **Company Analysis** - Industry trends, recent developments, market position [with citations]
-            3. **Role Analysis** - Skills requirements, market trends, interview preparation [with citations]
-            4. **Interviewer Background** - LinkedIn insights, professional background, expertise [with citations]
-            5. **Questions to Ask** - Sophisticated questions based on research findings
-            6. **Strategic Recommendations** - How to position yourself based on deep research
+            1. **Before the Interview** - SPECIFIC next steps based on THIS email:
+               - Exact response deadline and timing from the email
+               - Specific time slots to choose from this email
+               - Who to reply to and how
+               - Company mission, products, and current projects to research
+               - Specific technologies and approaches to understand
+               
+            2. **Company Analysis** - Based on research findings:
+               - What problems they solve and their approach
+               - Recent developments and market position
+               - Technologies they use (include specific GitHub/LinkedIn findings)
+               
+            3. **Role Analysis** - Tailored to this specific role:
+               - What they're looking for in this role
+               - Key skills and qualifications needed
+               - How to demonstrate relevant experience
+               
+            4. **Interviewer Background** - Based on LinkedIn research:
+               - Professional background and expertise
+               - Recent posts, articles, or achievements
+               - Common interests or connection points
+               
+            5. **Questions to Ask** - Intelligent questions based on research
+            6. **Strategic Recommendations** - How to position yourself
             
             CRITICAL REQUIREMENTS:
-            - Include specific citations [1], [2], etc. for ALL findings and recommendations
-            - Provide ACTUAL industry trends and developments found in research
-            - Include SPECIFIC LinkedIn insights and professional background details
-            - Base ALL advice on the actual research sources provided
-            - Use sophisticated language that reflects deep research analysis
-            
-            Format as a comprehensive markdown guide with detailed citations.
+            - Include specific citations [Citation 1], [Citation 2], etc. for ALL findings and recommendations
+            - Use the numbered citation system from the research database
+            - Base timing and logistics on the ACTUAL email content
+            - Show SPECIFIC findings from LinkedIn, GitHub, company website research
+            - Make it immediately actionable with clear next steps
+            - Every fact, insight, and recommendation MUST have a citation number
+            - Format citations as [Citation X] where X is the citation number
             """
             
             # Use asyncio to call LLM
@@ -857,7 +957,12 @@ class IndividualEmailWorkflow:
                 if citations_database:
                     print(f"\n📝 RESEARCH CITATIONS:")
                     for citation_id, citation_data in citations_database.items():
-                        print(f"[{citation_id}] {citation_data.get('source', 'Unknown source')}")
+                        source_info = citation_data.get('source', 'Unknown source')
+                        url = citation_data.get('url', '')
+                        if url:
+                            print(f"[Citation {citation_id}] {source_info} - {url}")
+                        else:
+                            print(f"[Citation {citation_id}] {source_info}")
                     print(f"=" * 80)
                 
                 return {
@@ -991,9 +1096,13 @@ class IndividualEmailWorkflow:
         
         return "\n".join(context_parts)
     
-    def _save_individual_output(self, email: Dict[str, Any], result: Dict[str, Any], prep_guide_content: str, company_keyword: str) -> str:
+    def _save_individual_output(self, email: Dict[str, Any], result: Dict[str, Any], prep_guide_content: str, company_keyword: str, research_result: Dict[str, Any] = None) -> str:
         """Save individual email processing results to company-specific .txt file"""
         try:
+            # Ensure research_result has a default value
+            if research_result is None:
+                research_result = {}
+            
             # Create safe filename
             safe_company_name = "".join(c for c in company_keyword if c.isalnum() or c in ('-', '_')).rstrip()
             if not safe_company_name:
@@ -1004,6 +1113,11 @@ class IndividualEmailWorkflow:
             
             # Generate comprehensive text file content
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Generate research validation section if available
+            research_validation_section = ""
+            if research_result:
+                research_validation_section = self._format_research_validation_for_output(research_result)
             
             file_content = f"""
 ================================================================================
@@ -1026,6 +1140,11 @@ Date: {email.get('date', 'Unknown')}
 Body: {email.get('body', 'No content')[:500]}{'...' if len(email.get('body', '')) > 500 else ''}
 
 ================================================================================
+DETAILED RESEARCH VALIDATION PROCESS
+================================================================================
+{research_validation_section}
+
+================================================================================
 PROCESSING RESULTS
 ================================================================================
 Email Index: {result.get('email_index', 'Unknown')}
@@ -1041,6 +1160,11 @@ COMPREHENSIVE INTERVIEW PREPARATION GUIDE
 ================================================================================
 
 {prep_guide_content}
+
+================================================================================
+RESEARCH CITATIONS DATABASE
+================================================================================
+{self._format_citation_database(research_result)}
 
 ================================================================================
 TECHNICAL METADATA
@@ -1071,6 +1195,158 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
         except Exception as e:
             print(f"❌ Error saving output file: {str(e)}")
             return f"Error_{result.get('email_index', 'unknown')}.txt"
+    
+    def _format_research_validation_for_output(self, research_result: Dict[str, Any]) -> str:
+        """Format the research validation process for output file"""
+        try:
+            research_data = research_result.get('research_data', {})
+            validation_metrics = research_result.get('validation_metrics', {})
+            
+            output_lines = []
+            output_lines.append("🧠 === SOPHISTICATED DEEP RESEARCH WITH ANALYSIS AGENTS ===")
+            output_lines.append(f"🔍 Total Sources Discovered: {validation_metrics.get('sources_discovered', 0)}")
+            output_lines.append(f"✅ Sources Validated: {validation_metrics.get('sources_validated', 0)}")
+            output_lines.append(f"📝 Citations Generated: {validation_metrics.get('citation_count', 0)}")
+            output_lines.append(f"🔗 LinkedIn profiles found: {validation_metrics.get('linkedin_profiles_found', 0)}")
+            output_lines.append("")
+            
+            # Company Analysis Agent Details
+            if 'company_analysis' in research_data:
+                company_data = research_data['company_analysis']
+                output_lines.append("🏢 === COMPANY ANALYSIS AGENT ===")
+                output_lines.append(f"✅ Analysis: {company_data.get('analysis_summary', 'No summary')}")
+                output_lines.append(f"📊 Industry Insights: {company_data.get('industry_analysis', 'No insights')}")
+                output_lines.append(f"📈 Confidence: {company_data.get('confidence_score', 0):.2f}")
+                output_lines.append("")
+                
+                # Show validated sources with URLs
+                output_lines.append("🔍 **PHASE 3: Enhanced Source Validation & Filtering**")
+                validated_sources = company_data.get('validated_sources', [])[:5]  # Top 5
+                for i, source_data in enumerate(validated_sources, 1):
+                    source = source_data.get('source', {})
+                    confidence = source_data.get('relevance_score', 0) / 10.0
+                    title = source.get('title', 'Unknown Title')[:60] + '...' if len(source.get('title', '')) > 60 else source.get('title', 'Unknown Title')
+                    url = source.get('url', 'No URL')
+                    evidence = source_data.get('evidence', [])
+                    
+                    output_lines.append(f"✅ VALIDATED ({i}): {title} (confidence: {confidence:.2f})")
+                    output_lines.append(f"   🔗 URL: {url}")
+                    output_lines.append(f"   📝 Reasons: {', '.join(evidence[:3])}")
+                
+                output_lines.append(f"📊 Validation Summary: {len(company_data.get('validated_sources', []))} sources validated from {company_data.get('sources_processed', 0)} discovered")
+                output_lines.append("")
+            
+            # Role Analysis Agent Details
+            if 'role_analysis' in research_data:
+                role_data = research_data['role_analysis']
+                output_lines.append("💼 === ROLE ANALYSIS AGENT ===")
+                output_lines.append(f"✅ Analysis: {role_data.get('analysis_summary', 'No summary')}")
+                output_lines.append(f"🎯 Skills Gap: {role_data.get('skills_analysis', 'No analysis')}")
+                output_lines.append(f"📈 Confidence: {role_data.get('confidence_score', 0):.2f}")
+                output_lines.append("")
+                
+                # Show validated sources with URLs
+                output_lines.append("🔍 **PHASE 3: Enhanced Role Source Validation & Filtering**")
+                validated_sources = role_data.get('validated_sources', [])[:3]  # Top 3
+                for i, source_data in enumerate(validated_sources, 1):
+                    source = source_data.get('source', {})
+                    confidence = source_data.get('relevance_score', 0) / 10.0
+                    title = source.get('title', 'Unknown Title')[:60] + '...' if len(source.get('title', '')) > 60 else source.get('title', 'Unknown Title')
+                    url = source.get('url', 'No URL')
+                    evidence = source_data.get('evidence', [])
+                    
+                    output_lines.append(f"✅ VALIDATED ({i}): {title} (confidence: {confidence:.2f})")
+                    output_lines.append(f"   🔗 URL: {url}")
+                    output_lines.append(f"   🎯 Reasons: {', '.join(evidence[:3])}")
+                
+                output_lines.append(f"📊 Validation Summary: {len(role_data.get('validated_sources', []))} sources validated from {role_data.get('sources_processed', 0)} discovered")
+                output_lines.append("")
+            
+            # Interviewer Analysis Agent Details
+            if 'interviewer_analysis' in research_data:
+                interviewer_data = research_data['interviewer_analysis']
+                output_lines.append("👤 === INTERVIEWER ANALYSIS AGENT (LINKEDIN FOCUS) ===")
+                output_lines.append(f"✅ Analysis: {interviewer_data.get('analysis_summary', 'No summary')}")
+                output_lines.append(f"🔗 LinkedIn Discovery: {interviewer_data.get('linkedin_analysis', 'No LinkedIn data')}")
+                output_lines.append(f"📈 Confidence: {interviewer_data.get('confidence_score', 0):.2f}")
+                output_lines.append("")
+                
+                # Show LinkedIn-focused validation
+                output_lines.append("🔍 **PHASE 3: Enhanced LinkedIn Source Validation & Filtering**")
+                all_sources = interviewer_data.get('validated_sources', [])
+                linkedin_sources = [s for s in all_sources if 'linkedin.com' in s.get('source', {}).get('url', '').lower()]
+                other_sources = [s for s in all_sources if 'linkedin.com' not in s.get('source', {}).get('url', '').lower()]
+                
+                # Show LinkedIn sources first
+                for i, source_data in enumerate(linkedin_sources[:2], 1):
+                    source = source_data.get('source', {})
+                    confidence = source_data.get('relevance_score', 0) / 10.0
+                    title = source.get('title', 'Unknown Title')[:60] + '...' if len(source.get('title', '')) > 60 else source.get('title', 'Unknown Title')
+                    url = source.get('url', 'No URL')
+                    evidence = source_data.get('evidence', [])
+                    
+                    output_lines.append(f"✅ VALIDATED (LinkedIn {i}): {title} (confidence: {confidence:.2f})")
+                    output_lines.append(f"   🔗 URL: {url}")
+                    output_lines.append(f"   👤 Reasons: {', '.join(evidence[:3])}")
+                
+                # Show other sources
+                for i, source_data in enumerate(other_sources[:3], 1):
+                    source = source_data.get('source', {})
+                    confidence = source_data.get('relevance_score', 0) / 10.0
+                    title = source.get('title', 'Unknown Title')[:60] + '...' if len(source.get('title', '')) > 60 else source.get('title', 'Unknown Title')
+                    url = source.get('url', 'No URL')
+                    evidence = source_data.get('evidence', [])
+                    
+                    output_lines.append(f"✅ VALIDATED ({i}): {title} (confidence: {confidence:.2f})")
+                    output_lines.append(f"   🔗 URL: {url}")
+                    output_lines.append(f"   📄 Reasons: {', '.join(evidence[:3])}")
+                
+                # Show rejected sources
+                rejected_count = interviewer_data.get('sources_processed', 0) - len(interviewer_data.get('validated_sources', []))
+                if rejected_count > 0:
+                    output_lines.append(f"❌ REJECTED: {rejected_count} sources (low confidence or irrelevant)")
+                
+                output_lines.append(f"📊 Validation Summary: {len(interviewer_data.get('validated_sources', []))} sources validated from {interviewer_data.get('sources_processed', 0)} discovered")
+                output_lines.append(f"🔗 LinkedIn Profiles Found: {interviewer_data.get('linkedin_profiles_found', 0)}")
+                output_lines.append("")
+            
+            return "\n".join(output_lines)
+            
+        except Exception as e:
+            return f"❌ Error formatting research validation: {str(e)}"
+    
+    def _format_citation_database(self, research_result: Dict[str, Any]) -> str:
+        """Format the complete citation database for output file"""
+        try:
+            citations_database = research_result.get('citations_database', {})
+            
+            if not citations_database:
+                return "No citations available."
+            
+            output_lines = []
+            output_lines.append("Complete database of all research citations used in the preparation guide:\n")
+            
+            # Sort citations by number
+            sorted_citations = sorted(citations_database.items(), key=lambda x: int(x[0]))
+            
+            for citation_id, citation_data in sorted_citations[:25]:  # Show top 25 citations
+                source_info = citation_data.get('source', 'Unknown source')
+                url = citation_data.get('url', '')
+                
+                if url:
+                    output_lines.append(f"📝 Citation [{citation_id}]: {source_info} - {url}")
+                else:
+                    output_lines.append(f"📝 Citation [{citation_id}]: {source_info}")
+            
+            if len(citations_database) > 25:
+                output_lines.append(f"\n... and {len(citations_database) - 25} more citations used in research.")
+            
+            output_lines.append(f"\nTotal Citations: {len(citations_database)}")
+            
+            return "\n".join(output_lines)
+            
+        except Exception as e:
+            return f"❌ Error formatting citation database: {str(e)}"
     
     def _deep_validate_company(self, sources: List[Dict], company: str) -> Dict[str, Any]:
         """Deep company validation with reasoning"""
@@ -1496,7 +1772,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
             
             identity_sources = []
             for query in identity_queries:
-                results = search_tavily(query, search_depth="advanced", max_results=3)
+                results = cached_search_tavily(query, search_depth="advanced", max_results=3)
                 identity_sources.extend(results)
             
             # Validate company identity with email keywords
@@ -1514,7 +1790,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
             
             industry_sources = []
             for query in industry_queries:
-                results = search_tavily(query, search_depth="basic", max_results=4)
+                results = cached_search_tavily(query, search_depth="basic", max_results=4)
                 industry_sources.extend(results)
             
             # Analyze industry trends with citations
@@ -1533,7 +1809,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
             
             financial_sources = []
             for query in financial_queries:
-                results = search_tavily(query, search_depth="basic", max_results=3)
+                results = cached_search_tavily(query, search_depth="basic", max_results=3)
                 financial_sources.extend(results)
             
             # Analyze financial and strategic developments
@@ -1626,7 +1902,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
             
             role_sources = []
             for query in role_queries:
-                results = search_tavily(query, search_depth="basic", max_results=3)
+                results = cached_search_tavily(query, search_depth="basic", max_results=3)
                 role_sources.extend(results)
             
             # Analyze role requirements
@@ -1644,7 +1920,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
             
             skills_sources = []
             for query in skills_queries:
-                results = search_tavily(query, search_depth="basic", max_results=3)
+                results = cached_search_tavily(query, search_depth="basic", max_results=3)
                 skills_sources.extend(results)
             
             # Perform skills gap analysis with citations
@@ -1663,7 +1939,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
             
             interview_sources = []
             for query in interview_queries:
-                results = search_tavily(query, search_depth="basic", max_results=2)
+                results = cached_search_tavily(query, search_depth="basic", max_results=2)
                 interview_sources.extend(results)
             
             # Analyze interview preparation needs
@@ -1763,7 +2039,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
             linkedin_sources = []
             for query in linkedin_queries:
                 print(f"     🔍 LinkedIn Search: '{query}'")
-                results = search_tavily(query, search_depth="basic", max_results=4)
+                results = cached_search_tavily(query, search_depth="basic", max_results=4)
                 linkedin_sources.extend(results)
                 
                 # Analyze each result for LinkedIn profile indicators
@@ -1796,7 +2072,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
             
             employee_sources = []
             for query in employee_queries:
-                results = search_tavily(query, search_depth="basic", max_results=3)
+                results = cached_search_tavily(query, search_depth="basic", max_results=3)
                 employee_sources.extend(results)
             
             # Validate employee presence with email keyword matching
@@ -1814,7 +2090,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
             
             background_sources = []
             for query in background_queries:
-                results = search_tavily(query, search_depth="basic", max_results=2)
+                results = cached_search_tavily(query, search_depth="basic", max_results=2)
                 background_sources.extend(results)
             
             # Analyze professional background with citations
@@ -1970,7 +2246,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
             
             for query in extended_queries:
                 thinking_log.append(f"Extended search: '{query}'")
-                results = search_tavily(query, search_depth="basic", max_results=2)
+                results = cached_search_tavily(query, search_depth="basic", max_results=2)
                 
                 for result in results:
                     if self._is_source_relevant(result, full_name, email_keywords + [company.lower()]):
@@ -2079,7 +2355,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
                     ]
                     
                     for query in additional_queries:
-                        results = search_tavily(query, search_depth="advanced", max_results=2)
+                        results = cached_search_tavily(query, search_depth="advanced", max_results=2)
                         sources_found += len(results)
                         
                         for result in results:
@@ -2096,7 +2372,7 @@ Generated by Resume AI Agents - Individual Email Processing Workflow
                     ]
                     
                     for query in linkedin_queries:
-                        results = search_tavily(query, search_depth="basic", max_results=3)
+                        results = cached_search_tavily(query, search_depth="basic", max_results=3)
                         sources_found += len(results)
                         
                         linkedin_sources = [r for r in results if 'linkedin.com' in r.get('url', '').lower()]

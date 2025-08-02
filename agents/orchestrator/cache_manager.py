@@ -26,36 +26,44 @@ from typing import Dict, Any
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 def get_tavily_cache_info() -> Dict[str, Any]:
-    """Get information about the current Tavily cache"""
+    """Get information about the Tavily cache directory"""
     try:
-        cache_dir = ".tavily_cache"
+        # Check both possible cache directories
+        cache_dirs = ["cache/tavily", ".tavily_cache"]
+        active_cache_dir = None
         
-        if not os.path.exists(cache_dir):
+        for cache_dir in cache_dirs:
+            if os.path.exists(cache_dir):
+                active_cache_dir = cache_dir
+                break
+        
+        if not active_cache_dir:
             return {
                 'cache_exists': False,
                 'cached_queries': 0,
-                'cache_size_mb': 0,
-                'message': 'No Tavily cache directory found'
+                'cache_size_mb': 0.0,
+                'cache_directory': 'cache/tavily (default)',
+                'message': 'Tavily cache directory does not exist'
             }
         
-        # Count cache files
-        cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
-        files_count = len(cache_files)
+        # Count cached queries
+        cache_files = [f for f in os.listdir(active_cache_dir) if f.endswith('.json')]
+        cached_queries = len(cache_files)
         
-        # Calculate total cache size
-        total_size = 0
-        for file in cache_files:
-            file_path = os.path.join(cache_dir, file)
-            total_size += os.path.getsize(file_path)
+        # Calculate cache size
+        cache_size_bytes = 0
+        for filename in cache_files:
+            file_path = os.path.join(active_cache_dir, filename)
+            cache_size_bytes += os.path.getsize(file_path)
         
-        size_mb = total_size / (1024 * 1024)  # Convert to MB
+        cache_size_mb = cache_size_bytes / (1024 * 1024)
         
         return {
             'cache_exists': True,
-            'cached_queries': files_count,
-            'cache_size_mb': round(size_mb, 2),
-            'cache_directory': cache_dir,
-            'message': f'Tavily cache contains {files_count} queries ({size_mb:.2f} MB)'
+            'cached_queries': cached_queries,
+            'cache_size_mb': round(cache_size_mb, 2),
+            'cache_directory': active_cache_dir,
+            'message': f"Tavily cache contains {cached_queries} cached queries ({cache_size_mb:.2f} MB)"
         }
         
     except Exception as e:
@@ -92,26 +100,37 @@ def get_openai_cache_info() -> Dict[str, Any]:
 def clear_tavily_cache() -> Dict[str, Any]:
     """Clear the Tavily research cache"""
     try:
-        cache_dir = ".tavily_cache"
+        # Check both possible cache directories
+        cache_dirs = ["cache/tavily", ".tavily_cache"]
+        cleared_dirs = []
+        total_files_removed = 0
         
-        if not os.path.exists(cache_dir):
+        for cache_dir in cache_dirs:
+            if os.path.exists(cache_dir):
+                # Count files before removal
+                cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
+                files_count = len(cache_files)
+                
+                # Remove the entire cache directory
+                import shutil
+                shutil.rmtree(cache_dir)
+                
+                cleared_dirs.append(f"{cache_dir} ({files_count} files)")
+                total_files_removed += files_count
+        
+        if not cleared_dirs:
             return {
                 'success': True,
-                'message': 'Tavily cache directory does not exist - nothing to clear',
-                'files_removed': 0
+                'message': 'No Tavily cache directories found - nothing to clear',
+                'files_removed': 0,
+                'directories_cleared': []
             }
-        
-        # Count files before removal
-        cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
-        files_count = len(cache_files)
-        
-        # Remove the entire cache directory
-        shutil.rmtree(cache_dir)
         
         return {
             'success': True,
-            'message': f'Successfully cleared Tavily cache - {files_count} files removed',
-            'files_removed': files_count
+            'message': f'Successfully cleared Tavily cache - {total_files_removed} files removed from {len(cleared_dirs)} directories',
+            'files_removed': total_files_removed,
+            'directories_cleared': cleared_dirs
         }
         
     except Exception as e:
