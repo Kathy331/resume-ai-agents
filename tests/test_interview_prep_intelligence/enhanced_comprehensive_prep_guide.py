@@ -14,8 +14,18 @@ from typing import Dict, List, Any
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from workflows.deep_research_pipeline import DeepResearchPipeline, create_sample_user_profile
+# from workflows.deep_research_pipeline import DeepResearchPipeline, create_sample_user_profile  # REMOVED - unused research engine
 from shared.llm_client import call_llm
+
+# Simple replacement functions for removed research engine components
+def create_sample_user_profile():
+    """Simple user profile for testing"""
+    return {
+        'name': 'Test User',
+        'experience_level': 'entry',
+        'skills': ['Python', 'Data Analysis', 'Machine Learning'],
+        'interests': ['AI', 'Technology', 'Innovation']
+    }
 
 
 def print_banner(title: str, emoji: str = "🎯"):
@@ -1170,7 +1180,7 @@ async def generate_enhanced_prep_guide():
     print(f"📅 Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}")
     
     # Initialize pipeline and get research data
-    pipeline = DeepResearchPipeline()
+    # pipeline = DeepResearchPipeline()  # REMOVED - unused research engine
     user_profile = create_sample_user_profile()
     
     # Example interview scenarios - TESTING ARCHANA ONLY
@@ -1194,8 +1204,20 @@ async def generate_enhanced_prep_guide():
         
         # Get company research data
         print("   🔍 Gathering company research data...")
-        company_research = await pipeline.perform_deep_company_research(company_name)
-        role_research = await pipeline.perform_deep_role_research(role_title, company_name)
+        # Mock research data (replaced DeepResearchPipeline calls)
+        company_research = {
+            'company_name': company_name,
+            'industry': 'Technology',
+            'mission': f'{company_name} mission statement',
+            'recent_news': f'Recent developments at {company_name}',
+            'culture': 'Innovative and collaborative'
+        }
+        role_research = {
+            'role': role_title,
+            'requirements': ['Technical skills', 'Communication', 'Problem solving'],
+            'responsibilities': ['Project work', 'Team collaboration', 'Innovation'],
+            'company_specific': f'{role_title} role at {company_name}'
+        }
         
         # ✅ BEFORE THE INTERVIEW
         print_section("BEFORE THE INTERVIEW", "✅")
