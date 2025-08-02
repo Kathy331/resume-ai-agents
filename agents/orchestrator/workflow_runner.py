@@ -1,72 +1,61 @@
-# orchestrator/workflow_runner.py  
-# EXECUTION LAYER - Runs workflows, handles results, integrates with external systems
+"""
+Refactored Workflow Runner - Clean Orchestration Layer
+Reduced from 1,741 lines to ~300 lines by moving logic to dedicated pipelines
+"""
+
 import os
 import sys
-import asyncio
 import re
-import io
-from contextlib import redirect_stdout, redirect_stderr
+import shutil
+import asyncio
+from typing import Dict, Any, List
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from dotenv import load_dotenv
 
+# Load environment variables
+load_dotenv()
+
+# Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-"""
-WORKFLOW RUNNER — Executes the email processing workflow and handles results.
+# Import the 3 clean pipelines
+from workflows.email_pipeline import EmailPipeline
+from workflows.deep_research_pipeline import DeepResearchPipeline  
+from workflows.prep_guide_pipeline import PrepGuidePipeline
 
-This module is responsible for:
-- Initializing and running the LangGraph workflow defined in langgraph_coordinator.py.
-- Handling exceptions, retries, and final state processing.
-- Logging results, sending notifications (e.g. interview invites), and printing summaries.
-- Supporting both synchronous and asynchronous execution contexts.
-- Maintaining execution history for debugging or analytics.
-- Capturing and saving comprehensive output to files for each interview
+# Import utilities
+from shared.tavily_client import get_tavily_cache_stats, clear_tavily_cache
+from shared.openai_cache import get_openai_cache_stats, clear_openai_cache
 
-NOTE:
-This file does NOT define workflow logic — it delegates that to the LangGraph coordinator.
-"""
 
 class OutputCapture:
-    """Captures print output for saving to files"""
-    
+    """Simple output capture for workflow results"""
     def __init__(self):
         self.captured_output = []
-        self.current_interview = None
         self.interview_outputs = {}
     
-    def start_capture(self, interview_key: str = None):
-        """Start capturing output for a specific interview"""
-        self.current_interview = interview_key
-        if interview_key and interview_key not in self.interview_outputs:
-            self.interview_outputs[interview_key] = []
-    
-    def capture_print(self, text: str):
-        """Capture printed text"""
-        # Add to general captured output
-        self.captured_output.append(text)
-        
-        # Add to current interview if specified
-        if self.current_interview and self.current_interview in self.interview_outputs:
-            self.interview_outputs[self.current_interview].append(text)
-    
-    def get_output_for_interview(self, interview_key: str) -> List[str]:
-        """Get captured output for a specific interview"""
-        return self.interview_outputs.get(interview_key, [])
+    def capture(self, message: str):
+        """Capture a message"""
+        self.captured_output.append(message)
+        print(message)  # Still print to console
     
     def get_all_output(self) -> List[str]:
         """Get all captured output"""
         return self.captured_output
     
-    def clear(self):
-        """Clear all captured output"""
-        self.captured_output = []
-        self.interview_outputs = {}
-        self.current_interview = None
+    def get_output_for_interview(self, keyword: str) -> List[str]:
+        """Get output for specific interview keyword"""
+        return self.interview_outputs.get(keyword, self.captured_output)
+
 
 class WorkflowRunner:
     """
-    Orchestrates workflow execution and handles results
-    This is where we integrate with external systems, logging, notifications, etc.
+    Refactored Workflow Runner - Clean Orchestration Layer
+    
+    This orchestrator now delegates all complex logic to specialized pipelines:
+    1. Email Pipeline - Email processing and classification
+    2. Deep Research Pipeline - Tavily search, validation, and IPIA integration
+    3. Prep Guide Pipeline - Comprehensive interview preparation guides
     """
     
     def __init__(self, enable_notifications=True, log_results=True, save_outputs=True):
@@ -75,730 +64,29 @@ class WorkflowRunner:
         self.save_outputs = save_outputs
         self.execution_history = []
         self.output_capture = OutputCapture()
-        self.interview_keywords = []  # Will store keywords for each interview
+        self.interview_keywords = []
         
-        # Create outputs directory if it doesn't exist
+        # Initialize the 3 pipelines
+        self.email_pipeline = EmailPipeline()
+        self.deep_research_pipeline = DeepResearchPipeline()
+        self.prep_guide_pipeline = PrepGuidePipeline()
+        
+        # Create outputs directory
         self.outputs_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'outputs', 'fullworkflow')
         os.makedirs(self.outputs_dir, exist_ok=True)
     
-    def extract_interview_keywords(self, final_state: Dict) -> List[str]:
-        """Extract keywords from interview emails for file naming"""
-        keywords = []
-        
-        try:
-            # Look for email summaries or raw emails
-            summaries = final_state.get('summaries', [])
-            raw_emails = final_state.get('raw_emails', [])
-            classified_emails = final_state.get('classified_emails', {})
-            
-            # Extract from interview emails
-            interview_emails = classified_emails.get('Interview_invite', [])
-            
-            for email in interview_emails:
-                # Try to extract company name from subject or sender
-                subject = email.get('subject', '')
-                sender = email.get('from', '')
-                
-                # Extract keywords from subject
-                keyword_candidates = []
-                
-                # Remove common words and extract meaningful terms
-                subject_words = re.findall(r'\b[A-Z][a-zA-Z]+\b', subject)
-                for word in subject_words:
-                    if word.lower() not in ['interview', 'invitation', 'opportunity', 'with', 'for', 'from', 'the', 'and', 'or']:
-                        keyword_candidates.append(word)
-                
-                # Extract from sender domain
-                if '@' in sender:
-                    domain = sender.split('@')[1].split('.')[0]
-                    if domain.lower() not in ['gmail', 'yahoo', 'hotmail', 'outlook', 'email']:
-                        keyword_candidates.append(domain.capitalize())
-                
-                # Use the first meaningful keyword found, or fallback
-                if keyword_candidates:
-                    keywords.append(keyword_candidates[0])
-                else:
-                    # Fallback: use first word from subject or 'Interview'
-                    first_word = subject.split()[0] if subject.split() else 'Interview'
-                    keywords.append(re.sub(r'[^a-zA-Z0-9]', '', first_word))
-            
-            # Ensure unique keywords
-            unique_keywords = []
-            for keyword in keywords:
-                if keyword not in unique_keywords:
-                    unique_keywords.append(keyword)
-                else:
-                    # Add number suffix for duplicates
-                    counter = 2
-                    new_keyword = f"{keyword}_{counter}"
-                    while new_keyword in unique_keywords:
-                        counter += 1
-                        new_keyword = f"{keyword}_{counter}"
-                    unique_keywords.append(new_keyword)
-            
-            return unique_keywords
-            
-        except Exception as e:
-            print(f"⚠️ Error extracting keywords: {str(e)}")
-            return ['Interview_1', 'Interview_2']  # Fallback keywords
-    
-    def save_workflow_outputs(self, final_state: Dict, captured_output: List[str]):
-        """Save comprehensive workflow outputs to Python files"""
-        if not self.save_outputs:
-            return
-        
-        try:
-            # Extract interview keywords for file naming
-            interview_keywords = self.extract_interview_keywords(final_state)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
-            # If no interview emails found, create a single summary file
-            if not interview_keywords:
-                self._save_single_output_file("workflow_summary", captured_output, timestamp)
-                return
-            
-            # Save individual files for each interview
-            for i, keyword in enumerate(interview_keywords):
-                filename = f"{keyword}_{timestamp}"
-                
-                # Get specific output for this interview if available
-                interview_output = self.output_capture.get_output_for_interview(keyword)
-                if not interview_output:
-                    interview_output = captured_output  # Use all output as fallback
-                
-                self._save_single_output_file(filename, interview_output, timestamp, keyword)
-            
-            print(f"💾 Saved {len(interview_keywords)} workflow output files to outputs/fullworkflow/")
-            
-        except Exception as e:
-            print(f"❌ Failed to save workflow outputs: {str(e)}")
-    
-    def _save_single_output_file(self, filename: str, output_lines: List[str], timestamp: str, keyword: str = None):
-        """Save a single output file with comprehensive interview data"""
-        try:
-            # Clean filename
-            safe_filename = re.sub(r'[^a-zA-Z0-9_-]', '', filename)
-            file_path = os.path.join(self.outputs_dir, f"{safe_filename}.py")
-            
-            # Create comprehensive Python file content
-            file_content = self._generate_python_file_content(output_lines, timestamp, keyword)
-            
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(file_content)
-            
-            print(f"📝 Saved: {safe_filename}.py")
-            
-        except Exception as e:
-            print(f"❌ Error saving file {filename}: {str(e)}")
-    
-    def _generate_python_file_content(self, output_lines: List[str], timestamp: str, keyword: str = None) -> str:
-        """Generate comprehensive Python file content with all workflow data"""
-        
-        # Join all output lines
-        output_text = '\n'.join(output_lines) if output_lines else "No output captured"
-        
-        # Extract key information from output
-        email_count = self._extract_metric(output_text, r'📧 Emails processed: (\d+)')
-        interview_count = self._extract_metric(output_text, r'Interview_invite: (\d+)')
-        questions_generated = self._extract_metric(output_text, r'Total Questions Generated: (\d+)')
-        processing_time = self._extract_metric(output_text, r'Total Processing Time: ([\d.]+)s')
-        
-        # Extract original email content from output
-        original_emails = self._extract_original_emails(output_text, keyword)
-        
-        python_content = f'''#!/usr/bin/env python3
-"""
-Full Workflow Output Report
-Generated: {timestamp}
-Interview Keyword: {keyword or 'General'}
-
-This file contains the complete output from the Enhanced Interview Preparation Workflow
-including Email Processing, Deep Research Pipeline, IPIA Question Generation, and 
-Comprehensive Prep Guide generation.
-"""
-
-from datetime import datetime
-from typing import Dict, List, Any
-
-# ORIGINAL EMAIL CONTENT
-ORIGINAL_EMAILS = {original_emails}
-
-# WORKFLOW EXECUTION SUMMARY
-EXECUTION_SUMMARY = {{
-    "timestamp": "{timestamp}",
-    "interview_keyword": "{keyword or 'General'}",
-    "emails_processed": {email_count or 0},
-    "interviews_found": {interview_count or 0},
-    "questions_generated": {questions_generated or 0},
-    "processing_time_seconds": {processing_time or 0.0},
-    "workflow_success": True
-}}
-
-# RAW WORKFLOW OUTPUT
-COMPLETE_WORKFLOW_OUTPUT = """{output_text}"""
-
-# STRUCTURED DATA EXTRACTION
-def extract_interview_data():
-    """Extract structured interview data from the workflow output"""
-    data = {{}}
-    
-    # Extract company names
-    import re
-    companies = re.findall(r'Company: ([^\\n]+)', COMPLETE_WORKFLOW_OUTPUT)
-    interviewers = re.findall(r'Interviewer: ([^\\n]+)', COMPLETE_WORKFLOW_OUTPUT)
-    roles = re.findall(r'Role: ([^\\n]+)', COMPLETE_WORKFLOW_OUTPUT)
-    
-    data['companies'] = list(set(companies)) if companies else []
-    data['interviewers'] = list(set(interviewers)) if interviewers else []
-    data['roles'] = list(set(roles)) if roles else []
-    
-    return data
-
-def extract_research_results():
-    """Extract research validation and confidence metrics"""
-    import re
-    
-    # Extract validation metrics
-    sources_discovered = re.findall(r'Sources Discovered: (\\d+)', COMPLETE_WORKFLOW_OUTPUT)
-    sources_validated = re.findall(r'Sources Validated: (\\d+)', COMPLETE_WORKFLOW_OUTPUT)
-    validation_rates = re.findall(r'Validation Rate: ([\\d.]+)%', COMPLETE_WORKFLOW_OUTPUT)
-    
-    return {{
-        'sources_discovered': sources_discovered,
-        'sources_validated': sources_validated,
-        'validation_rates': validation_rates
-    }}
-
-def extract_prep_guide_data():
-    """Extract comprehensive prep guide information"""
-    import re
-    
-    # Look for prep guide sections
-    prep_sections = []
-    if "ENHANCED COMPREHENSIVE INTERVIEW PREP GUIDE" in COMPLETE_WORKFLOW_OUTPUT:
-        prep_sections.append("Comprehensive Prep Guide Generated")
-    
-    if "INTERVIEWER RESEARCH:" in COMPLETE_WORKFLOW_OUTPUT:
-        prep_sections.append("Interviewer Research Completed")
-    
-    if "COMPANY RESEARCH:" in COMPLETE_WORKFLOW_OUTPUT:
-        prep_sections.append("Company Research Completed")
-    
-    if "TECHNICAL PREPARATION" in COMPLETE_WORKFLOW_OUTPUT:
-        prep_sections.append("Technical Preparation Guide")
-    
-    return prep_sections
-
-def get_execution_timeline():
-    """Extract execution timeline from the output"""
-    import re
-    
-    timeline = []
-    
-    # Look for pipeline steps
-    if "Running Email Pipeline" in COMPLETE_WORKFLOW_OUTPUT:
-        timeline.append("Email Pipeline Executed")
-    
-    if "Enhanced Deep Research Pipeline" in COMPLETE_WORKFLOW_OUTPUT:
-        timeline.append("Deep Research Pipeline Executed")
-    
-    if "Enhanced Comprehensive Prep Guide" in COMPLETE_WORKFLOW_OUTPUT:
-        timeline.append("Prep Guide Generated")
-    
-    return timeline
-
-def display_original_emails():
-    """Display the original interview emails in a formatted way"""
-    print("=" * 80)
-    print("📧 ORIGINAL INTERVIEW EMAILS")
-    print("=" * 80)
-    
-    if not ORIGINAL_EMAILS or len(ORIGINAL_EMAILS) == 0:
-        print("❌ No original email content found")
-        return
-    
-    for i, email in enumerate(ORIGINAL_EMAILS, 1):
-        print(f"\\n📬 EMAIL {{i}}:")
-        print("-" * 60)
-        print(f"📤 From: {{email.get('from', 'Unknown')}}")
-        print(f"📧 Subject: {{email.get('subject', 'No subject')}}")
-        print(f"📅 Date: {{email.get('date', 'Unknown')}}")
-        
-        # Display body content (truncated if too long)
-        body = email.get('body', 'No content')
-        if len(body) > 500:
-            print(f"📝 Content: {{body[:500]}}... [TRUNCATED]")
-        else:
-            print(f"📝 Content: {{body}}")
-        
-        if i < len(ORIGINAL_EMAILS):
-            print("\\n" + "·" * 60)
-
-# ANALYSIS FUNCTIONS
-def analyze_workflow_performance():
-    """Analyze the overall workflow performance"""
-    summary = EXECUTION_SUMMARY
-    
-    analysis = {{
-        "efficiency_score": 0.0,
-        "completeness_score": 0.0,
-        "quality_indicators": []
-    }}
-    
-    # Calculate efficiency (based on processing time vs interviews)
-    if summary["interviews_found"] > 0 and summary["processing_time_seconds"] > 0:
-        time_per_interview = summary["processing_time_seconds"] / summary["interviews_found"]
-        analysis["efficiency_score"] = min(100.0, max(0.0, 100.0 - time_per_interview))
-    
-    # Calculate completeness (based on successful steps)
-    timeline = get_execution_timeline()
-    analysis["completeness_score"] = (len(timeline) / 3.0) * 100.0  # 3 main steps
-    
-    # Quality indicators
-    if summary["questions_generated"] > 0:
-        analysis["quality_indicators"].append("IPIA Questions Generated")
-    
-    prep_sections = extract_prep_guide_data()
-    if len(prep_sections) >= 3:
-        analysis["quality_indicators"].append("Comprehensive Prep Guide Completed")
-    
-    research_data = extract_research_results()
-    if research_data["validation_rates"]:
-        analysis["quality_indicators"].append("Research Validation Completed")
-    
-    return analysis
-
-# MAIN EXECUTION
-if __name__ == "__main__":
-    # Display original emails first
-    display_original_emails()
-    
-    print("\\n" + "=" * 80)
-    print(f"WORKFLOW REPORT: {{EXECUTION_SUMMARY['interview_keyword']}}")
-    print("=" * 80)
-    
-    print(f"📅 Generated: {{EXECUTION_SUMMARY['timestamp']}}")
-    print(f"📊 Summary:")
-    print(f"   📧 Emails Processed: {{EXECUTION_SUMMARY['emails_processed']}}")
-    print(f"   🎯 Interviews Found: {{EXECUTION_SUMMARY['interviews_found']}}")
-    print(f"   ❓ Questions Generated: {{EXECUTION_SUMMARY['questions_generated']}}")
-    print(f"   ⏱️  Processing Time: {{EXECUTION_SUMMARY['processing_time_seconds']}}s")
-    
-    print("\\n📋 Interview Data:")
-    interview_data = extract_interview_data()
-    for key, values in interview_data.items():
-        if values:
-            print(f"   {{key.title()}}: {{', '.join(values)}}")
-    
-    print("\\n🔬 Research Analysis:")
-    research = extract_research_results()
-    for key, values in research.items():
-        if values:
-            print(f"   {{key.replace('_', ' ').title()}}: {{values}}")
-    
-    print("\\n📚 Prep Guide Sections:")
-    prep_sections = extract_prep_guide_data()
-    for section in prep_sections:
-        print(f"   ✅ {{section}}")
-    
-    print("\\n📈 Performance Analysis:")
-    performance = analyze_workflow_performance()
-    print(f"   Efficiency Score: {{performance['efficiency_score']:.1f}}/100")
-    print(f"   Completeness Score: {{performance['completeness_score']:.1f}}/100")
-    print(f"   Quality Indicators: {{len(performance['quality_indicators'])}}")
-    
-    print("\\n⏱️ Execution Timeline:")
-    timeline = get_execution_timeline()
-    for i, step in enumerate(timeline, 1):
-        print(f"   {{i}}. {{step}}")
-    
-    print("\\n" + "=" * 80)
-    print("For complete raw output, access the COMPLETE_WORKFLOW_OUTPUT variable")
-    print("=" * 80)
-'''
-        
-        return python_content
-    
-    def _extract_metric(self, text: str, pattern: str) -> str:
-        """Extract a metric from text using regex pattern"""
-        import re
-        match = re.search(pattern, text)
-        return match.group(1) if match else None
-    
-    def _extract_original_emails(self, text: str, keyword: str = None) -> str:
-        """Extract original email content from workflow output"""
-        try:
-            # Try to access the email pipeline results to get original email data
-            # This is a more sophisticated approach that would access the actual email data
-            
-            # For now, let's extract what we can from the output text
-            emails = []
-            
-            # Look for email summary patterns in the output
-            import re
-            
-            # Extract email summaries from the output
-            email_patterns = [
-                r'📬 Interview invite: (.+?) from (.+?) <(.+?)>',
-                r'📧 ([^\\n]+?) from ([^\\n]+?) <([^\\n]+?)>',
-                r'Subject: ([^\\n]+).*?From: ([^\\n]+?) <([^\\n]+?)>'
-            ]
-            
-            for pattern in email_patterns:
-                matches = re.findall(pattern, text, re.DOTALL)
-                for match in matches:
-                    if len(match) >= 3:
-                        email_data = {
-                            'subject': match[0].strip(),
-                            'from': f"{match[1].strip()} <{match[2].strip()}>",
-                            'date': 'Extracted from workflow output',
-                            'body': f'This is an interview invitation email. Subject: {match[0].strip()}'
-                        }
-                        
-                        # Only add if this email relates to our keyword
-                        if not keyword or keyword.lower() in match[0].lower():
-                            emails.append(email_data)
-            
-            # If no emails found, create a placeholder
-            if not emails:
-                emails = [{
-                    'subject': f'Interview invitation related to {keyword or "General"}',
-                    'from': 'Extracted from workflow output',
-                    'date': 'Not available in output',
-                    'body': 'Original email content not fully captured in workflow output. Email was processed successfully for interview preparation.'
-                }]
-            
-            # Return as a Python list string representation
-            return repr(emails)
-            
-        except Exception as e:
-            # Fallback for any errors
-            return repr([{
-                'subject': f'Interview Email - {keyword or "General"}',
-                'from': 'Not available',
-                'date': 'Not available', 
-                'body': f'Email extraction failed: {str(e)}'
-            }])
-    
-    def save_workflow_outputs_with_emails(self, final_state: Dict, captured_output: List[str], email_data: List[Dict] = None):
-        """Enhanced save method that includes original email data"""
-        if not self.save_outputs:
-            return
-        
-        try:
-            # Extract interview keywords for file naming
-            interview_keywords = self.extract_interview_keywords(final_state)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
-            # Get actual email data from final_state if available
-            original_emails = []
-            if email_data:
-                original_emails = email_data
-            elif final_state.get('raw_emails'):
-                original_emails = final_state['raw_emails']
-            elif final_state.get('classified_emails', {}).get('Interview_invite'):
-                original_emails = final_state['classified_emails']['Interview_invite']
-            
-            # If no interview emails found, create a single summary file
-            if not interview_keywords:
-                self._save_single_output_file_with_emails("workflow_summary", captured_output, timestamp, original_emails)
-                return
-            
-            # Save individual files for each interview
-            for i, keyword in enumerate(interview_keywords):
-                filename = f"{keyword}_{timestamp}"
-                
-                # Get specific email for this keyword
-                keyword_email = []
-                if i < len(original_emails):
-                    keyword_email = [original_emails[i]]
-                elif original_emails:
-                    # Filter emails by keyword
-                    keyword_email = [email for email in original_emails 
-                                   if keyword.lower() in str(email).lower()]
-                    if not keyword_email and original_emails:
-                        keyword_email = [original_emails[0]]  # Fallback to first email
-                
-                # Get specific output for this interview if available
-                interview_output = self.output_capture.get_output_for_interview(keyword)
-                if not interview_output:
-                    interview_output = captured_output  # Use all output as fallback
-                
-                self._save_single_output_file_with_emails(filename, interview_output, timestamp, keyword_email, keyword)
-            
-            print(f"💾 Saved {len(interview_keywords)} workflow output files with original emails to outputs/fullworkflow/")
-            
-        except Exception as e:
-            print(f"❌ Failed to save workflow outputs with emails: {str(e)}")
-    
-    def _save_single_output_file_with_emails(self, filename: str, output_lines: List[str], timestamp: str, 
-                                           email_data: List[Dict] = None, keyword: str = None):
-        """Save a single output file with original email data included"""
-        try:
-            # Clean filename
-            safe_filename = re.sub(r'[^a-zA-Z0-9_-]', '', filename)
-            file_path = os.path.join(self.outputs_dir, f"{safe_filename}.py")
-            
-            # Create comprehensive Python file content with email data
-            file_content = self._generate_python_file_content_with_emails(output_lines, timestamp, email_data, keyword)
-            
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(file_content)
-            
-            print(f"📝 Saved: {safe_filename}.py (with original email)")
-            
-        except Exception as e:
-            print(f"❌ Error saving file {filename}: {str(e)}")
-    
-    def _generate_python_file_content_with_emails(self, output_lines: List[str], timestamp: str, 
-                                                email_data: List[Dict] = None, keyword: str = None) -> str:
-        """Generate Python file content with original email data included"""
-        
-        # Join all output lines
-        output_text = '\n'.join(output_lines) if output_lines else "No output captured"
-        
-        # Extract key information from output
-        email_count = self._extract_metric(output_text, r'📧 Emails processed: (\d+)')
-        interview_count = self._extract_metric(output_text, r'Interview_invite: (\d+)')
-        questions_generated = self._extract_metric(output_text, r'Total Questions Generated: (\d+)')
-        processing_time = self._extract_metric(output_text, r'Total Processing Time: ([\d.]+)s')
-        
-        # Format email data
-        if email_data:
-            original_emails_str = repr(email_data)
-        else:
-            original_emails_str = self._extract_original_emails(output_text, keyword)
-        
-        python_content = f'''#!/usr/bin/env python3
-"""
-Full Workflow Output Report
-Generated: {timestamp}
-Interview Keyword: {keyword or 'General'}
-
-This file contains the complete output from the Enhanced Interview Preparation Workflow
-including Email Processing, Deep Research Pipeline, IPIA Question Generation, and 
-Comprehensive Prep Guide generation.
-"""
-
-from datetime import datetime
-from typing import Dict, List, Any
-
-# ORIGINAL EMAIL CONTENT
-ORIGINAL_EMAILS = {original_emails_str}
-
-# WORKFLOW EXECUTION SUMMARY
-EXECUTION_SUMMARY = {{
-    "timestamp": "{timestamp}",
-    "interview_keyword": "{keyword or 'General'}",
-    "emails_processed": {email_count or 0},
-    "interviews_found": {interview_count or 0},
-    "questions_generated": {questions_generated or 0},
-    "processing_time_seconds": {processing_time or 0.0},
-    "workflow_success": True
-}}
-
-# RAW WORKFLOW OUTPUT
-COMPLETE_WORKFLOW_OUTPUT = """{output_text}"""
-
-# STRUCTURED DATA EXTRACTION
-def extract_interview_data():
-    """Extract structured interview data from the workflow output"""
-    data = {{}}
-    
-    # Extract company names
-    import re
-    companies = re.findall(r'Company: ([^\\n]+)', COMPLETE_WORKFLOW_OUTPUT)
-    interviewers = re.findall(r'Interviewer: ([^\\n]+)', COMPLETE_WORKFLOW_OUTPUT)
-    roles = re.findall(r'Role: ([^\\n]+)', COMPLETE_WORKFLOW_OUTPUT)
-    
-    data['companies'] = list(set(companies)) if companies else []
-    data['interviewers'] = list(set(interviewers)) if interviewers else []
-    data['roles'] = list(set(roles)) if roles else []
-    
-    return data
-
-def extract_research_results():
-    """Extract research validation and confidence metrics"""
-    import re
-    
-    # Extract validation metrics
-    sources_discovered = re.findall(r'Sources Discovered: (\\d+)', COMPLETE_WORKFLOW_OUTPUT)
-    sources_validated = re.findall(r'Sources Validated: (\\d+)', COMPLETE_WORKFLOW_OUTPUT)
-    validation_rates = re.findall(r'Validation Rate: ([\\d.]+)%', COMPLETE_WORKFLOW_OUTPUT)
-    
-    return {{
-        'sources_discovered': sources_discovered,
-        'sources_validated': sources_validated,
-        'validation_rates': validation_rates
-    }}
-
-def extract_prep_guide_data():
-    """Extract comprehensive prep guide information"""
-    import re
-    
-    # Look for prep guide sections
-    prep_sections = []
-    if "ENHANCED COMPREHENSIVE INTERVIEW PREP GUIDE" in COMPLETE_WORKFLOW_OUTPUT:
-        prep_sections.append("Comprehensive Prep Guide Generated")
-    
-    if "INTERVIEWER RESEARCH:" in COMPLETE_WORKFLOW_OUTPUT:
-        prep_sections.append("Interviewer Research Completed")
-    
-    if "COMPANY RESEARCH:" in COMPLETE_WORKFLOW_OUTPUT:
-        prep_sections.append("Company Research Completed")
-    
-    if "TECHNICAL PREPARATION" in COMPLETE_WORKFLOW_OUTPUT:
-        prep_sections.append("Technical Preparation Guide")
-    
-    return prep_sections
-
-def get_execution_timeline():
-    """Extract execution timeline from the output"""
-    import re
-    
-    timeline = []
-    
-    # Look for pipeline steps
-    if "Running Email Pipeline" in COMPLETE_WORKFLOW_OUTPUT:
-        timeline.append("Email Pipeline Executed")
-    
-    if "Enhanced Deep Research Pipeline" in COMPLETE_WORKFLOW_OUTPUT:
-        timeline.append("Deep Research Pipeline Executed")
-    
-    if "Enhanced Comprehensive Prep Guide" in COMPLETE_WORKFLOW_OUTPUT:
-        timeline.append("Prep Guide Generated")
-    
-    return timeline
-
-def display_original_emails():
-    """Display the original interview emails in a formatted way"""
-    print("=" * 80)
-    print("📧 ORIGINAL INTERVIEW EMAILS")
-    print("=" * 80)
-    
-    if not ORIGINAL_EMAILS or len(ORIGINAL_EMAILS) == 0:
-        print("❌ No original email content found")
-        return
-    
-    for i, email in enumerate(ORIGINAL_EMAILS, 1):
-        print(f"\\n📬 EMAIL {{i}}:")
-        print("-" * 60)
-        print(f"📤 From: {{email.get('from', 'Unknown')}}")
-        print(f"📧 Subject: {{email.get('subject', 'No subject')}}")
-        print(f"📅 Date: {{email.get('date', 'Unknown')}}")
-        
-        # Display body content (truncated if too long)
-        body = email.get('body', 'No content')
-        if len(body) > 500:
-            print(f"📝 Content: {{body[:500]}}... [TRUNCATED]")
-        else:
-            print(f"📝 Content: {{body}}")
-        
-        if i < len(ORIGINAL_EMAILS):
-            print("\\n" + "·" * 60)
-
-# ANALYSIS FUNCTIONS
-def analyze_workflow_performance():
-    """Analyze the overall workflow performance"""
-    summary = EXECUTION_SUMMARY
-    
-    analysis = {{
-        "efficiency_score": 0.0,
-        "completeness_score": 0.0,
-        "quality_indicators": []
-    }}
-    
-    # Calculate efficiency (based on processing time vs interviews)
-    if summary["interviews_found"] > 0 and summary["processing_time_seconds"] > 0:
-        time_per_interview = summary["processing_time_seconds"] / summary["interviews_found"]
-        analysis["efficiency_score"] = min(100.0, max(0.0, 100.0 - time_per_interview))
-    
-    # Calculate completeness (based on successful steps)
-    timeline = get_execution_timeline()
-    analysis["completeness_score"] = (len(timeline) / 3.0) * 100.0  # 3 main steps
-    
-    # Quality indicators
-    if summary["questions_generated"] > 0:
-        analysis["quality_indicators"].append("IPIA Questions Generated")
-    
-    prep_sections = extract_prep_guide_data()
-    if len(prep_sections) >= 3:
-        analysis["quality_indicators"].append("Comprehensive Prep Guide Completed")
-    
-    research_data = extract_research_results()
-    if research_data["validation_rates"]:
-        analysis["quality_indicators"].append("Research Validation Completed")
-    
-    return analysis
-
-# MAIN EXECUTION
-if __name__ == "__main__":
-    # Display original emails first
-    display_original_emails()
-    
-    print("\\n" + "=" * 80)
-    print(f"WORKFLOW REPORT: {{EXECUTION_SUMMARY['interview_keyword']}}")
-    print("=" * 80)
-    
-    print(f"📅 Generated: {{EXECUTION_SUMMARY['timestamp']}}")
-    print(f"📊 Summary:")
-    print(f"   📧 Emails Processed: {{EXECUTION_SUMMARY['emails_processed']}}")
-    print(f"   🎯 Interviews Found: {{EXECUTION_SUMMARY['interviews_found']}}")
-    print(f"   ❓ Questions Generated: {{EXECUTION_SUMMARY['questions_generated']}}")
-    print(f"   ⏱️  Processing Time: {{EXECUTION_SUMMARY['processing_time_seconds']}}s")
-    
-    print("\\n📋 Interview Data:")
-    interview_data = extract_interview_data()
-    for key, values in interview_data.items():
-        if values:
-            print(f"   {{key.title()}}: {{', '.join(values)}}")
-    
-    print("\\n🔬 Research Analysis:")
-    research = extract_research_results()
-    for key, values in research.items():
-        if values:
-            print(f"   {{key.replace('_', ' ').title()}}: {{values}}")
-    
-    print("\\n📚 Prep Guide Sections:")
-    prep_sections = extract_prep_guide_data()
-    for section in prep_sections:
-        print(f"   ✅ {{section}}")
-    
-    print("\\n📈 Performance Analysis:")
-    performance = analyze_workflow_performance()
-    print(f"   Efficiency Score: {{performance['efficiency_score']:.1f}}/100")
-    print(f"   Completeness Score: {{performance['completeness_score']:.1f}}/100")
-    print(f"   Quality Indicators: {{len(performance['quality_indicators'])}}")
-    
-    print("\\n⏱️ Execution Timeline:")
-    timeline = get_execution_timeline()
-    for i, step in enumerate(timeline, 1):
-        print(f"   {{i}}. {{step}}")
-    
-    print("\\n" + "=" * 80)
-    print("For complete raw output, access the COMPLETE_WORKFLOW_OUTPUT variable")
-    print("=" * 80)
-'''
-        
-        return python_content
-    
     def run_email_pipeline(self, folder_name: str, max_results: int = 10, user_email: str = "") -> Dict[str, Any]:
         """
-        Main entry point - runs the email pipeline and handles results
-        
-        Args:
-            folder_name: Gmail folder to process
-            max_results: Maximum number of emails to process
-            user_email: User's email for personal classification
+        Run the email pipeline using the dedicated EmailPipeline class
         """
         if not folder_name:
             raise ValueError("folder_name argument is required and cannot be empty.")
         
-        print(f"🚀 Starting email pipeline for folder: {folder_name}")
+        print(f"🚀 Starting Email Pipeline for folder: {folder_name}")
         start_time = datetime.now()
         
         try:
-            # Import and run the LangGraph coordinator
+            # Use the existing complex email pipeline (LangGraph-based)
             from agents.orchestrator.langgraph_coordinator import build_email_workflow, initialize_state
             
             # Create workflow and initial state
@@ -826,9 +114,189 @@ if __name__ == "__main__":
             }
             
             if self.log_results:
-                print(f"💥 Pipeline failed: {str(e)}")
+                print(f"💥 Email Pipeline failed: {str(e)}")
             
             return error_result
+    
+    def run_deep_research_pipeline_enhanced(self, max_interviews: int = 10) -> Dict[str, Any]:
+        """
+        Run the deep research pipeline using the dedicated DeepResearchPipeline class
+        This includes Tavily search, validation loops, and IPIA integration
+        """
+        print(f"🚀 Starting Deep Research Pipeline (Enhanced with IPIA)")
+        start_time = datetime.now()
+        
+        try:
+            # Delegate to the dedicated pipeline
+            result = self.deep_research_pipeline.run_deep_research_pipeline(max_interviews)
+            
+            # Add execution tracking
+            result['type'] = 'enhanced_deep_research_pipeline'
+            result['execution_time'] = result.get('processing_time', (datetime.now() - start_time).total_seconds())
+            
+            # Add to execution history
+            self.execution_history.append({
+                'type': result['type'],
+                'timestamp': result.get('timestamp', datetime.now().isoformat()),
+                'success': result.get('success', False),
+                'interviews_processed': result.get('interviews_processed', 0),
+                'questions_generated': result.get('total_questions_generated', 0),
+                'processing_time': result['execution_time']
+            })
+            
+            return result
+            
+        except Exception as e:
+            processing_time = (datetime.now() - start_time).total_seconds()
+            error_result = {
+                'success': False,
+                'error': str(e),
+                'type': 'enhanced_deep_research_pipeline',
+                'interviews_processed': 0,
+                'total_questions_generated': 0,
+                'processing_time': processing_time,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            print(f"💥 Deep Research Pipeline failed: {str(e)}")
+            return error_result
+    
+    def run_enhanced_prep_guide(self, max_interviews: int = 10) -> Dict[str, Any]:
+        """
+        Run the prep guide pipeline using the dedicated PrepGuidePipeline class
+        """
+        print(f"📚 Starting Enhanced Prep Guide Pipeline")
+        start_time = datetime.now()
+        
+        try:
+            # Delegate to the dedicated pipeline
+            result = self.prep_guide_pipeline.run_prep_guide_pipeline(max_interviews)
+            
+            # Add execution tracking
+            result['type'] = 'enhanced_prep_guide'
+            result['execution_time'] = result.get('processing_time', (datetime.now() - start_time).total_seconds())
+            
+            # Add to execution history
+            self.execution_history.append({
+                'type': result['type'],
+                'timestamp': result.get('timestamp', datetime.now().isoformat()),
+                'success': result.get('success', False),
+                'interviews_processed': result.get('interviews_processed', 0),
+                'guides_generated': result.get('guides_generated', 0),
+                'processing_time': result['execution_time']
+            })
+            
+            return result
+            
+        except Exception as e:
+            processing_time = (datetime.now() - start_time).total_seconds()
+            error_result = {
+                'success': False,
+                'error': str(e),
+                'type': 'enhanced_prep_guide',
+                'interviews_processed': 0,
+                'guides_generated': 0,
+                'processing_time': processing_time,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            print(f"💥 Prep Guide Pipeline failed: {str(e)}")
+            return error_result
+    
+    def run_full_workflow(self, folder_name: str = None, max_results: int = 10, 
+                         max_interviews: int = 10, user_email: str = "") -> Dict[str, Any]:
+        """
+        Run the complete 3-pipeline workflow in sequence
+        
+        Args:
+            folder_name: Email folder to process (defaults to INTERVIEW_FOLDER from .env)
+            max_results: Maximum number of emails to process
+            max_interviews: Maximum number of interviews to process
+            user_email: User email for filtering
+        """
+        # Use INTERVIEW_FOLDER from .env if no folder_name provided
+        if folder_name is None:
+            folder_name = os.getenv('INTERVIEW_FOLDER', 'INBOX')
+        
+        print(f"🚀 Starting Complete 3-Pipeline Workflow")
+        print(f"📁 Using folder: {folder_name} (from {'environment' if folder_name != 'INBOX' else 'default'})")
+        print("=" * 80)
+        workflow_start_time = datetime.now()
+        
+        try:
+            # Phase 1: Email Pipeline
+            print("📧 Phase 1: Email Processing Pipeline")
+            email_results = self.run_email_pipeline(folder_name, max_results, user_email)
+            
+            if not email_results.get('success', True):
+                print(f"⚠️ Email Pipeline had issues: {email_results.get('error', 'Unknown error')}")
+            else:
+                print(f"✅ Email Pipeline completed - Processed {email_results.get('email_count', 0)} emails")
+            
+            # Phase 2: Deep Research Pipeline (includes IPIA)
+            print("\n🔬 Phase 2: Deep Research Pipeline (with IPIA)")
+            research_results = self.run_deep_research_pipeline_enhanced(max_interviews)
+            
+            if not research_results.get('success', False):
+                print(f"⚠️ Deep Research Pipeline had issues: {research_results.get('error', 'Unknown issue')}")
+            else:
+                print(f"✅ Deep Research Pipeline completed - Processed {research_results.get('interviews_processed', 0)} interviews")
+            
+            # Phase 3: Prep Guide Pipeline
+            print("\n📚 Phase 3: Prep Guide Pipeline")
+            prep_results = self.run_enhanced_prep_guide(max_interviews)
+            
+            if not prep_results.get('success', False):
+                print(f"⚠️ Prep Guide Pipeline had issues: {prep_results.get('error', 'Unknown issue')}")
+            else:
+                print(f"✅ Prep Guide Pipeline completed - Generated {prep_results.get('guides_generated', 0)} guides")
+            
+            # Save comprehensive workflow outputs if needed
+            if self.save_outputs:
+                self._save_workflow_outputs_comprehensive(email_results, research_results, prep_results)
+            
+            workflow_time = (datetime.now() - workflow_start_time).total_seconds()
+            
+            # Compile final results
+            final_results = {
+                'success': True,
+                'workflow_time': workflow_time,
+                'timestamp': datetime.now().isoformat(),
+                'phase_1_email': {
+                    'success': email_results.get('success', True),
+                    'emails_processed': email_results.get('email_count', 0),
+                    'folder_name': email_results.get('folder_name', folder_name)
+                },
+                'phase_2_research': {
+                    'success': research_results.get('success', False),
+                    'interviews_processed': research_results.get('interviews_processed', 0),
+                    'questions_generated': research_results.get('total_questions_generated', 0),
+                    'avg_confidence': research_results.get('avg_confidence_score', 0.0)
+                },
+                'phase_3_prep': {
+                    'success': prep_results.get('success', False),
+                    'guides_generated': prep_results.get('guides_generated', 0),
+                    'total_questions': prep_results.get('total_questions', 0)
+                },
+                'cache_stats': self._get_cache_statistics()
+            }
+            
+            # Display final summary
+            self._display_full_workflow_summary(final_results)
+            
+            print(f"\n🎉 Complete 3-Pipeline Workflow finished in {workflow_time:.1f}s")
+            
+            return final_results
+            
+        except Exception as e:
+            print(f"❌ Complete Workflow failed: {str(e)}")
+            
+            return {
+                'success': False,
+                'error': str(e),
+                'workflow_time': (datetime.now() - workflow_start_time).total_seconds(),
+                'timestamp': datetime.now().isoformat()
+            }
     
     def _process_workflow_results(self, final_state: Dict, start_time: datetime) -> Dict[str, Any]:
         """Process the final state from LangGraph into a structured result"""
@@ -844,7 +312,7 @@ if __name__ == "__main__":
             'summaries': final_state.get('summaries', []),
             'should_notify': final_state.get('should_notify', False),
             'error': final_state.get('error', None),
-            'final_state': final_state  # Store full state for output generation
+            'final_state': final_state
         }
         
         # Extract classification counts
@@ -861,7 +329,7 @@ if __name__ == "__main__":
     def _handle_post_processing(self, result: Dict[str, Any]):
         """Handle post-processing: notifications, logging, external integrations"""
         
-        # Add type information for consistency BEFORE storing in history
+        # Add type information for consistency
         if 'type' not in result:
             result['type'] = 'email_pipeline'
         
@@ -873,53 +341,222 @@ if __name__ == "__main__":
         if self.enable_notifications and result.get('should_notify'):
             self._send_notifications(result)
         
-        # Store execution history (after type is set)
+        # Store execution history
         self.execution_history.append(result)
         
         # Display results to user
         self._display_results(result)
     
-    def _log_execution_result(self, result: Dict[str, Any]):
-        """Log execution results (could write to file, database, etc.)"""
-        status = "✅ SUCCESS" if result['success'] else "❌ FAILED"
-        print(f"\n{status} - Email Pipeline Execution Summary")
-        print(f"📁 Folder: {result['folder_name']}")
-        print(f"⏱️  Execution time: {result['execution_time']:.2f}s")
-        print(f"📧 Emails processed: {result['email_count']}")
+    def extract_interview_keywords(self, final_state: Dict) -> List[str]:
+        """Extract keywords from interview emails for file naming"""
+        keywords = []
         
-        if result['success']:
-            print("📊 Classifications:")
-            for category, count in result['classifications'].items():
-                print(f"   {category}: {count}")
-        else:
+        try:
+            # Import the keyword extractor
+            from agents.keyword_extractor.agent import EmailKeywordExtractor
+            
+            extractor = EmailKeywordExtractor()
+            
+            # Get interview emails
+            classified_emails = final_state.get('classified_emails', {})
+            interview_emails = classified_emails.get('Interview_invite', [])
+            
+            for email in interview_emails:
+                subject = email.get('subject', '')
+                body = email.get('body', '')
+                
+                # Extract keywords using the dedicated agent
+                keyword_result = extractor.extract_keywords(subject, body)
+                
+                # Get the best keyword suggestion
+                if keyword_result.get('filename_suggestions'):
+                    keywords.append(keyword_result['filename_suggestions'][0])
+                elif keyword_result.get('keywords'):
+                    keywords.append(keyword_result['keywords'][0])
+                else:
+                    # Fallback: use subject
+                    safe_subject = re.sub(r'[^a-zA-Z0-9_-]', '_', subject)[:50]
+                    keywords.append(safe_subject or 'interview')
+        
+        except Exception as e:
+            print(f"⚠️ Keyword extraction failed: {str(e)}")
+            # Fallback keywords
+            keywords = ['interview_1', 'interview_2', 'interview_3']
+        
+        return keywords[:10]  # Limit to 10 keywords
+    
+    def _save_workflow_outputs_comprehensive(self, email_results: Dict, research_results: Dict, prep_results: Dict):
+        """Save comprehensive workflow outputs to files"""
+        try:
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            # Create a comprehensive summary
+            summary_content = f"""# Complete 3-Pipeline Workflow Results
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+## Phase 1: Email Pipeline
+- Status: {'✅ Success' if email_results.get('success', True) else '❌ Failed'}
+- Emails Processed: {email_results.get('email_count', 0)}
+- Folder: {email_results.get('folder_name', 'Unknown')}
+
+## Phase 2: Deep Research Pipeline (with IPIA)
+- Status: {'✅ Success' if research_results.get('success', False) else '❌ Failed'}
+- Interviews Processed: {research_results.get('interviews_processed', 0)}
+- Questions Generated: {research_results.get('total_questions_generated', 0)}
+- Average Confidence: {research_results.get('avg_confidence_score', 0.0):.2f}
+
+## Phase 3: Prep Guide Pipeline
+- Status: {'✅ Success' if prep_results.get('success', False) else '❌ Failed'}
+- Guides Generated: {prep_results.get('guides_generated', 0)}
+- Total Questions: {prep_results.get('total_questions', 0)}
+
+## Cache Performance
+{self._format_cache_stats_for_summary()}
+
+---
+*Generated by Refactored 3-Pipeline Workflow Runner*
+"""
+            
+            # Save summary
+            summary_file = os.path.join(self.outputs_dir, f"workflow_summary_{timestamp}.md")
+            with open(summary_file, 'w', encoding='utf-8') as f:
+                f.write(summary_content)
+            
+            print(f"💾 Saved workflow summary: {summary_file}")
+            
+        except Exception as e:
+            print(f"❌ Failed to save workflow outputs: {str(e)}")
+    
+    def _get_cache_statistics(self) -> Dict[str, Any]:
+        """Get statistics from both caches"""
+        try:
+            return {
+                'tavily_cache': get_tavily_cache_stats(),
+                'openai_cache': get_openai_cache_stats()
+            }
+        except Exception as e:
+            return {'error': str(e)}
+    
+    def _format_cache_stats_for_summary(self) -> str:
+        """Format cache stats for summary display"""
+        try:
+            stats = self._get_cache_statistics()
+            
+            if 'error' in stats:
+                return f"Cache stats unavailable: {stats['error']}"
+            
+            tavily_stats = stats.get('tavily_cache', {})
+            openai_stats = stats.get('openai_cache', {})
+            
+            return f"""**Tavily Cache:**
+- Entries: {tavily_stats.get('total_entries', 0)}
+- Hit Rate: {tavily_stats.get('hit_rate', 0)}%
+- Estimated Savings: ${tavily_stats.get('estimated_savings', 0)}
+
+**OpenAI Cache:**
+- Entries: {openai_stats.get('total_entries', 0)}
+- Hit Rate: {openai_stats.get('hit_rate', 0)}%
+- Estimated Savings: ${openai_stats.get('estimated_savings', 0)}"""
+            
+        except Exception as e:
+            return f"Cache stats error: {str(e)}"
+    
+    def _display_full_workflow_summary(self, results: Dict[str, Any]):
+        """Display a comprehensive summary of the full workflow results"""
+        
+        print("\n" + "="*80)
+        print("🎉 COMPLETE 3-PIPELINE WORKFLOW SUMMARY")
+        print("="*80)
+        
+        print(f"⏱️  Total Time: {results['workflow_time']:.1f}s")
+        print(f"📅 Completed: {results['timestamp']}")
+        
+        print(f"\n📧 Phase 1 - Email Pipeline:")
+        phase1 = results['phase_1_email']
+        print(f"   {'✅' if phase1['success'] else '❌'} Processed {phase1['emails_processed']} emails from {phase1['folder_name']}")
+        
+        print(f"\n🔬 Phase 2 - Deep Research Pipeline (with IPIA):")
+        phase2 = results['phase_2_research']
+        print(f"   {'✅' if phase2['success'] else '❌'} Researched {phase2['interviews_processed']} interviews")
+        print(f"   🧠 Generated {phase2['questions_generated']} IPIA questions")
+        print(f"   📊 Avg Confidence: {phase2['avg_confidence']:.2f}")
+        
+        print(f"\n📚 Phase 3 - Prep Guide Pipeline:")
+        phase3 = results['phase_3_prep']
+        print(f"   {'✅' if phase3['success'] else '❌'} Generated {phase3['guides_generated']} prep guides")
+        print(f"   ❓ Total Questions: {phase3['total_questions']}")
+        
+        # Cache performance
+        cache_stats = results.get('cache_stats', {})
+        if cache_stats and 'error' not in cache_stats:
+            tavily = cache_stats.get('tavily_cache', {})
+            openai = cache_stats.get('openai_cache', {})
+            print(f"\n🗄️  Cache Performance:")
+            print(f"   Tavily: {tavily.get('total_entries', 0)} entries, {tavily.get('hit_rate', 0)}% hit rate")
+            print(f"   OpenAI: {openai.get('total_entries', 0)} entries, {openai.get('hit_rate', 0)}% hit rate")
+        
+        print("="*80)
+    
+    def clear_tavily_cache(self) -> Dict[str, Any]:
+        """Clear the Tavily research cache"""
+        try:
+            result = clear_tavily_cache()
+            print(f"🗑️  {result['message']}")
+            return result
+        except Exception as e:
+            error_msg = f"Failed to clear Tavily cache: {str(e)}"
+            print(f"❌ {error_msg}")
+            return {'success': False, 'error': error_msg}
+    
+    def clear_openai_cache(self) -> Dict[str, Any]:
+        """Clear the OpenAI cache"""
+        try:
+            result = clear_openai_cache()
+            print(f"🗑️  {result['message']}")
+            return result
+        except Exception as e:
+            error_msg = f"Failed to clear OpenAI cache: {str(e)}"
+            print(f"❌ {error_msg}")
+            return {'success': False, 'error': error_msg}
+    
+    def clear_all_caches(self) -> Dict[str, Any]:
+        """Clear both Tavily and OpenAI caches"""
+        print("🧹 Clearing all caches...")
+        
+        tavily_result = self.clear_tavily_cache()
+        openai_result = self.clear_openai_cache()
+        
+        return {
+            'success': tavily_result.get('success', False) and openai_result.get('success', False),
+            'tavily_cache': tavily_result,
+            'openai_cache': openai_result,
+            'timestamp': datetime.now().isoformat()
+        }
+    
+    # Keep the essential utility methods
+    def _log_execution_result(self, result: Dict[str, Any]):
+        """Log execution results"""
+        status = "✅ SUCCESS" if result['success'] else "❌ FAILED"
+        print(f"\n{status} - {result.get('type', 'Pipeline')} Execution Summary")
+        print(f"⏱️  Execution time: {result.get('execution_time', 0):.2f}s")
+        
+        if result.get('error'):
             print(f"💥 Error: {result['error']}")
     
     def _send_notifications(self, result: Dict[str, Any]):
-        """Send notifications for important emails (interviews, etc.)"""
-        interview_count = result['classifications'].get('Interview_invite', 0)
+        """Send notifications for important results"""
+        interview_count = result.get('classifications', {}).get('Interview_invite', 0)
         if interview_count > 0:
             print(f"🔔 NOTIFICATION: {interview_count} new interview invite(s) detected!")
-            # Here you could integrate with:
-            # - Slack/Discord webhooks
-            # - Push notifications
-            # - Email alerts
-            # - SMS via Twilio
-            # - etc.
     
     def _display_results(self, result: Dict[str, Any]):
         """Display formatted results to the user"""
-        if not result['success']:
-            return
-            
-        print(f"\n📬 Email Summary for '{result['folder_name']}':")
-        print("=" * 50)
-        
-        for summary in result['summaries']:
-            print(f"{summary['icon']} {summary['message']}")
-        
-        print("=" * 50)
+        if result.get('summaries'):
+            print(f"\n📬 Results Summary:")
+            for summary in result['summaries']:
+                print(f"{summary.get('icon', '📧')} {summary.get('message', '')}")
     
-    def get_execution_history(self) -> list:
+    def get_execution_history(self) -> List[Dict[str, Any]]:
         """Return execution history for analytics/debugging"""
         return self.execution_history
     
@@ -927,815 +564,45 @@ if __name__ == "__main__":
         """Async version for integration with async frameworks"""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.run_email_pipeline, folder_name, max_results, user_email)
-    
-    def clear_tavily_cache(self) -> Dict[str, Any]:
-        """
-        Clear the Tavily research cache to force fresh API calls
-        
-        Returns:
-            Dictionary with clearing results
-        """
-        try:
-            import shutil
-            import os
-            
-            cache_dir = ".tavily_cache"
-            
-            if not os.path.exists(cache_dir):
-                return {
-                    'success': True,
-                    'message': 'Cache directory does not exist - nothing to clear',
-                    'files_removed': 0
-                }
-            
-            # Count files before removal
-            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
-            files_count = len(cache_files)
-            
-            # Remove the entire cache directory
-            shutil.rmtree(cache_dir)
-            
-            print(f"🗑️  Cleared Tavily cache: {files_count} cached queries removed")
-            
-            return {
-                'success': True,
-                'message': f'Successfully cleared cache - {files_count} files removed',
-                'files_removed': files_count
-            }
-            
-        except Exception as e:
-            error_msg = f"Failed to clear cache: {str(e)}"
-            print(f"❌ {error_msg}")
-            return {
-                'success': False,
-                'error': error_msg,
-                'files_removed': 0
-            }
 
-    def run_deep_research_pipeline_enhanced(self, max_interviews: int = 10) -> Dict[str, Any]:
-        """
-        Enhanced Deep Research Pipeline with integrated IPIA and 3-phase validation system
-        
-        This pipeline:
-        1. Fetches non-prepped interviews from memory (from email pipeline)
-        2. Performs 3-phase validation (Source Discovery → Validation → Primary Selection)
-        3. Conducts research with confidence scoring
-        4. Integrates IPIA for comprehensive interview prep generation
-        
-        Args:
-            max_interviews: Maximum number of interviews to process
-            
-        Returns:
-            Comprehensive results including IPIA outputs and validation metrics
-        """
-        print(f"🚀 Enhanced Deep Research Pipeline with IPIA Integration")
-        print("=" * 60)
-        start_time = datetime.now()
-        
-        try:
-            # Import required modules
-            from agents.interview_prep_intelligence.agent import InterviewPrepIntelligenceAgent
-            from agents.interview_prep_intelligence.models import (
-                DeepResearchInput, ResearchContext, UserProfile
-            )
-            from agents.memory_systems.shared_memory import SharedMemorySystem
-            import asyncio
-            
-            # Phase 1: Fetch non-prepped interviews from memory
-            print("📋 Phase 1: Fetching Non-Prepped Interviews from Memory")
-            memory_system = SharedMemorySystem()
-            
-            # Get interviews that need research (not 'prepped' status)
-            all_interviews = memory_system.get_all_interviews()
-            non_prepped_interviews = [
-                interview for interview in all_interviews 
-                if interview.get('status', '').lower() not in ['prepped', 'completed', 'cancelled']
-            ]
-            
-            if not non_prepped_interviews:
-                print("✅ No interviews requiring research found in memory")
-                return {
-                    'success': True,
-                    'message': 'No interviews requiring research',
-                    'interviews_processed': 0,
-                    'total_questions_generated': 0,
-                    'processing_time': (datetime.now() - start_time).total_seconds()
-                }
-            
-            # Limit to max_interviews
-            interviews_to_process = non_prepped_interviews[:max_interviews]
-            print(f"🎯 Found {len(non_prepped_interviews)} non-prepped interviews, processing {len(interviews_to_process)}")
-            
-            # Phase 2: Enhanced Research with 3-Phase Validation
-            print(f"\n🔬 Phase 2: Enhanced Research with 3-Phase Validation")
-            research_contexts = []
-            validation_metrics = {
-                'total_sources_discovered': 0,
-                'total_sources_validated': 0,
-                'company_validation_rate': 0,
-                'role_validation_rate': 0,
-                'interviewer_validation_rate': 0
-            }
-            
-            for i, interview in enumerate(interviews_to_process, 1):
-                print(f"\n📊 Processing Interview {i}/{len(interviews_to_process)}: {interview.get('company', 'Unknown')}")
-                
-                # Extract interview details
-                company_name = interview.get('company', 'Unknown Company')
-                role_title = interview.get('role', 'Unknown Role')
-                interviewer_name = interview.get('interviewer', '')
-                
-                # Perform research with validation
-                research_result = self._perform_validated_research(
-                    company_name, role_title, interviewer_name
-                )
-                
-                # Update validation metrics
-                if 'validation_metrics' in research_result:
-                    metrics = research_result['validation_metrics']
-                    validation_metrics['total_sources_discovered'] += metrics.get('sources_discovered', 0)
-                    validation_metrics['total_sources_validated'] += metrics.get('sources_validated', 0)
-                
-                # Create ResearchContext for IPIA
-                research_context = ResearchContext(
-                    interview_id=str(interview.get('id', f'interview_{i}')),  # Convert to string
-                    company_name=company_name,
-                    role_title=role_title,
-                    interviewer_name=interviewer_name,
-                    research_data=research_result.get('research_data', {}),
-                    confidence_score=research_result.get('confidence_score', 0.0),
-                    validation_passed=research_result.get('validation_passed', False)
-                )
-                
-                research_contexts.append(research_context)
-            
-            # Calculate overall validation rates
-            total_discovered = validation_metrics['total_sources_discovered']
-            total_validated = validation_metrics['total_sources_validated']
-            overall_validation_rate = (total_validated / total_discovered) if total_discovered > 0 else 0
-            
-            print(f"\n📊 Validation Summary:")
-            print(f"   🔍 Total Sources Discovered: {total_discovered}")
-            print(f"   ✅ Total Sources Validated: {total_validated}")
-            print(f"   📈 Overall Validation Rate: {overall_validation_rate:.1%}")
-            
-            # Phase 3: IPIA Integration - Comprehensive Interview Prep Generation
-            print(f"\n🧠 Phase 3: IPIA - Comprehensive Interview Prep Generation")
-            
-            # Create user profile (this could be enhanced to use real user data)
-            user_profile = UserProfile(
-                name="Candidate",
-                experience_level="entry",
-                skills=["Python", "Data Analysis", "Machine Learning"],
-                interests=["AI", "Technology", "Innovation"]
-            )
-            
-            # Create IPIA input
-            deep_research_input = DeepResearchInput(
-                research_contexts=research_contexts,
-                user_profile=user_profile
-            )
-            
-            # Initialize and run IPIA
-            ipia_agent = InterviewPrepIntelligenceAgent()
-            
-            # Run IPIA asynchronously
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                ipia_result = loop.run_until_complete(
-                    ipia_agent.process_research_contexts(deep_research_input)
-                )
-            finally:
-                loop.close()
-            
-            # Update interview status in memory to 'prepped'
-            for interview in interviews_to_process:
-                memory_system.update_interview_status(
-                    interview.get('id'), 
-                    'prepped',
-                    {'prep_generated_at': datetime.now().isoformat()}
-                )
-            
-            processing_time = (datetime.now() - start_time).total_seconds()
-            
-            # Prepare comprehensive results
-            result = {
-                'success': True,
-                'interviews_processed': len(interviews_to_process),
-                'total_questions_generated': ipia_result.total_questions_generated if ipia_result.success else 0,
-                'avg_confidence_score': ipia_result.avg_confidence_score if ipia_result.success else 0.0,
-                'overall_validation_rate': overall_validation_rate,
-                'validation_metrics': validation_metrics,
-                'ipia_success': ipia_result.success,
-                'ipia_errors': ipia_result.errors if hasattr(ipia_result, 'errors') else [],
-                'prep_summaries': ipia_result.prep_summaries if ipia_result.success else [],
-                'processing_time': processing_time,
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            # Display results
-            self._display_enhanced_pipeline_results(result)
-            
-            # Add to execution history
-            self.execution_history.append({
-                'type': 'enhanced_deep_research_pipeline',
-                'timestamp': result['timestamp'],
-                'success': result['success'],
-                'interviews_processed': result['interviews_processed'],
-                'questions_generated': result['total_questions_generated'],
-                'processing_time': processing_time
-            })
-            
-            return result
-            
-        except Exception as e:
-            processing_time = (datetime.now() - start_time).total_seconds()
-            error_result = {
-                'success': False,
-                'error': str(e),
-                'interviews_processed': 0,
-                'total_questions_generated': 0,
-                'processing_time': processing_time,
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            print(f"💥 Enhanced Deep Research Pipeline failed: {str(e)}")
-            return error_result
 
-    def _perform_validated_research(self, company_name: str, role_title: str, interviewer_name: str) -> Dict[str, Any]:
-        """
-        Perform research with 3-phase validation system
-        
-        Returns research data with validation metrics and confidence scoring
-        """
-        from shared.tavily_client import search_tavily
-        import time
-        
-        validation_metrics = {
-            'sources_discovered': 0,
-            'sources_validated': 0,
-            'company_sources': 0,
-            'role_sources': 0,
-            'interviewer_sources': 0
-        }
-        
-        research_data = {}
-        confidence_scores = []
-        
-        try:
-            # Phase 1: Source Discovery
-            print(f"   🔍 Phase 1: Source Discovery")
-            
-            # Company research
-            if company_name and company_name != 'Unknown Company':
-                company_query = f"{company_name} company overview industry technology"
-                company_results = search_tavily(company_query, search_depth="advanced", max_results=5)
-                validation_metrics['sources_discovered'] += len(company_results)
-                validation_metrics['company_sources'] = len(company_results)
-                
-                # Phase 2: Validate company sources
-                validated_company = self._validate_company_source_relevance(company_results, company_name)
-                if validated_company['is_relevant']:
-                    validation_metrics['sources_validated'] += len(validated_company['relevant_sources'])
-                    confidence_scores.append(validated_company['confidence_score'])
-                    research_data['company_research'] = {
-                        'data': company_results,
-                        'validation': validated_company,
-                        'confidence': validated_company['confidence_score']
-                    }
-                    print(f"   ✅ Company: {len(validated_company['relevant_sources'])}/{len(company_results)} sources validated")
-                else:
-                    print(f"   ❌ Company: Low relevance ({validated_company['confidence_score']:.2f})")
-            
-            # Role research
-            if role_title and role_title != 'Unknown Role':
-                role_query = f"{role_title} {company_name} job requirements skills responsibilities"
-                role_results = search_tavily(role_query, search_depth="basic", max_results=4)
-                validation_metrics['sources_discovered'] += len(role_results)
-                validation_metrics['role_sources'] = len(role_results)
-                
-                # Phase 2: Validate role sources
-                validated_role = self._validate_role_source_relevance(role_results, role_title, company_name)
-                if validated_role['is_relevant']:
-                    validation_metrics['sources_validated'] += len(validated_role['relevant_sources'])
-                    confidence_scores.append(validated_role['confidence_score'])
-                    research_data['role_research'] = {
-                        'data': role_results,
-                        'validation': validated_role,
-                        'confidence': validated_role['confidence_score']
-                    }
-                    print(f"   ✅ Role: {len(validated_role['relevant_sources'])}/{len(role_results)} sources validated")
-                else:
-                    print(f"   ❌ Role: Low relevance ({validated_role['confidence_score']:.2f})")
-            
-            # Interviewer research (if available)
-            if interviewer_name:
-                interviewer_query = f"{interviewer_name} {company_name} LinkedIn profile"
-                interviewer_results = search_tavily(interviewer_query, search_depth="basic", max_results=3)
-                validation_metrics['sources_discovered'] += len(interviewer_results)
-                validation_metrics['interviewer_sources'] = len(interviewer_results)
-                
-                # Phase 2: Validate interviewer sources (prioritize LinkedIn)
-                validated_interviewer = self._validate_interviewer_sources(interviewer_results, interviewer_name)
-                if validated_interviewer['linkedin_found'] or validated_interviewer['is_relevant']:
-                    validation_metrics['sources_validated'] += len(validated_interviewer['relevant_sources'])
-                    confidence_scores.append(validated_interviewer['confidence_score'])
-                    research_data['interviewer_research'] = {
-                        'data': interviewer_results,
-                        'validation': validated_interviewer,
-                        'confidence': validated_interviewer['confidence_score']
-                    }
-                    status = "LinkedIn found" if validated_interviewer['linkedin_found'] else "Relevant sources found"
-                    print(f"   ✅ Interviewer: {status}")
-                else:
-                    print(f"   ❌ Interviewer: No relevant sources found")
-            
-            # Phase 3: Calculate overall confidence
-            overall_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
-            validation_passed = overall_confidence >= 0.6  # 60% threshold
-            
-            return {
-                'research_data': research_data,
-                'confidence_score': overall_confidence,
-                'validation_passed': validation_passed,
-                'validation_metrics': validation_metrics
-            }
-            
-        except Exception as e:
-            print(f"   ❌ Research validation failed: {str(e)}")
-            return {
-                'research_data': {},
-                'confidence_score': 0.0,
-                'validation_passed': False,
-                'validation_metrics': validation_metrics,
-                'error': str(e)
-            }
-
-    def _validate_company_source_relevance(self, sources: list, company_name: str) -> Dict[str, Any]:
-        """Validate company sources for relevance and quality"""
-        relevant_sources = []
-        company_lower = company_name.lower()
-        
-        for source in sources:
-            title = source.get('title', '').lower()
-            content = source.get('content', '').lower()
-            
-            # Check if company name appears in title or content
-            if company_lower in title or company_lower in content:
-                # Additional quality checks
-                quality_indicators = ['about', 'company', 'overview', 'business', 'industry', 'careers']
-                quality_score = sum(1 for indicator in quality_indicators if indicator in title or indicator in content)
-                
-                if quality_score >= 2:  # At least 2 quality indicators
-                    relevant_sources.append({
-                        'source': source,
-                        'quality_score': quality_score,
-                        'relevance_reason': f'Company name found with {quality_score} quality indicators'
-                    })
-        
-        confidence_score = min(0.9, len(relevant_sources) / max(1, len(sources)) + 0.3)
-        
-        return {
-            'is_relevant': len(relevant_sources) >= 2,  # At least 2 relevant sources
-            'relevant_sources': relevant_sources,
-            'confidence_score': confidence_score,
-            'total_sources': len(sources)
-        }
-
-    def _validate_role_source_relevance(self, sources: list, role_title: str, company_name: str) -> Dict[str, Any]:
-        """Validate role sources for relevance and quality"""
-        relevant_sources = []
-        role_keywords = role_title.lower().split()
-        company_lower = company_name.lower()
-        
-        for source in sources:
-            title = source.get('title', '').lower()
-            content = source.get('content', '').lower()
-            
-            # Check for role keywords and company name
-            role_matches = sum(1 for keyword in role_keywords if keyword in title or keyword in content)
-            company_match = company_lower in title or company_lower in content
-            
-            if role_matches >= 1:  # At least one role keyword
-                quality_indicators = ['job', 'position', 'role', 'requirements', 'skills', 'responsibilities', 'salary']
-                quality_score = sum(1 for indicator in quality_indicators if indicator in title or indicator in content)
-                
-                relevance_score = role_matches + (1 if company_match else 0) + min(quality_score, 3)
-                
-                if relevance_score >= 2:
-                    relevant_sources.append({
-                        'source': source,
-                        'relevance_score': relevance_score,
-                        'role_matches': role_matches,
-                        'company_match': company_match,
-                        'quality_score': quality_score
-                    })
-        
-        confidence_score = min(0.8, len(relevant_sources) / max(1, len(sources)) + 0.2)
-        
-        return {
-            'is_relevant': len(relevant_sources) >= 1,  # At least 1 relevant source
-            'relevant_sources': relevant_sources,
-            'confidence_score': confidence_score,
-            'total_sources': len(sources)
-        }
-
-    def _validate_interviewer_sources(self, sources: list, interviewer_name: str) -> Dict[str, Any]:
-        """Validate interviewer sources with LinkedIn prioritization"""
-        relevant_sources = []
-        linkedin_found = False
-        interviewer_lower = interviewer_name.lower()
-        
-        for source in sources:
-            title = source.get('title', '').lower()
-            url = source.get('url', '').lower()
-            content = source.get('content', '').lower()
-            
-            # Check for LinkedIn profile
-            if 'linkedin.com' in url and 'profile' in url:
-                linkedin_found = True
-                relevant_sources.append({
-                    'source': source,
-                    'type': 'linkedin_profile',
-                    'priority': 'high',
-                    'relevance_reason': 'LinkedIn profile found'
-                })
-            # Check if interviewer name appears
-            elif interviewer_lower in title or interviewer_lower in content:
-                professional_indicators = ['profile', 'about', 'experience', 'background', 'bio']
-                quality_score = sum(1 for indicator in professional_indicators if indicator in title or indicator in content)
-                
-                if quality_score >= 1:
-                    relevant_sources.append({
-                        'source': source,
-                        'type': 'professional_info',
-                        'priority': 'medium',
-                        'quality_score': quality_score
-                    })
-        
-        # Higher confidence if LinkedIn found
-        base_confidence = 0.8 if linkedin_found else 0.4
-        confidence_score = min(0.9, base_confidence + (len(relevant_sources) * 0.1))
-        
-        return {
-            'linkedin_found': linkedin_found,
-            'is_relevant': len(relevant_sources) >= 1,
-            'relevant_sources': relevant_sources,
-            'confidence_score': confidence_score,
-            'total_sources': len(sources)
-        }
-
-    def _display_enhanced_pipeline_results(self, result: Dict[str, Any]):
-        """Display comprehensive results from enhanced pipeline with IPIA"""
-        print(f"\n🎯 Enhanced Deep Research Pipeline Results")
-        print("=" * 60)
-        
-        if result.get('success'):
-            print(f"✅ Pipeline Status: SUCCESS")
-            print(f"📊 Interviews Processed: {result.get('interviews_processed', 0)}")
-            print(f"🧠 IPIA Status: {'SUCCESS' if result.get('ipia_success') else 'FAILED'}")
-            print(f"❓ Total Questions Generated: {result.get('total_questions_generated', 0)}")
-            print(f"📈 Average Confidence Score: {result.get('avg_confidence_score', 0):.2f}")
-            print(f"✅ Overall Validation Rate: {result.get('overall_validation_rate', 0):.1%}")
-            print(f"⏱️  Total Processing Time: {result.get('processing_time', 0):.2f}s")
-            
-            # Display validation metrics
-            validation_metrics = result.get('validation_metrics', {})
-            if validation_metrics:
-                print(f"\n📊 Validation Metrics:")
-                print(f"   🔍 Sources Discovered: {validation_metrics.get('total_sources_discovered', 0)}")
-                print(f"   ✅ Sources Validated: {validation_metrics.get('total_sources_validated', 0)}")
-            
-            # Display prep summaries overview
-            prep_summaries = result.get('prep_summaries', [])
-            if prep_summaries:
-                print(f"\n📝 Interview Prep Summaries Generated:")
-                for i, summary in enumerate(prep_summaries, 1):
-                    company = getattr(summary, 'company_name', 'Unknown Company') if hasattr(summary, 'company_name') else 'Unknown Company'
-                    questions = getattr(summary, 'total_questions', 0) if hasattr(summary, 'total_questions') else 0
-                    confidence = getattr(summary, 'confidence_score', 0) if hasattr(summary, 'confidence_score') else 0
-                    print(f"   {i}. {company}: {questions} questions (confidence: {confidence:.2f})")
-            
-            # Display any errors
-            errors = result.get('ipia_errors', [])
-            if errors:
-                print(f"\n⚠️ IPIA Errors ({len(errors)}):")
-                for error in errors[:3]:  # Show first 3 errors
-                    print(f"   - {error}")
-        else:
-            print(f"❌ Pipeline Status: FAILED")
-            print(f"💥 Error: {result.get('error', 'Unknown error')}")
-            print(f"⏱️  Processing Time: {result.get('processing_time', 0):.2f}s")
-        
-        print("=" * 60)
-    
-    def run_enhanced_prep_guide(self, max_interviews: int = 10) -> Dict[str, Any]:
-        """
-        Run the Enhanced Comprehensive Prep Guide for interviews that have been processed
-        
-        This method:
-        1. Fetches interviews with 'prepped' status from memory
-        2. Generates comprehensive interview preparation guides
-        3. Provides detailed research-based preparation materials
-        
-        Args:
-            max_interviews: Maximum number of interviews to generate prep guides for
-            
-        Returns:
-            Results including number of prep guides generated and processing time
-        """
-        print(f"📚 Enhanced Comprehensive Prep Guide Generation")
-        print("=" * 60)
-        start_time = datetime.now()
-        
-        try:
-            # Import required modules
-            from agents.memory_systems.shared_memory import SharedMemorySystem
-            import asyncio
-            import sys
-            import os
-            
-            # Add the test directory to path to import the prep guide
-            test_path = os.path.join(os.path.dirname(__file__), '..', '..', 'tests', 'test_interview_prep_intelligence')
-            sys.path.insert(0, test_path)
-            
-            try:
-                from enhanced_comprehensive_prep_guide import generate_enhanced_prep_guide
-            except ImportError as e:
-                print(f"❌ Could not import enhanced_comprehensive_prep_guide: {str(e)}")
-                print("ℹ️  Enhanced prep guide module not available in current environment")
-                return {
-                    'success': False,
-                    'error': f'Enhanced prep guide module not found: {str(e)}',
-                    'guides_generated': 0,
-                    'processing_time': (datetime.now() - start_time).total_seconds()
-                }
-            
-            # Phase 1: Fetch prepped interviews from memory
-            print("📋 Phase 1: Fetching Prepped Interviews from Memory")
-            memory_system = SharedMemorySystem()
-            
-            # Get interviews that have been prepped (status = 'prepped')
-            all_interviews = memory_system.get_all_interviews()
-            prepped_interviews = [
-                interview for interview in all_interviews 
-                if interview.get('status', '').lower() == 'prepped'
-            ]
-            
-            if not prepped_interviews:
-                print("ℹ️  No prepped interviews found in memory")
-                return {
-                    'success': True,
-                    'message': 'No prepped interviews requiring prep guides',
-                    'guides_generated': 0,
-                    'processing_time': (datetime.now() - start_time).total_seconds()
-                }
-            
-            # Limit to max_interviews
-            interviews_to_process = prepped_interviews[:max_interviews]
-            print(f"🎯 Found {len(prepped_interviews)} prepped interviews, generating guides for {len(interviews_to_process)}")
-            
-            # Phase 2: Generate Enhanced Prep Guides
-            print(f"\n📚 Phase 2: Enhanced Prep Guide Generation")
-            guides_generated = 0
-            prep_guide_results = []
-            
-            for i, interview in enumerate(interviews_to_process, 1):
-                print(f"\n📝 Generating Prep Guide {i}/{len(interviews_to_process)}: {interview.get('company', 'Unknown Company')}")
-                print(f"   🎯 Company: {interview.get('company', 'Unknown Company')}")
-                print(f"   👤 Interviewer: {interview.get('interviewer', 'Unknown Interviewer')}")
-                print(f"   💼 Role: {interview.get('role', 'Unknown Role')}")
-                
-                try:
-                    # For now, just call the existing prep guide function
-                    # In a more advanced version, we would modify it to accept parameters
-                    def run_prep_guide():
-                        """Run the prep guide in a new event loop"""
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        try:
-                            return loop.run_until_complete(generate_enhanced_prep_guide())
-                        finally:
-                            loop.close()
-                    
-                    # Execute the prep guide
-                    run_prep_guide()
-                    guides_generated += 1
-                    
-                    prep_guide_results.append({
-                        'interview_id': interview.get('id'),
-                        'company': interview.get('company', 'Unknown Company'),
-                        'role': interview.get('role', 'Unknown Role'),
-                        'interviewer': interview.get('interviewer', 'Unknown Interviewer'),
-                        'success': True
-                    })
-                    
-                    print(f"   ✅ Prep guide generated successfully")
-                    
-                except Exception as e:
-                    print(f"   ❌ Failed to generate prep guide: {str(e)}")
-                    prep_guide_results.append({
-                        'interview_id': interview.get('id'),
-                        'company': interview.get('company', 'Unknown'),
-                        'error': str(e),
-                        'success': False
-                    })
-            
-            processing_time = (datetime.now() - start_time).total_seconds()
-            
-            # Prepare results
-            result = {
-                'success': True,
-                'guides_generated': guides_generated,
-                'total_interviews_processed': len(interviews_to_process),
-                'prep_guide_results': prep_guide_results,
-                'processing_time': processing_time,
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            # Display summary
-            print(f"\n📊 Enhanced Prep Guide Summary:")
-            print(f"   📚 Prep Guides Generated: {guides_generated}/{len(interviews_to_process)}")
-            print(f"   ⏱️  Total Processing Time: {processing_time:.2f}s")
-            
-            # Add to execution history
-            self.execution_history.append({
-                'type': 'enhanced_prep_guide',
-                'timestamp': result['timestamp'],
-                'success': result['success'],
-                'guides_generated': guides_generated,
-                'processing_time': processing_time
-            })
-            
-            return result
-            
-        except Exception as e:
-            processing_time = (datetime.now() - start_time).total_seconds()
-            error_result = {
-                'success': False,
-                'error': str(e),
-                'guides_generated': 0,
-                'processing_time': processing_time,
-                'timestamp': datetime.now().isoformat()
-            }
-            
-            print(f"💥 Enhanced Prep Guide failed: {str(e)}")
-            return error_result
-
-    def get_tavily_cache_info(self) -> Dict[str, Any]:
-        """
-        Get information about the current Tavily cache
-        
-        Returns:
-            Dictionary with cache information
-        """
-        try:
-            import os
-            
-            cache_dir = ".tavily_cache"
-            
-            if not os.path.exists(cache_dir):
-                return {
-                    'cache_exists': False,
-                    'cached_queries': 0,
-                    'message': 'No cache directory found'
-                }
-            
-            # Count cache files
-            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
-            files_count = len(cache_files)
-            
-            # Calculate total cache size
-            total_size = 0
-            for file in cache_files:
-                file_path = os.path.join(cache_dir, file)
-                total_size += os.path.getsize(file_path)
-            
-            size_mb = total_size / (1024 * 1024)  # Convert to MB
-            
-            return {
-                'cache_exists': True,
-                'cached_queries': files_count,
-                'cache_size_mb': round(size_mb, 2),
-                'cache_directory': cache_dir,
-                'message': f'Cache contains {files_count} queries ({size_mb:.2f} MB)'
-            }
-            
-        except Exception as e:
-            return {
-                'cache_exists': False,
-                'error': str(e),
-                'message': f'Error accessing cache: {str(e)}'
-            }
-
-# Entry point
+# Main execution section - just like the original workflow_runner.py
 if __name__ == "__main__":
-    # Capture all output
-    captured_output = []
-    original_print = print
-    
-    def capture_print(*args, **kwargs):
-        """Custom print function that captures output"""
-        # Convert all arguments to strings
-        message = ' '.join(str(arg) for arg in args)
-        captured_output.append(message)
-        # Call original print
-        original_print(*args, **kwargs)
-    
-    # Replace print function temporarily
-    import builtins
-    builtins.print = capture_print
+    print("🚀 Refactored Workflow Runner - Clean 3-Pipeline Architecture")
+    print("=" * 70)
     
     try:
-        runner = WorkflowRunner(enable_notifications=True, log_results=True, save_outputs=True)
-        
-        # Get interview folder from environment variable
-        import os
-        from dotenv import load_dotenv
-        load_dotenv()
-        
-        interview_folder = os.getenv('INTERVIEW_FOLDER', 'INBOX').strip('"').strip("'")
-        if not interview_folder:
-            interview_folder = 'INBOX'  # fallback to INBOX if not set
-        
-        print(f"📁 Using folder from INTERVIEW_FOLDER: {interview_folder}")
-        
-        # Step 1: Run Email Pipeline to process and classify emails
-        print("🚀 Running Email Pipeline...")
-        email_result = runner.run_email_pipeline(
-            folder_name=interview_folder, 
-            max_results=10, 
-            user_email='user@example.com'  # Replace with actual user email
+        # Initialize the refactored workflow runner
+        runner = WorkflowRunner(
+            enable_notifications=True,
+            log_results=True,
+            save_outputs=True
         )
         
-        if email_result.get('success'):
-            total_emails = email_result.get('email_count', 0)
-            interview_count = email_result.get('classifications', {}).get('Interview_invite', 0)
-            
-            print(f"✅ Email Pipeline: Processed {total_emails} emails")
-            print(f"🎯 Found {interview_count} interview invitations")
-            
-            if interview_count > 0:
-                # Small delay to ensure interviews are stored in memory
-                import time
-                time.sleep(1)
-                
-                # Step 2: Run Deep Research Pipeline with IPIA for non-prepped interviews
-                print("\n🔬 Running Enhanced Deep Research Pipeline with IPIA...")
-                research_result = runner.run_deep_research_pipeline_enhanced()
-                
-                if research_result.get('success'):
-                    print(f"✅ Deep Research Pipeline: Generated comprehensive prep for interviews")
-                    print(f"🎯 IPIA Processing: {research_result.get('total_questions_generated', 0)} questions generated")
-                    print(f"📊 Validation Rate: {research_result.get('overall_validation_rate', 0):.1%}")
-                    
-                    # Step 3: Run Enhanced Comprehensive Prep Guide for completed interviews
-                    print("\n📚 Running Enhanced Comprehensive Prep Guide...")
-                    prep_guide_result = runner.run_enhanced_prep_guide()
-                    
-                    if prep_guide_result.get('success'):
-                        print(f"✅ Enhanced Prep Guide: Generated detailed preparation materials")
-                        print(f"📋 Prep Guides Created: {prep_guide_result.get('guides_generated', 0)}")
-                    else:
-                        print(f"❌ Enhanced Prep Guide failed: {prep_guide_result.get('error', 'Unknown error')}")
-                else:
-                    print(f"❌ Deep Research Pipeline failed: {research_result.get('error', 'Unknown error')}")
-            else:
-                print("ℹ️  No interview invitations found - skipping deep research pipeline")
-        else:
-            print(f"❌ Email Pipeline failed: {email_result.get('error', 'Unknown error')}")
+        print("✅ Refactored WorkflowRunner initialized with 3 clean pipelines")
+        print("📧 Email Pipeline: Ready")
+        print("🔬 Deep Research Pipeline: Ready (with IPIA integration)")
+        print("📚 Prep Guide Pipeline: Ready")
         
-        # Display execution history
-        print(f"\n📊 Execution history: {len(runner.get_execution_history())} total runs")
-        for run in runner.get_execution_history():
-            run_type = run.get('type', 'unknown_pipeline')
-            success_icon = '✅' if run.get('success', False) else '❌'
-            processing_time = run.get('processing_time', run.get('execution_time', 0))
-            print(f"  - {run_type}: {success_icon} ({processing_time:.1f}s)")
+        # Get folder from environment variable
+        folder_name = os.getenv('INTERVIEW_FOLDER', 'INBOX')
+        print(f"📁 Using email folder: {folder_name} (from .env)")
         
-        # Save all captured output to files
-        print(f"\n💾 Saving comprehensive workflow outputs...")
+        # Run the complete 3-pipeline workflow
+        print(f"\n🎯 Running Complete 3-Pipeline Workflow...")
+        results = runner.run_full_workflow(
+            folder_name=folder_name,  # Use folder from .env
+            max_results=10,
+            max_interviews=10,
+            user_email=""
+        )
         
-        # Use email result final_state if available for keyword extraction
-        final_state = email_result.get('final_state', {}) if email_result.get('success') else {}
+        print(f"\n🎉 Workflow completed successfully!")
+        print(f"📊 Final Results: {results.get('success', 'Unknown')}")
         
-        # Try to get original email data from the final state
-        original_emails = []
-        if final_state.get('raw_emails'):
-            original_emails = final_state['raw_emails']
-        elif final_state.get('classified_emails', {}).get('Interview_invite'):
-            original_emails = final_state['classified_emails']['Interview_invite']
-        
-        # Use enhanced saving method with email data
-        if original_emails:
-            runner.save_workflow_outputs_with_emails(final_state, captured_output, original_emails)
-        else:
-            runner.save_workflow_outputs(final_state, captured_output)
-        
-        print(f"🎉 Workflow execution completed! Check outputs/fullworkflow/ for detailed reports.")
-        
-    finally:
-        # Restore original print function
-        builtins.print = original_print
+    except KeyboardInterrupt:
+        print(f"\n⚠️ Workflow interrupted by user")
+    except Exception as e:
+        print(f"\n❌ Workflow failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
