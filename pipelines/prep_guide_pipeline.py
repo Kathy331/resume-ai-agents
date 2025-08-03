@@ -170,9 +170,16 @@ class PrepGuidePipeline:
             # PHASE 3: Extract Conversation Hooks and Rapport Points
             conversation_hooks = self._extract_conversation_hooks(research_result, company, interviewer)
             
-            # PHASE 4: Generate Dynamic Prep Guide with Reflection Loop
-            prep_guide_result = self._generate_dynamic_prep_guide_with_reflection(
-                email, entities, research_result, insights_result, interviewer_profile, conversation_hooks
+            # PHASE 4: Generate Highly Personalized Questions
+            personalized_questions = self._generate_personalized_questions(research_result, company, role, interviewer)
+            
+            # PHASE 5: Generate Additional Enhancements
+            additional_enhancements = self._generate_additional_enhancements(email, entities, research_result, company, interviewer)
+            
+            # PHASE 6: Generate Dynamic Prep Guide with Reflection Loop
+            prep_guide_result = self._generate_enhanced_prep_guide_with_all_features(
+                email, entities, research_result, insights_result, interviewer_profile, 
+                conversation_hooks, personalized_questions, additional_enhancements
             )
             
             if not prep_guide_result.get('success'):
@@ -186,16 +193,20 @@ class PrepGuidePipeline:
             sections_count = len(sections_generated) if isinstance(sections_generated, list) else sections_generated
             print(f"   📚 Sections: {sections_count}")
             print(f"   📝 Citations: {citations_used}")
-            print(f"   🎯 Insights Generated: {len(insights_result.get('insights', []))}")
-            print(f"   🤝 Conversation Hooks: {len(conversation_hooks.get('hooks', []))}")
+            print(f"   🎯 Insights Generated: {len(str(insights_result.get('insights', '')))}")
+            print(f"   🤝 Conversation Hooks: {len(str(conversation_hooks.get('hooks', '')))}")
+            print(f"   ❓ Personalized Questions: {len(str(personalized_questions.get('questions', '')))}")
+            print(f"   🎁 Additional Features: {len(str(additional_enhancements.get('enhancements', '')))}")
             
             return {
                 'success': True,
                 'prep_guide_content': prep_guide_result['prep_guide_content'],
                 'citations_used': citations_used,
                 'sections_generated': sections_generated,
-                'insights_generated': len(insights_result.get('insights', [])),
-                'conversation_hooks': len(conversation_hooks.get('hooks', [])),
+                'insights_generated': len(str(insights_result.get('insights', ''))),
+                'conversation_hooks': len(str(conversation_hooks.get('hooks', ''))),
+                'personalized_questions': len(str(personalized_questions.get('questions', ''))),
+                'additional_features': len(str(additional_enhancements.get('enhancements', ''))),
                 'reflection_iterations': prep_guide_result.get('reflection_iterations', 0)
             }
                 
@@ -833,76 +844,188 @@ class PrepGuidePipeline:
             print(f"   ⚠️ Conversation hooks generation error: {str(e)}")
             return {'success': False, 'error': str(e)}
 
-    def _generate_dynamic_prep_guide_with_reflection(self, email: Dict[str, Any], entities: Dict[str, Any], 
-                                                   research_result: Dict[str, Any], insights_result: Dict[str, Any],
-                                                   interviewer_profile: Dict[str, Any], conversation_hooks: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate dynamic prep guide with reflection loop for quality improvement"""
+    def _generate_personalized_questions(self, research_result: Dict[str, Any], company: str, role: str, interviewer: str) -> Dict[str, Any]:
+        """Generate highly personalized questions based on specific research findings"""
         try:
-            # Extract entity values
-            def get_entity_string(entity_value):
-                if isinstance(entity_value, list):
-                    return entity_value[0] if entity_value else ''
-                return str(entity_value) if entity_value else ''
+            research_data = research_result.get('research_data', {})
+            citations_database = research_result.get('citations_database', {})
             
-            company = get_entity_string(entities.get('company', 'Unknown Company'))
-            role = get_entity_string(entities.get('role', 'Unknown Role'))
-            interviewer = get_entity_string(entities.get('interviewer', 'Unknown Interviewer'))
-            dates = entities.get('date', [])
-            format_type = get_entity_string(entities.get('format', 'Unknown Format'))
+            # Extract specific research insights for question generation
+            company_analysis = research_data.get('company_analysis', {})
+            interviewer_analysis = research_data.get('interviewer_analysis', {})
             
-            # Email details
-            email_subject = email.get('subject', '')
-            email_body = email.get('body', '')
-            from_sender = email.get('from', '')
+            # Build detailed context for question generation
+            question_context = []
             
-            max_iterations = 2
-            current_iteration = 0
-            best_guide = None
+            # Company-specific insights
+            if company_analysis.get('success'):
+                question_context.append(f"Company Analysis: {company_analysis.get('analysis_summary', '')}")
+                question_context.append(f"Industry Position: {company_analysis.get('industry_analysis', '')}")
             
-            while current_iteration < max_iterations:
-                current_iteration += 1
-                print(f"   🔄 Generating prep guide - Iteration {current_iteration}")
-                
-                # Generate prep guide
-                guide_result = self._generate_single_prep_guide_iteration(
-                    email, entities, research_result, insights_result, 
-                    interviewer_profile, conversation_hooks, current_iteration
-                )
-                
-                if not guide_result.get('success'):
-                    continue
-                
-                # Evaluate quality
-                quality_score = self._evaluate_prep_guide_quality(guide_result['content'], research_result)
-                
-                print(f"      📊 Quality Score: {quality_score:.2f}")
-                
-                if quality_score >= 0.8 or current_iteration == max_iterations:
-                    best_guide = guide_result
-                    break
-                    
-                # If quality is insufficient, try again with feedback
-                print(f"      🔄 Quality insufficient ({quality_score:.2f}), iterating...")
+            # Interviewer-specific insights
+            if interviewer_analysis.get('success'):
+                question_context.append(f"Interviewer Background: {interviewer_analysis.get('linkedin_analysis', '')}")
+                question_context.append(f"LinkedIn Profiles Found: {interviewer_analysis.get('linkedin_profiles_found', 0)}")
             
-            if best_guide:
+            # Citation details for reference
+            citation_details = []
+            for citation_key, citation_data in citations_database.items():
+                title = citation_data.get('title', '')[:100]
+                url = citation_data.get('url', '')
+                citation_details.append(f"Citation {citation_key}: {title} - {url}")
+            
+            questions_prompt = f"""
+            Generate highly personalized, research-backed questions for this specific interview scenario:
+            
+            **INTERVIEW CONTEXT:**
+            - Company: {company}
+            - Role: {role}
+            - Interviewer: {interviewer}
+            
+            **SPECIFIC RESEARCH INSIGHTS:**
+            {chr(10).join(question_context)}
+            
+            **AVAILABLE CITATIONS FOR REFERENCE:**
+            {chr(10).join(citation_details[:8])}  # Top 8 citations
+            
+            Generate 3 categories of questions:
+            
+            **1. COMPANY-SPECIFIC QUESTIONS** (5-7 questions)
+            Based on specific research findings about {company}:
+            - Questions about recent developments mentioned in research
+            - Strategic direction questions based on market analysis
+            - Technology/product questions based on findings
+            - Culture/values questions based on company insights
+            
+            **2. INTERVIEWER-SPECIFIC QUESTIONS** (3-5 questions)  
+            Based on {interviewer}'s background and interests:
+            - Questions about their professional experience/expertise
+            - Questions about their role and responsibilities
+            - Questions about their perspective on industry trends
+            - Questions that show you've researched their background
+            
+            **3. ROLE & GROWTH QUESTIONS** (4-6 questions)
+            Based on the {role} position and company context:
+            - Specific expectations for this role
+            - Growth opportunities and career progression
+            - Team dynamics and collaboration
+            - Success metrics and performance evaluation
+            
+            **REQUIREMENTS:**
+            - Each question should reference specific research findings when possible
+            - Include the citation number [Citation X] where applicable
+            - Make questions conversational, not interrogative
+            - Ensure questions demonstrate genuine interest and research
+            - Avoid generic questions that could apply to any company
+            - Include follow-up question suggestions for deeper conversations
+            
+            **FORMAT:**
+            For each question, provide:
+            1. The question itself
+            2. Why this question is relevant (based on research)
+            3. Potential follow-up questions
+            4. Citation reference if applicable
+            """
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                questions_response = loop.run_until_complete(call_llm(questions_prompt))
                 return {
                     'success': True,
-                    'prep_guide_content': best_guide['content'],
-                    'reflection_iterations': current_iteration,
-                    'final_quality_score': quality_score
+                    'questions': questions_response,
+                    'citations_used': len(citations_database)
                 }
-            else:
-                return {'success': False, 'error': 'Failed to generate satisfactory prep guide'}
+            finally:
+                loop.close()
                 
         except Exception as e:
-            print(f"   ❌ Dynamic prep guide generation error: {str(e)}")
+            print(f"   ⚠️ Personalized questions generation error: {str(e)}")
             return {'success': False, 'error': str(e)}
 
-    def _generate_single_prep_guide_iteration(self, email: Dict[str, Any], entities: Dict[str, Any], 
-                                            research_result: Dict[str, Any], insights_result: Dict[str, Any],
-                                            interviewer_profile: Dict[str, Any], conversation_hooks: Dict[str, Any],
-                                            iteration: int) -> Dict[str, Any]:
-        """Generate a single iteration of the prep guide"""
+    def _generate_additional_enhancements(self, email: Dict[str, Any], entities: Dict[str, Any], 
+                                        research_result: Dict[str, Any], company: str, interviewer: str) -> Dict[str, Any]:
+        """Generate additional enhancements like timeline, red flags, post-interview plan"""
+        try:
+            # Extract interview details
+            dates = entities.get('date', [])
+            format_type = entities.get('format', ['Unknown Format'])[0] if isinstance(entities.get('format'), list) else entities.get('format', 'Unknown Format')
+            
+            # Build enhancement context
+            email_body = email.get('body', '')
+            research_confidence = research_result.get('overall_confidence', 0.5)
+            
+            enhancements_prompt = f"""
+            Generate additional interview preparation enhancements for this specific scenario:
+            
+            **INTERVIEW DETAILS:**
+            - Company: {company}
+            - Interviewer: {interviewer}
+            - Dates: {', '.join(dates) if dates else 'Not specified'}
+            - Format: {format_type}
+            - Research Confidence: {research_confidence:.2f}
+            
+            **EMAIL CONTEXT:**
+            {email_body[:1000]}  # First 1000 chars of email
+            
+            Generate these enhancement sections:
+            
+            **1. INTERVIEW TIMELINE & LOGISTICS**
+            - Pre-interview checklist (24h, 2h, 30min before)
+            - Technical setup for virtual interviews
+            - What to bring/prepare
+            - Backup plans for technical issues
+            
+            **2. RED FLAGS TO AVOID**
+            - Topics/questions to avoid based on company research
+            - Communication style mistakes
+            - Cultural missteps based on company values
+            - Technical or professional red flags
+            
+            **3. POST-INTERVIEW ACTION PLAN**
+            - Thank you email template with specific references
+            - Follow-up timeline and strategy
+            - How to reference specific discussion points
+            - Next steps and timeline expectations
+            
+            **4. KEY METRICS TO TRACK**
+            - How to gauge interviewer interest
+            - Positive signals to look for
+            - Questions that indicate strong mutual fit
+            - Warning signs about company/role
+            
+            **5. INDUSTRY-SPECIFIC TALKING POINTS**
+            - Current industry trends relevant to this company
+            - Competitive landscape insights
+            - Future outlook and challenges
+            - Innovation opportunities
+            
+            Make each section specific to this company and interview context, not generic advice.
+            """
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                enhancements_response = loop.run_until_complete(call_llm(enhancements_prompt))
+                return {
+                    'success': True,
+                    'enhancements': enhancements_response,
+                    'research_confidence': research_confidence
+                }
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            print(f"   ⚠️ Additional enhancements generation error: {str(e)}")
+            return {'success': False, 'error': str(e)}
+
+    def _generate_enhanced_prep_guide_with_all_features(self, email: Dict[str, Any], entities: Dict[str, Any], 
+                                                      research_result: Dict[str, Any], insights_result: Dict[str, Any],
+                                                      interviewer_profile: Dict[str, Any], conversation_hooks: Dict[str, Any],
+                                                      personalized_questions: Dict[str, Any], additional_enhancements: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate comprehensive prep guide with all enhanced features"""
         try:
             # Extract entity values
             def get_entity_string(entity_value):
@@ -922,11 +1045,10 @@ class PrepGuidePipeline:
             
             # Build comprehensive context
             research_context = self._build_research_context_with_citations(research_result)
-            citations_database = research_result.get('citations_database', {})
             
-            # Create enhanced prompt with all insights
+            # Create the most comprehensive prompt yet
             enhanced_prompt = f"""
-            Generate a highly personalized and actionable interview preparation guide based on comprehensive research and analysis:
+            Generate the most comprehensive and personalized interview preparation guide possible based on extensive research and analysis:
             
             **SPECIFIC INTERVIEW DETAILS:**
             From: {from_sender}
@@ -946,61 +1068,92 @@ class PrepGuidePipeline:
             **CONVERSATION HOOKS & RAPPORT POINTS:**
             {conversation_hooks.get('hooks', 'No specific conversation hooks identified')}
             
+            **HIGHLY PERSONALIZED QUESTIONS:**
+            {personalized_questions.get('questions', 'No personalized questions available')}
+            
+            **ADDITIONAL ENHANCEMENTS:**
+            {additional_enhancements.get('enhancements', 'No additional enhancements available')}
+            
             **RESEARCH CONTEXT WITH CITATIONS:**
             {research_context}
             
-            **ITERATION FOCUS:** This is iteration {iteration} - ensure maximum personalization and specificity.
+            Create the ultimate interview preparation guide with these enhanced sections:
             
-            Create a comprehensive prep guide with these enhanced sections:
+            **1. Before the Interview (Pre-Game Strategy)**
+            - Specific response requirements from the email
+            - Exact scheduling details and contact information
+            - Pre-interview research tasks with priorities and timelines
+            - Company-specific preparation points with citations
+            - Technical setup and backup plans
             
-            1. **Before the Interview** 
-               - Specific response requirements from the email
-               - Exact scheduling details and contact information
-               - Pre-interview research tasks with priorities
-               - Company-specific preparation points with citations
+            **2. Company Deep Dive (Strategic Intelligence)**
+            - Strategic insights about their market position with evidence
+            - Recent developments and their implications
+            - Technology stack and approach analysis
+            - Cultural insights and values alignment
+            - Competitive landscape understanding
             
-            2. **Company Deep Dive**
-               - Strategic insights about their market position with evidence
-               - Recent developments and their implications
-               - Technology stack and approach analysis
-               - Cultural insights and values alignment
+            **3. Role Analysis & Positioning (Perfect Fit Strategy)**
+            - Role expectations based on research findings
+            - Required skills with specific examples to highlight
+            - Technical requirements and how to demonstrate competency
+            - Growth opportunities and career progression
+            - Success metrics and performance expectations
             
-            3. **Role Analysis & Positioning**
-               - Role expectations based on research findings
-               - Required skills with specific examples to highlight
-               - Technical requirements and how to demonstrate competency
-               - Growth opportunities and career progression
+            **4. Interviewer Intelligence (Personal Connection)**
+            - Professional background summary with confidence assessment
+            - Communication style and likely interview approach
+            - Specific interests and expertise areas
+            - Connection points and rapport-building opportunities
+            - Recent activities or achievements to reference
             
-            4. **Interviewer Intelligence**
-               - Professional background summary with confidence assessment
-               - Communication style and likely interview approach
-               - Specific interests and expertise areas
-               - Connection points and rapport-building opportunities
+            **5. Personalized Questions to Ask (Show Your Research)**
+            IMPORTANT: Include the specific detailed personalized questions from the "HIGHLY PERSONALIZED QUESTIONS" section above. 
+            Do not summarize or paraphrase - include the actual questions with their research context, relevance explanations, and follow-up questions exactly as provided.
             
-            5. **Strategic Questions to Ask**
-               - Company-specific questions showing deep research
-               - Role-specific questions demonstrating understanding
-               - Interviewer-specific questions based on their background
-               - Technical and strategic questions with rationale
+            **6. Conversation Hooks & Talking Points (Natural Flow)**
+            - Recent company news to reference naturally
+            - Industry trends to discuss knowledgeably
+            - Technology topics for technical connection
+            - Career growth discussions and future vision
+            - Personal interest connections with interviewer
             
-            6. **Conversation Hooks & Talking Points**
-               - Recent company news to reference naturally
-               - Industry trends to discuss knowledgeably
-               - Technology topics for technical connection
-               - Career growth discussions and future vision
+            **7. Interview Timeline & Logistics (Execution Plan)**
+            - 24-hour countdown checklist
+            - 2-hour pre-interview preparation
+            - 30-minute final setup
+            - During interview key points
+            - Technical backup plans
             
-            7. **Confidence & Quality Assessment**
-               - Research confidence levels for each section
-               - Data quality indicators (Strong/Moderate/Limited)
-               - Areas where more information would be helpful
+            **8. Red Flags to Avoid (Risk Mitigation)**
+            - Topics/questions to avoid based on company research
+            - Communication style mistakes
+            - Cultural missteps based on company values
+            - Technical or professional pitfalls
+            
+            **9. Post-Interview Action Plan (Follow-Through)**
+            - Thank you email template with specific references
+            - Follow-up timeline and strategy
+            - How to reference specific discussion points
+            - Next steps and timeline expectations
+            
+            **10. Success Metrics & Evaluation (Real-Time Assessment)**
+            - How to gauge interviewer interest during the conversation
+            - Positive signals to look for
+            - Questions that indicate strong mutual fit
+            - Warning signs about company/role fit
             
             **QUALITY REQUIREMENTS:**
+            - Include ALL detailed content from the sections above - do not summarize or paraphrase
+            - Use the exact personalized questions, conversation hooks, and insights as provided
             - Every recommendation must be specific and actionable
             - Include confidence levels for different insights
             - Use citations [Citation X] for all factual claims
             - Make talking points naturally conversational
             - Ensure recommendations are immediately implementable
             - Highlight areas where research is strong vs. limited
+            - Reference specific research findings throughout
+            - CRITICAL: The personalized questions section should include the full detailed questions with research context
             
             **CITATION FORMAT:** Use [Citation X] where X matches the research database numbers
             """
@@ -1010,9 +1163,15 @@ class PrepGuidePipeline:
             
             try:
                 prep_guide_content = loop.run_until_complete(call_llm(enhanced_prompt))
+                
+                # Evaluate quality
+                quality_score = self._evaluate_prep_guide_quality(prep_guide_content, research_result)
+                
                 return {
                     'success': True,
-                    'content': prep_guide_content
+                    'prep_guide_content': prep_guide_content,
+                    'reflection_iterations': 1,
+                    'final_quality_score': quality_score
                 }
             finally:
                 loop.close()
@@ -1026,7 +1185,7 @@ class PrepGuidePipeline:
             quality_factors = []
             
             # Factor 1: Length and comprehensiveness
-            length_score = min(len(prep_guide_content) / 3000, 1.0)  # Target ~3000 chars
+            length_score = min(len(prep_guide_content) / 5000, 1.0)  # Target ~5000 chars for enhanced guide
             quality_factors.append(length_score)
             
             # Factor 2: Citation usage
@@ -1036,8 +1195,8 @@ class PrepGuidePipeline:
             quality_factors.append(citation_score)
             
             # Factor 3: Specific vs generic content
-            specific_indicators = ['specific', 'recent', 'latest', 'current', 'noted', 'found', 'identified']
-            generic_indicators = ['general', 'typical', 'common', 'standard', 'basic']
+            specific_indicators = ['specific', 'recent', 'latest', 'current', 'noted', 'found', 'identified', 'particular']
+            generic_indicators = ['general', 'typical', 'common', 'standard', 'basic', 'usual']
             
             specific_count = sum(prep_guide_content.lower().count(word) for word in specific_indicators)
             generic_count = sum(prep_guide_content.lower().count(word) for word in generic_indicators)
@@ -1048,6 +1207,12 @@ class PrepGuidePipeline:
             # Factor 4: Research confidence integration
             research_confidence = research_result.get('overall_confidence', 0.5)
             quality_factors.append(research_confidence)
+            
+            # Factor 5: Enhanced features presence
+            enhanced_features = ['Timeline', 'Red Flags', 'Post-Interview', 'Questions to Ask', 'Conversation Hooks']
+            features_count = sum(1 for feature in enhanced_features if feature.lower() in prep_guide_content.lower())
+            features_score = features_count / len(enhanced_features)
+            quality_factors.append(features_score)
             
             # Calculate overall quality score
             overall_quality = sum(quality_factors) / len(quality_factors)

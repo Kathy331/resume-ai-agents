@@ -4,29 +4,20 @@ Interview Prep Workflow - Main Entry Point
 ==========================================
 Modular interview preparation workflow that processes emails one by one through:
 1. Email Classification → 2. Entity Extraction & Memory Check → 3. Deep Research Pipeline 
-→ 4. Research Quality Reflection → 5. Prep Guide Generation →         print("🎊 WORKFLOW EXECUTION SUCCESSFUL!")
-            print(f"📊 Generated {results['prep_guides_generated']} prep guides")
-            print(f"💡 Use 'python workflows/cache_manager.py --status' to check cache statistics")
-        else:
-            print(f"\n💥 WORKFLOW EXECUTION FAILED!")
-            print(f"❌ Errors: {len(results['errors'])}")
-            print(f"💡 Use 'python workflows/cache_manager.py --status' to check cache health")
-            
-    except KeyboardInterrupt:
-        print(f"\n⏹️  Workflow interrupted by user")
-        print(f"💡 Use 'python workflows/cache_manager.py --status' to check cache status")
-    except Exception as e:
-        print(f"\n💥 Fatal error: {str(e)}")
-        print(f"💡 Use 'python workflows/cache_manager.py --clear-all' if cache corruption suspected")
-        import traceback
-        traceback.print_exc()l File Output
+→ 4. Research Quality Reflection → 5. Prep Guide Generation → Individual File Output
 
 This is the MAIN ENTRY POINT that orchestrates all pipeline components.
 Run this file to execute the complete interview preparation workflow.
+
+Cache Management Integration:
+- Automatic cache status reporting
+- Support for --clear-openai-cache flag to force fresh content generation
+- Integration with cache_manager.py for comprehensive cache control
 """
 
 import os
 import sys
+import argparse
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
@@ -42,6 +33,9 @@ from pipelines.prep_guide_pipeline import PrepGuidePipeline
 # Import shared utilities
 from shared.google_oauth.google_email_setup import get_gmail_service
 from shared.google_oauth.google_email_functions import get_email_messages, get_email_message_details
+
+# Import cache management
+from workflows.cache_manager import get_openai_cache_info, clear_openai_cache
 
 
 class InterviewPrepWorkflow:
@@ -64,12 +58,13 @@ class InterviewPrepWorkflow:
         print("   📚 Prep Guide Pipeline (Personalized Guide Generation)")
         print("💡 Use 'python workflows/cache_manager.py --status' for cache management")
     
-    def run_workflow(self, max_emails: int = 10) -> Dict[str, Any]:
+    def run_workflow(self, max_emails: int = 10, folder: str = None) -> Dict[str, Any]:
         """
         Run the complete Interview Prep Workflow
         
         Args:
             max_emails: Maximum number of emails to process
+            folder: Gmail folder to process (overrides environment variable)
             
         Returns:
             Comprehensive workflow results
@@ -80,10 +75,13 @@ class InterviewPrepWorkflow:
         
         workflow_start_time = datetime.now()
         
-        # Get interview folder from environment
-        interview_folder = os.getenv('INTERVIEW_FOLDER', 'INBOX').strip('"').strip("'")
-        if not interview_folder:
-            interview_folder = 'INBOX'
+        # Get interview folder - prioritize parameter, then environment, then default
+        if folder:
+            interview_folder = folder
+        else:
+            interview_folder = os.getenv('INTERVIEW_FOLDER', 'INBOX').strip('"').strip("'")
+            if not interview_folder:
+                interview_folder = 'INBOX'
         
         print(f"📁 Reading emails from folder: {interview_folder}")
         print(f"📊 Maximum emails to process: {max_emails}")
@@ -464,25 +462,83 @@ class InterviewPrepWorkflow:
         return logs
 
 
-# Main execution
+# Main execution with enhanced cache management
 if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Interview Prep Workflow - Enhanced with cache management')
+    parser.add_argument('--clear-openai-cache', action='store_true', 
+                       help='Clear OpenAI cache before running to force fresh AI content generation')
+    parser.add_argument('--max-emails', type=int, default=10, 
+                       help='Maximum number of emails to process (default: 10)')
+    parser.add_argument('--folder', type=str, default='demo', 
+                       help='Gmail folder to process (default: demo)')
+    
+    args = parser.parse_args()
+    
     print("🚀 Interview Prep Workflow - Main Entry Point")
     print("=" * 60)
     
+    # Cache management integration
+    if args.clear_openai_cache:
+        print("🧹 CLEARING OPENAI CACHE - Forcing fresh AI content generation...")
+        
+        # Set environment variable to disable caching for this run
+        os.environ['DISABLE_OPENAI_CACHE'] = 'true'
+        
+        try:
+            cache_result = clear_openai_cache()
+            if cache_result['success']:
+                print(f"✅ {cache_result['message']}")
+                print(f"📊 Cache size freed: {cache_result.get('size_freed_mb', 0):.2f} MB")
+                print(f"🚫 OpenAI caching disabled for this workflow run")
+            else:
+                print(f"⚠️ {cache_result['message']}")
+        except Exception as e:
+            print(f"❌ Cache clearing error: {str(e)}")
+        print("-" * 60)
+    else:
+        # Ensure caching is enabled (default behavior)
+        os.environ.pop('DISABLE_OPENAI_CACHE', None)
+    
+    # Display current cache status
+    try:
+        cache_info = get_openai_cache_info()
+        if cache_info['cache_exists']:
+            print(f"💾 OpenAI Cache Status: {cache_info['message']}")
+            if not args.clear_openai_cache and cache_info.get('cached_responses', 0) > 0:
+                print("💡 Note: Using cached responses. Use --clear-openai-cache for fresh content.")
+        else:
+            print(f"💾 OpenAI Cache Status: No cache found - all responses will be fresh")
+        print("-" * 60)
+    except Exception as e:
+        print(f"⚠️ Cache status check error: {str(e)}")
+    
     try:
         workflow = InterviewPrepWorkflow()
-        results = workflow.run_workflow(max_emails=10)
+        results = workflow.run_workflow(max_emails=args.max_emails, folder=args.folder)
         
         if results['success']:
             print(f"\n🎊 WORKFLOW EXECUTION SUCCESSFUL!")
             print(f"📊 Generated {results['prep_guides_generated']} prep guides")
+            print(f"💡 Use 'python workflows/cache_manager.py --status' for detailed cache statistics")
+            
+            # Show cache usage after execution
+            try:
+                post_cache_info = get_openai_cache_info()
+                if post_cache_info['cache_exists']:
+                    print(f"💾 Final Cache Status: {post_cache_info['message']}")
+            except:
+                pass
         else:
             print(f"\n💥 WORKFLOW EXECUTION FAILED!")
             print(f"❌ Errors: {len(results['errors'])}")
+            print(f"💡 Use 'python workflows/cache_manager.py --clear-all' if cache issues suspected")
             
     except KeyboardInterrupt:
         print(f"\n⏹️  Workflow interrupted by user")
+        print(f"💡 Use 'python workflows/cache_manager.py --status' to check cache status")
     except Exception as e:
         print(f"\n💥 Fatal error: {str(e)}")
+        print(f"💡 Use 'python workflows/cache_manager.py --clear-all' if cache corruption suspected")
         import traceback
         traceback.print_exc()

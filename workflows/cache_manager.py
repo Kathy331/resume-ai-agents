@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
-Cache Manager - Command-line tool for managing all caches in Interview Prep Workflow
-===================================================================================
+Cache Manager - Comprehensive cache management for Interview Prep Workflow
+=========================================================================
+
+The Interview Prep Workflow uses two types of caches:
+1. Tavily Research Cache - Company/role/interviewer research results  
+2. OpenAI LLM Cache - AI-generated prep guide content and entity extraction
+
+PROBLEM: Enhanced features can be masked by cached responses!
+SOLUTION: Use --clear-openai to force fresh AI content generation.
 
 Usage:
-    python workflows/cache_manager.py --help
-    python workflows/cache_manager.py --status
-    python workflows/cache_manager.py --clear-tavily
-    python workflows/cache_manager.py --clear-openai
-    python workflows/cache_manager.py --clear-all
-    python workflows/cache_manager.py --info
-
-This tool provides easy command-line access to cache management functions
-for the Interview Prep Workflow system including Tavily and OpenAI caches.
+    python workflows/cache_manager.py --status         # View cache status
+    python workflows/cache_manager.py --clear-openai   # Clear AI cache (recommended for testing)
+    python workflows/cache_manager.py --clear-all      # Clear everything
+    python workflows/cache_manager.py --info           # Detailed information
 """
 
 import os
@@ -524,6 +526,37 @@ Cache Locations:
         else:
             print(f"❌ {result['message']}")
         return
+
+
+def is_openai_cache_active() -> bool:
+    """Check if OpenAI cache contains responses that might affect fresh content generation"""
+    try:
+        cache_info = get_openai_cache_info()
+        return cache_info.get('cache_exists', False) and cache_info.get('cached_responses', 0) > 0
+    except:
+        return False
+
+
+def clear_openai_cache_if_needed(force_fresh: bool = False) -> Dict[str, Any]:
+    """
+    Clear OpenAI cache if force_fresh is True or if cache exists and user wants fresh content
+    
+    Args:
+        force_fresh: If True, always clear cache
+        
+    Returns:
+        Dict with operation results
+    """
+    if force_fresh:
+        print("🧹 Force refresh requested - clearing OpenAI cache...")
+        return clear_openai_cache()
+    
+    if is_openai_cache_active():
+        print("💾 OpenAI cache detected with existing responses")
+        print("💡 This may return previously generated content instead of fresh AI responses")
+        return {'success': True, 'cache_cleared': False, 'message': 'Cache active - use --clear-openai-cache for fresh content'}
+    
+    return {'success': True, 'cache_cleared': False, 'message': 'No active cache - responses will be fresh'}
 
 
 if __name__ == "__main__":
