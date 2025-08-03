@@ -1,53 +1,107 @@
-# Job Application AI System - Full Architecture Documentation
+# Resume AI Agents - Architecture Documentation
 
 ## Overview
 
-**Project Name:** Job Application AI System  
-**Goal:** End-to-end AI-powered job application and interview preparation platform featuring specialized agents working in coordinated workflows to automate candidate outreach, research, email intelligence, and behavioral interviewing.
+**Project Name:** Resume AI Agents  
+**Goal:** Comprehensive AI-powered interview preparation system that processes interview invitation emails through specialized agents to generate personalized interview preparation guides with company research, interviewer insights, and role-specific guidance.
 
-The system consists of **six integrated pipelines** that work together to provide comprehensive job search assistance:
-1. **Job Application Pipeline** - Smart matching and application automation
-2. **Resume Processing Pipeline** - Context-aware resume parsing and skill extraction
-3. **Email AI Agent Pipeline** - Intelligent email classification and automated responses  
-4. **Interview Preparation Engine** - Multi-source research and question synthesis
-5. **Deep Research Pipeline** - Advanced interview intelligence through multi-agent analysis
-6. **Integration Layer** - Unified context sharing and feedback optimization
+The system consists of **three core pipelines** that work together to provide comprehensive interview preparation:
+1. **Email Pipeline** - Email classification, entity extraction, and memory management
+2. **Deep Research Pipeline** - Multi-agent research using Tavily API for comprehensive data gathering
+3. **Prep Guide Pipeline** - Personalized interview preparation guide generation with citations
 
 ---
 
 ## System Architecture Overview
 
-The system follows a **multi-pipeline architecture** centered around an intelligent core for real-time adaptability:
+The system follows a **sequential pipeline architecture** with the Interview Prep Workflow as the main entry point:
 
 ```
-📄 Job App Pipeline ↔ 🧠 Shared Memory ↔ 📧 Email Pipeline
-         ↘              ↗                ↙
-    🎯 Interview Prep Engine ↔ 🔁 Feedback Loop ↔ 📈 Research Hub
-              ↕
-    🤖 Deep Research Pipeline (IPIA System)
+� Interview Prep Workflow Entry Point
+          ↓
+📬 Email Classification (Interview vs Personal vs Other)
+          ↓ (if Interview Email)
+🔍 Entity Extraction + Memory Check (Company, Role, Interviewer)
+          ↓ (if Not Already Processed)
+🔬 Deep Research Pipeline (Parallel Multi-agent Research)
+          ↓
+🤔 Research Quality Reflection (Adequacy Check)
+          ↓
+📚 Prep Guide Pipeline (Personalized Guide Generation)
+          ↓
+📁 Individual Output Storage (outputs/fullworkflow/[company_name].md)
 ```
 
-Each pipeline operates independently while seamlessly exchanging insights through the **Integration Layer**, ensuring cohesive and evolving job search strategies across domains. The **Deep Research Pipeline** provides advanced interview intelligence through multi-agent analysis.
+Each email is processed individually through the complete pipeline, ensuring personalized and focused preparation materials.
 
 ---
 
 ## Pipeline Breakdown
 
-### 1. **Job Application Pipeline** ⭐
+### 1. **Email Pipeline** 📧
 
-**Purpose:** Automate tailored applications by analyzing compatibility between candidate profiles and job requirements.
+**Purpose:** Process emails from the INTERVIEW_FOLDER, classify them, extract entities, and check memory store for previous processing.
 
 **Key Components:**
 
-- **Job Description Input**: HTML parsing, URL scraping, and text upload support
-- **Resume Analyzer Agent**: Named-entity recognition for skills, experience mapping, and timeline construction
-- **Job Matcher Agent**: Alignment scoring with NLP-based skill comparison and relevance filters
-- **Company Research Node**: Culture mapping and growth trajectory evaluation
-- **LinkedIn Finder Agent**: Scraping tools for direct outreach via key personnel
-- **Email Writer Agent**: Tone-matched cold email templates and customization engine
-- **Interview Scheduler Agent**: Calendar integration (Google, Outlook) for efficient coordination
+- **Email Classifier Agent**: Determines if email is interview-related, personal, or other
+- **Entity Extractor Agent**: Extracts company name, interviewer names, role details, and interview timing
+- **Memory Systems**: Local interview store to prevent duplicate processing and maintain context
+- **Keyword Extractor Agent**: Generates company-based filenames for organized output
 
 **Data Flow:**
+```
+INTERVIEW_FOLDER Emails → Email Classification → Entity Extraction → Memory Check → Research Pipeline
+```
+
+**Input:** Raw email files from configured folder  
+**Output:** Classified and structured interview data for research pipeline
+
+---
+
+### 2. **Deep Research Pipeline** 🔬
+
+**Purpose:** Conduct comprehensive multi-agent research on company, role, and interviewer using Tavily API with intelligent caching.
+
+**Key Components:**
+
+- **Research Coordinator**: Manages parallel research calls and validates data quality
+- **Company Research Agent**: Gathers company information, culture, recent news, and developments
+- **Role Research Agent**: Analyzes job market trends, skill requirements, and role expectations
+- **Interviewer Research Agent**: Researches interviewer backgrounds, LinkedIn profiles, and professional history
+- **Tavily Cache Integration**: Caches research queries to optimize API usage and improve performance
+- **Research Quality Reflection**: Validates research adequacy before proceeding to guide generation
+
+**Data Flow:**
+```
+Entity Data → Research Coordination → Parallel API Calls → Cache Integration → Quality Validation → Prep Guide Pipeline
+```
+
+**Input:** Structured entity data from Email Pipeline  
+**Output:** Comprehensive research data with citations for prep guide generation
+
+---
+
+### 3. **Prep Guide Pipeline** 📚
+
+**Purpose:** Generate personalized interview preparation guides with role-specific technical prep, interviewer insights, and strategic questions.
+
+**Key Components:**
+
+- **Personalized Guide Generator**: Creates tailored preparation materials based on research data
+- **Technical Prep Section**: Role-specific technical questions and competency areas
+- **Interviewer Background Analysis**: Personal insights and professional background of interviewers
+- **Strategic Questions Generator**: Personalized questions to ask the interviewer
+- **Citation Engine**: Provides source references for all personalized conclusions
+- **Output Organizer**: Stores individual guides in organized folder structure
+
+**Data Flow:**
+```
+Research Data → Guide Generation → Technical Prep → Interviewer Insights → Strategic Questions → Cited Output
+```
+
+**Input:** Validated research data from Deep Research Pipeline  
+**Output:** Complete interview preparation guide with citations stored in outputs/fullworkflow/[company_name].md
 ```
 Resume Upload + Job Detail → Matching Analysis → Compatibility Score → 
 Application Drafting → Human Review → Delivery + Follow-Up Tracking
@@ -209,14 +263,14 @@ All designed to enhance ecosystemically managed readiness rather than temporary 
 
 **Purpose:** Advanced interview preparation through multi-agent intelligence analysis, providing strategic question generation and comprehensive preparation packages.
 
-**Core Architecture:** Multi-agent system featuring the Interview Prep Intelligence Agent (IPIA) with three specialized components working in coordination.
+**Core Architecture:** Multi-agent research coordination system with specialized agents for company research, role analysis, and interview preparation guide generation.
 
 #### Key Components:
 
-**Interview Prep Intelligence Agent (IPIA):**
-- **Context Decomposer**: Chain-of-thought analysis for deep situation understanding
-- **Question Generator**: Strategy-aware question formulation across multiple domains  
-- **Prep Summarizer**: Comprehensive preparation package assembly with strategic insights
+**Research Coordination Agents:**
+- **Company Researcher**: Deep company intelligence and culture analysis
+- **Role Analyzer**: Position requirements and skill matching analysis  
+- **Interview Guide Generator**: Comprehensive preparation package assembly with strategic insights
 
 #### Advanced AI Techniques:
 - **Chain-of-Thought Reasoning**: Structured analytical process for context comprehension
@@ -251,7 +305,7 @@ Prep Summarizer (Package Assembly) → Strategic Interview Preparation Package
 **Data Flow Example:**
 ```
 Interview Email Detection → Entity Extraction → Research Aggregation → 
-IPIA Context Analysis → Multi-Domain Question Generation → 
+Research Coordination → Multi-Domain Analysis → 
 Comprehensive Prep Package → User Delivery + Memory Storage
 ```
 
@@ -328,17 +382,17 @@ With this layered security, it provides customized transparency balances while o
 ```
 root/
 ├── agents/
-│   ├── resume_analyzer.py
-│   ├── job_matcher.py
-│   ├── linkedin_finder.py
-│   ├── email_writer.py
-│   └── interview_prep_intelligence/
-│       ├── agent.py
-│       ├── context_decomposer.py
-│       ├── question_generator.py
-│       ├── prep_summarizer.py
-│       ├── models.py
-│       └── config.py
+│   ├── entity_extractor/
+│   │   ├── agent.py
+│   │   ├── patterns.py
+│   │   └── train_ner.py
+│   ├── keyword_extractor/
+│   │   ├── agent.py
+│   │   └── config.py
+│   └── memory_systems/
+│       ├── shared_memory.py
+│       ├── interview_store/
+│       └── resume_memory/
 │
 ├── workflows/
 │   ├── application_workflow.py
@@ -356,10 +410,12 @@ root/
 │   └── persona_testing_suite.py
 │
 ├── tests/
-│   └── test_interview_prep_intelligence/
-│       ├── test_seeds_juteq_emails.py
-│       ├── demo_deep_research_system.py
-│       └── integration_example.py
+│   ├── test_agents/
+│   │   ├── email_classifier/
+│   │   ├── entity_extractor/
+│   │   └── keyword_extractor/
+│   ├── test_shared/
+│   └── sample_data/
 │
 └── config/
     └── priority_options.yaml
@@ -400,11 +456,11 @@ Sent Securely as Highlighted Data Blob(s) inside Upcoming Date Alert & Link Prel
 Interview Context Detected →
 Deep Research Pipeline Triggered via Workflow Runner →
 Multi-Source Company Intelligence Gathered (Tavily API + Research Engine) →
-IPIA Context Decomposer Analyzes Situation (Chain-of-Thought Processing) →
-Question Generator Creates Multi-Domain Strategic Questions →
-Prep Summarizer Assembles Comprehensive Package with Talking Points →
-Quality Assessment & Strategic Value Scoring Applied →
-Final Package Delivered with 12-16 Categorized Questions →
+Research Coordination Analyzes Multi-Domain Context →
+Prep Guide Generator Creates Strategic Interview Guide →
+Guide Assembly with Comprehensive Preparation Package →
+Quality Assessment & Strategic Value Integration →
+Final Package Delivered with Complete Interview Preparation →
 Memory Storage for Future Reference & Feedback Integration
 ```
 
@@ -434,8 +490,3 @@ Systems tied to familiar monitoring dashboards enabling live editing besides raw
 | Analytics Dashboard Expansion    | Show performance scorecards with analytics visualizations| Mid 2025 |
 | Voice-to-Text Module             | Interview practice spoken optimum extracting assist config| TBD       |
 
-As ever evolving model approaches take shape, customization will soon gravitate toward purposeful micro expeditions mapping candidates directly to wider goal sets pragmatically empowering spontaneous employer discovery efforts never before possible!
-
---- 
-
-This documentation augments natural talent exploration and equips professionals with high-efficiency artificial reasoning networks previously reserved only for enterprise platforms — putting intelligent job seeking workflows truly under individual control.
