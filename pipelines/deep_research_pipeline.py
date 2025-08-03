@@ -318,24 +318,31 @@ class DeepResearchPipeline:
                 skills_sources.extend(results)
                 print(f"      🔍 Query: '{query}' → {len(results)} sources")
             
-            # Validate and process sources
+            # Validate and process sources with detailed logging
             all_sources = role_sources + skills_sources
-            validated_sources = self._validate_role_sources(all_sources, role, company, email_keywords)
+            validation_log = []
+            validated_sources = self._validate_role_sources_enhanced(all_sources, role, company, email_keywords, validation_log)
             citations = self._generate_citations(validated_sources[:5], citation_counter)  # Top 5 citations
+            
+            # Display validation reasoning  
+            print(f"   📊 Role Validation Results:")
+            for log_entry in validation_log[:8]:  # Show first 8 entries
+                print(f"      {log_entry}")
             
             confidence_score = min(0.95, len(validated_sources) / max(1, len(all_sources)) * 0.7 + 0.3)
             
-            analysis_summary = f"Analyzed role requirements and skills gap with {len(citations)} citations"
-            skills_analysis = f"Analyzed {len(skills_sources)} skills and market sources"
+            analysis_summary = f"Analyzed {role} requirements and responsibilities with {len(citations)} citations"
+            role_insights = f"Researched company-specific and industry standards for {role}"
             
             return {
                 'success': True,
                 'analysis_summary': analysis_summary,
-                'skills_analysis': skills_analysis,
+                'role_insights': role_insights,
                 'validated_sources': validated_sources,
                 'sources_processed': len(all_sources),
                 'confidence_score': confidence_score,
-                'citations': citations
+                'citations': citations,
+                'validation_log': validation_log
             }
             
         except Exception as e:
@@ -678,6 +685,89 @@ class DeepResearchPipeline:
         
         return sorted(validated, key=lambda x: x['relevance_score'], reverse=True)
     
+    def _validate_role_sources_enhanced(self, sources: List[Dict], role: str, company: str, keywords: List[str], validation_log: List[str]) -> List[Dict]:
+        """Enhanced role source validation with strict company relevance requirement"""
+        validated = []
+        role_lower = role.lower()
+        company_lower = company.lower()
+        
+        for source in sources:
+            title = source.get('title', '').lower()
+            content = source.get('content', '').lower()
+            url = source.get('url', '').lower()
+            
+            relevance_score = 0
+            evidence = []
+            rejection_reasons = []
+            
+            # STRICT REQUIREMENT: Company context is mandatory for role analysis
+            company_in_title = company_lower in title
+            company_in_content = company_lower in content
+            
+            if company_in_title:
+                relevance_score += 8  # High score for company in title
+                evidence.append(f"Company '{company}' in title")
+            elif company_in_content:
+                relevance_score += 5  # Medium score for company in content
+                evidence.append(f"Company '{company}' in content")
+            else:
+                rejection_reasons.append(f"No '{company}' context found")
+                # Auto-reject sources without company context
+                validation_log.append(f"❌ REJECTED: {source.get('title', 'Unknown')[:40]}... (Score: {relevance_score}, Reasons: No company connection)")
+                continue
+            
+            # Role/position matching (only if company context exists)
+            role_parts = role_lower.split()
+            role_matches = 0
+            for part in role_parts:
+                if len(part) > 2:  # Skip short words
+                    if part in title:
+                        role_matches += 1
+                        relevance_score += 3
+                    elif part in content:
+                        role_matches += 1
+                        relevance_score += 2
+            
+            if role_matches > 0:
+                evidence.append(f"{role_matches}/{len(role_parts)} role terms matched")
+            
+            # Professional/job-related indicators
+            job_indicators = ['job', 'position', 'role', 'career', 'responsibilities', 'skills', 'requirements', 'description', 'internship']
+            job_matches = sum(1 for indicator in job_indicators if indicator in title or indicator in content)
+            if job_matches > 0:
+                relevance_score += min(job_matches, 3)
+                evidence.append(f"{job_matches} job indicators")
+            
+            # Keywords matching from email
+            keyword_matches = 0
+            for keyword in keywords:
+                if keyword.lower() in content or keyword.lower() in title:
+                    keyword_matches += 1
+            
+            if keyword_matches > 0:
+                relevance_score += min(keyword_matches, 2)
+                evidence.append(f"{keyword_matches} keyword matches")
+            
+            # Official domain bonus (for company-connected sources)
+            official_domains = ['linkedin.com', 'glassdoor.com', 'indeed.com', 'monster.com', 'wellfound.com']
+            if any(domain in url for domain in official_domains):
+                relevance_score += 2
+                evidence.append("Professional/job site")
+            
+            # STRICT validation decision - must have company context AND good score
+            threshold = 6  # Higher threshold for role analysis
+            if relevance_score >= threshold:
+                validated.append({
+                    'source': source,
+                    'relevance_score': relevance_score,
+                    'evidence': evidence
+                })
+                validation_log.append(f"✅ VALIDATED: {source.get('title', 'Unknown')[:40]}... (Score: {relevance_score}, Evidence: {', '.join(evidence[:2])})")
+            else:
+                validation_log.append(f"❌ REJECTED: {source.get('title', 'Unknown')[:40]}... (Score: {relevance_score}, Reasons: Below threshold despite company context)")
+        
+        return sorted(validated, key=lambda x: x['relevance_score'], reverse=True)
+    
     def _validate_interviewer_sources(self, sources: List[Dict], interviewer: str, company: str, keywords: List[str]) -> List[Dict]:
         """Validate interviewer sources with LinkedIn priority"""
         validated = []
@@ -800,17 +890,26 @@ class DeepResearchPipeline:
                 relevance_score += min(matches, 3)
                 evidence.append(f"{matches} professional indicators")
             
-            # Validation decision with reasoning
-            threshold = 4  # Stricter threshold
-            if relevance_score >= threshold:
-                validated.append({
-                    'source': source,
-                    'relevance_score': relevance_score,
-                    'evidence': evidence
-                })
-                validation_log.append(f"✅ VALIDATED: {source.get('title', 'Unknown')[:40]}... (Score: {relevance_score}, Evidence: {', '.join(evidence[:2])})")
+            # Validation decision with reasoning - STRICT COMPANY RELEVANCE REQUIRED
+            # Only accept sources that have clear connection to the target company
+            has_company_context = any("Company" in ev for ev in evidence)
+            has_company_relevant_content = any("mentioning target company" in ev for ev in evidence)
+            
+            # STRICT CRITERIA: Must have company context OR be company-relevant content
+            if has_company_context or has_company_relevant_content:
+                threshold = 4  # Stricter threshold for company-connected sources
+                if relevance_score >= threshold:
+                    validated.append({
+                        'source': source,
+                        'relevance_score': relevance_score,
+                        'evidence': evidence
+                    })
+                    validation_log.append(f"✅ VALIDATED: {source.get('title', 'Unknown')[:40]}... (Score: {relevance_score}, Evidence: {', '.join(evidence[:2])})")
+                else:
+                    validation_log.append(f"❌ REJECTED: {source.get('title', 'Unknown')[:40]}... (Score: {relevance_score}, Reasons: Below threshold despite company context)")
             else:
-                validation_log.append(f"❌ REJECTED: {source.get('title', 'Unknown')[:40]}... (Score: {relevance_score}, Reasons: {', '.join(rejection_reasons[:2])})")
+                # Automatically reject sources without company context
+                validation_log.append(f"❌ REJECTED: {source.get('title', 'Unknown')[:40]}... (Score: {relevance_score}, Reasons: No company connection - {', '.join(rejection_reasons[:2])})")
         
         return sorted(validated, key=lambda x: x['relevance_score'], reverse=True)
     
