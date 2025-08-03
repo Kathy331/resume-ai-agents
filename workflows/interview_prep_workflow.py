@@ -195,7 +195,8 @@ class InterviewPrepWorkflow:
             'output_file': '',
             'processing_time': 0,
             'pipeline_results': {},
-            'errors': []
+            'errors': [],
+            'detailed_logs': {}  # Store detailed processing logs
         }
         
         try:
@@ -203,6 +204,7 @@ class InterviewPrepWorkflow:
             print(f"\n🔄 PIPELINE STAGE 1: Email Processing")
             email_pipeline_result = self.email_pipeline.process_email(email, email_index)
             result['pipeline_results']['email_pipeline'] = email_pipeline_result
+            result['detailed_logs']['email_pipeline'] = self._extract_email_pipeline_logs(email_pipeline_result)
             
             result['is_interview'] = email_pipeline_result.get('is_interview', False)
             result['already_prepped'] = email_pipeline_result.get('already_prepped', False)
@@ -224,6 +226,7 @@ class InterviewPrepWorkflow:
                 email_index
             )
             result['pipeline_results']['research_pipeline'] = research_pipeline_result
+            result['detailed_logs']['deep_research'] = self._extract_research_pipeline_logs(research_pipeline_result)
             result['research_conducted'] = research_pipeline_result.get('success', False)
             
             if not result['research_conducted']:
@@ -242,15 +245,25 @@ class InterviewPrepWorkflow:
             
             print(f"✅ Research quality sufficient - proceeding to prep guide generation")
             
+            # Add quality reflection to logs
+            result['detailed_logs']['deep_research']['quality_reflection'] = {
+                'overall_confidence': research_pipeline_result.get('overall_confidence', 0),
+                'quality_rating': research_pipeline_result.get('research_quality', 'Unknown'),
+                'sufficient_for_prep_guide': research_pipeline_result.get('sufficient_for_prep_guide', False),
+                'reflection_reasoning': f"Research quality assessment passed with {research_pipeline_result.get('overall_confidence', 0):.2f} confidence"
+            }
+            
             # PIPELINE STAGE 4: Prep Guide Generation
             print(f"\n🔄 PIPELINE STAGE 4: Prep Guide Generation")
             prep_guide_result = self.prep_guide_pipeline.generate_prep_guide(
                 email,
                 email_pipeline_result.get('entities', {}),
                 research_pipeline_result,
-                email_index
+                email_index,
+                result['detailed_logs']  # Pass all collected logs
             )
             result['pipeline_results']['prep_guide_pipeline'] = prep_guide_result
+            result['detailed_logs']['prep_guide_generation'] = self._extract_prep_guide_logs(prep_guide_result)
             result['prep_guide_generated'] = prep_guide_result.get('success', False)
             result['company_keyword'] = prep_guide_result.get('company_keyword', '')
             result['output_file'] = prep_guide_result.get('output_file', '')
@@ -349,6 +362,106 @@ class InterviewPrepWorkflow:
             print("🎉 WORKFLOW COMPLETED SUCCESSFULLY!")
         else:
             print("❌ WORKFLOW COMPLETED WITH ERRORS")
+    
+    def _extract_email_pipeline_logs(self, email_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract detailed logs from email pipeline processing"""
+        logs = {}
+        
+        # Classification details
+        if 'classification_result' in email_result:
+            classification = email_result['classification_result']
+            logs['classification'] = {
+                'result': classification.get('classification', 'Unknown'),
+                'confidence': classification.get('confidence', 0),
+                'reasoning': classification.get('reasoning', '')
+            }
+        
+        # Entity extraction details
+        if 'entities' in email_result:
+            logs['entity_extraction'] = {
+                'success': email_result.get('success', False),
+                'entities': email_result['entities']
+            }
+        
+        # Memory check details
+        if 'memory_result' in email_result:
+            memory_result = email_result['memory_result']
+            logs['memory_check'] = {
+                'status': memory_result.get('status', 'Unknown'),
+                'already_prepped': memory_result.get('already_prepped', False),
+                'match_details': memory_result.get('match_details')
+            }
+        
+        return logs
+    
+    def _extract_research_pipeline_logs(self, research_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract detailed logs from deep research pipeline processing"""
+        logs = {}
+        
+        # Overall metrics
+        logs['metrics'] = {
+            'sources_discovered': research_result.get('sources_processed', 0),
+            'sources_validated': len(research_result.get('validated_sources', [])),
+            'citations_generated': len(research_result.get('citations_database', {})),
+            'linkedin_profiles_found': research_result.get('linkedin_profiles_found', 0),
+            'processing_time': research_result.get('processing_time', 0)
+        }
+        
+        # Company analysis details
+        research_data = research_result.get('research_data', {})
+        if 'company_analysis' in research_data:
+            company_data = research_data['company_analysis']
+            validation_log = company_data.get('validation_log', [])
+            logs['company_analysis'] = {
+                'confidence_score': company_data.get('confidence_score', 0),
+                'sources_validated': len(company_data.get('validated_sources', [])),
+                'validation_log': validation_log
+            }
+        
+        # Role analysis details
+        if 'role_analysis' in research_result:
+            role_data = research_result['role_analysis']
+            logs['role_analysis'] = {
+                'confidence_score': role_data.get('confidence_score', 0),
+                'sources_validated': len(role_data.get('validated_sources', []))
+            }
+        
+        # Interviewer analysis details
+        if 'interviewer_analysis' in research_data:
+            interviewer_data = research_data['interviewer_analysis']
+            validation_log = interviewer_data.get('validation_log', [])
+            logs['interviewer_analysis'] = {
+                'confidence_score': interviewer_data.get('confidence_score', 0),
+                'linkedin_profiles_found': interviewer_data.get('linkedin_profiles_found', 0),
+                'validation_log': validation_log,
+                'extracted_names': interviewer_data.get('extracted_names', []),
+                'search_suggestions': interviewer_data.get('search_suggestions', []),
+                'search_queries': [
+                    f'"{interviewer_data.get("interviewer_name", "Unknown")}" linkedin profile',
+                    f'"{interviewer_data.get("interviewer_name", "Unknown")}" {research_result.get("company", "")} linkedin',
+                    f'"{interviewer_data.get("interviewer_name", "Unknown")}" site:linkedin.com/in'
+                ] if interviewer_data else []
+            }
+        
+        # Quality reflection
+        logs['quality_reflection'] = {
+            'overall_confidence': research_result.get('overall_confidence', 0),
+            'quality_rating': research_result.get('research_quality', 'Unknown'),
+            'sufficient_for_prep_guide': research_result.get('sufficient_for_prep_guide', False),
+            'reflection_reasoning': research_result.get('reflection_reasoning', '')
+        }
+        
+        return logs
+    
+    def _extract_prep_guide_logs(self, prep_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract logs from prep guide generation"""
+        logs = {
+            'success': prep_result.get('success', False),
+            'guide_length': len(str(prep_result.get('prep_guide_content', ''))),
+            'citations_used': prep_result.get('citations_used', 0) if isinstance(prep_result.get('citations_used'), int) else 0,
+            'generation_time': prep_result.get('generation_time', 0)
+        }
+        return logs
 
 
 # Main execution

@@ -56,12 +56,16 @@ def add_patterns(nlp: Language):
           "LOWER": {"NOT_IN": ["marketing", "engineering", "software", "product", "data", "brand", "senior", "junior", "lead", "director", "manager", "google", "zoom", "meet", "internship", "opportunity", "interview", "session", "call", "meeting"]}}, 
          {"POS": "PROPN", "OP": "?"}],
         
-        # Specific known company patterns (expanded list)
+        # Specific multi-token company names
+        [{"LOWER": "dandilyonn"}, {"LOWER": "seeds"}],  # "Dandilyonn SEEDS"
+        [{"LOWER": "the", "OP": "?"}, {"LOWER": "dandilyonn"}, {"LOWER": "seeds"}],  # "the Dandilyonn SEEDS" (optional "the")
         [{"LOWER": "launchpad"}, {"LOWER": "ai"}],
         [{"LOWER": "startup"}, {"LOWER": "shell"}],
         [{"LOWER": "bitwise"}, {"LOWER": "labs"}],
         [{"LOWER": "ripple"}, {"LOWER": "design"}],
         [{"LOWER": "cognivault"}, {"LOWER": "ai", "OP": "?"}, {"LOWER": "labs", "OP": "?"}],
+        
+        # Single token company names
         [{"LOWER": "techflow"}],
         [{"LOWER": "pixelwave"}],
         [{"LOWER": "juteq"}],

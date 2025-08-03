@@ -96,6 +96,16 @@ class EntityExtractor(BaseAgent):
     def extract_entities(self, doc, cleaned_matches: List[Tuple[str, int, int]]) -> Dict[str, List[str]]:
         entities = defaultdict(list)
 
+        # === Process spaCy's built-in ORG entities for COMPANY extraction ===
+        for ent in doc.ents:
+            if ent.label_ == "ORG":
+                org_text = ent.text.strip().replace('\n', ' ')
+                
+                # Extract company name from ORG entities like "the Dandilyonn SEEDS Internship Program"
+                company_name = self._extract_company_from_org(org_text)
+                if company_name and company_name not in entities["COMPANY"]:
+                    entities["COMPANY"].append(company_name)
+
         interviewer_spans = [
             doc[start:end] for label, start, end in cleaned_matches if label == "INTERVIEWER"
         ]
@@ -258,3 +268,50 @@ class EntityExtractor(BaseAgent):
                 filtered.append((label, start, end, text))
 
         return [(label, start, end) for label, start, end, _ in filtered]
+
+    def _extract_company_from_org(self, org_text: str) -> str:
+        """Extract company name from spaCy ORG entity text."""
+        # Clean up the org text
+        org_text = org_text.strip()
+        
+        # Skip generic program/interview related ORG entities that don't contain actual company names
+        skip_phrases = [
+            "internship interview invitation",
+            "interview invitation",
+            "internship program",
+            "internship opportunity"
+        ]
+        
+        if any(phrase in org_text.lower() for phrase in skip_phrases):
+            # Look for actual company names within the ORG text
+            # Common patterns: "Dandilyonn SEEDS Internship Program" -> "Dandilyonn SEEDS"
+            
+            # Known company patterns to extract
+            company_patterns = [
+                ("dandilyonn seeds", "Dandilyonn SEEDS"),
+                ("juteq", "JUTEQ"),
+                ("launchpad ai", "Launchpad AI"),
+                ("bitwise labs", "Bitwise Labs"),
+                ("startup shell", "Startup Shell"),
+                ("ripple design", "Ripple Design"),
+                ("cognivault ai", "CogniVault AI"),
+            ]
+            
+            org_lower = org_text.lower()
+            for pattern, company_name in company_patterns:
+                if pattern in org_lower:
+                    return company_name
+            
+            # Fallback: if it contains specific keywords, try to extract the company part
+            if "dandilyonn" in org_lower and "seeds" in org_lower:
+                return "Dandilyonn SEEDS"
+            elif "juteq" in org_lower:
+                return "JUTEQ"
+                
+        # If it's a short ORG entity that looks like a company name (not interview/program related)
+        if len(org_text) <= 30 and not any(word in org_text.lower() for word in [
+            "interview", "invitation", "internship", "program", "opportunity"
+        ]):
+            return org_text
+            
+        return None

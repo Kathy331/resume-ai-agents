@@ -179,13 +179,18 @@ class EmailPipeline:
                 result = loop.run_until_complete(self.entity_extractor.execute(input_data))
                 raw_entities = result.data if result.success else {}
                 
-                # Map uppercase keys to lowercase for consistency
+                # Map uppercase keys to lowercase for consistency and normalize values
                 entities = {}
                 for key, value in raw_entities.items():
                     if isinstance(value, list) and value:
-                        entities[key.lower()] = value[0] if len(value) == 1 else value
+                        # Always use first item for single-item lists, join multiple items
+                        if len(value) == 1:
+                            entities[key.lower()] = str(value[0]) if value[0] else ''
+                        else:
+                            # Keep as list but ensure all items are strings
+                            entities[key.lower()] = [str(v) for v in value if v]
                     else:
-                        entities[key.lower()] = value
+                        entities[key.lower()] = str(value) if value else ''
                 
                 return {
                     'success': True,
@@ -217,9 +222,23 @@ class EmailPipeline:
     def _check_memory_store(self, entities: Dict[str, Any]) -> Dict[str, Any]:
         """Check if interview already exists in memory store"""
         try:
+            # Handle entities that might be lists or strings
             company = entities.get('company', '')
             role = entities.get('role', '')
             interviewer = entities.get('interviewer', '')
+            
+            # Convert to strings if they are lists
+            if isinstance(company, list):
+                company = company[0] if company else ''
+            if isinstance(role, list):
+                role = role[0] if role else ''
+            if isinstance(interviewer, list):
+                interviewer = interviewer[0] if interviewer else ''
+            
+            # Convert to strings to ensure we have strings
+            company = str(company) if company else ''
+            role = str(role) if role else ''
+            interviewer = str(interviewer) if interviewer else ''
             
             if not company:
                 return {

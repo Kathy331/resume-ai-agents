@@ -37,15 +37,16 @@ class PrepGuidePipeline:
         self.outputs_dir = "outputs/fullworkflow"
         os.makedirs(self.outputs_dir, exist_ok=True)
     
-    def generate_prep_guide(self, email: Dict[str, Any], entities: Dict[str, Any], research_result: Dict[str, Any], email_index: int) -> Dict[str, Any]:
+    def generate_prep_guide(self, email: Dict[str, Any], entities: Dict[str, Any], research_result: Dict[str, Any], email_index: int, processing_logs: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Generate comprehensive personalized prep guide
+        Generate comprehensive personalized prep guide with detailed processing logs
         
         Args:
             email: Original email data
             entities: Extracted entities from email
             research_result: Results from deep research pipeline
             email_index: Index of email being processed
+            processing_logs: Detailed logs from all pipeline stages
             
         Returns:
             Prep guide generation result
@@ -97,7 +98,7 @@ class PrepGuidePipeline:
             
             # Save to individual file
             print(f"\n💾 Step 4: Save Individual Output File")
-            output_result = self._save_individual_output_file(email, entities, result['prep_guide_content'], company_keyword, research_result)
+            output_result = self._save_individual_output_file(email, entities, result['prep_guide_content'], company_keyword, research_result, processing_logs or {})
             
             if output_result.get('success'):
                 result['output_file'] = output_result['filename']
@@ -110,7 +111,9 @@ class PrepGuidePipeline:
             
             print(f"\n✅ PREP GUIDE PIPELINE COMPLETED")
             print(f"   🏢 Company: {company_keyword}")
-            print(f"   📚 Sections: {len(result['sections_generated'])}")
+            sections_gen = result['sections_generated']
+            sections_count = len(sections_gen) if isinstance(sections_gen, list) else sections_gen
+            print(f"   📚 Sections: {sections_count}")
             print(f"   📝 Citations: {result['citations_used']}")
             print(f"   📁 Output: {result['output_file']}")
             print(f"   ⏱️  Processing Time: {result['processing_time']:.2f}s")
@@ -236,7 +239,8 @@ class PrepGuidePipeline:
                 citations_used = len(citations_database)
                 
                 print(f"   ✅ Prep guide generated ({len(prep_guide_content)} characters)")
-                print(f"   📚 Sections: {len(sections_generated)}")
+                sections_count = len(sections_generated) if isinstance(sections_generated, list) else sections_generated
+                print(f"   📚 Sections: {sections_count}")
                 print(f"   📝 Citations: {citations_used}")
                 
                 return {
@@ -365,7 +369,7 @@ class PrepGuidePipeline:
         print(f"📚 Citations referenced: {citations_count}")
         print(f"=" * 80)
     
-    def _save_individual_output_file(self, email: Dict[str, Any], entities: Dict[str, Any], prep_guide_content: str, company_keyword: str, research_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _save_individual_output_file(self, email: Dict[str, Any], entities: Dict[str, Any], prep_guide_content: str, company_keyword: str, research_result: Dict[str, Any], processing_logs: Dict[str, Any]) -> Dict[str, Any]:
         """Save comprehensive output to individual company-specific file"""
         try:
             # Create safe filename
@@ -381,7 +385,7 @@ class PrepGuidePipeline:
             
             # Build complete file content
             file_content = self._build_complete_file_content(
-                email, entities, prep_guide_content, company_keyword, research_result, timestamp
+                email, entities, prep_guide_content, company_keyword, research_result, timestamp, processing_logs
             )
             
             # Write file
@@ -405,7 +409,7 @@ class PrepGuidePipeline:
                 'error': str(e)
             }
     
-    def _build_complete_file_content(self, email: Dict[str, Any], entities: Dict[str, Any], prep_guide_content: str, company_keyword: str, research_result: Dict[str, Any], timestamp: str) -> str:
+    def _build_complete_file_content(self, email: Dict[str, Any], entities: Dict[str, Any], prep_guide_content: str, company_keyword: str, research_result: Dict[str, Any], timestamp: str, processing_logs: Dict[str, Any]) -> str:
         """Build complete file content with all sections"""
         
         # Extract entity values for display
@@ -440,6 +444,10 @@ class PrepGuidePipeline:
         content_parts.append(f"Subject: {email.get('subject', 'No subject')}")
         content_parts.append(f"Date: {email.get('date', 'Unknown')}")
         content_parts.append(f"Body: {email.get('body', 'No body')[:500]}...")
+        
+        # Detailed Pipeline Processing Logs
+        if processing_logs:
+            content_parts.append(self._format_detailed_processing_logs(processing_logs))
         
         # Research Validation Process
         if research_result.get('validation_metrics'):
@@ -541,3 +549,154 @@ class PrepGuidePipeline:
         agent_parts.append(f"📈 Confidence: {agent_data.get('confidence_score', 0):.2f}")
         
         return "\n".join(agent_parts)
+    
+    def _format_detailed_processing_logs(self, processing_logs: Dict[str, Any]) -> str:
+        """Format detailed processing logs from all pipeline stages"""
+        log_parts = []
+        
+        log_parts.append("\n" + "=" * 80)
+        log_parts.append("DETAILED PIPELINE PROCESSING LOGS")
+        log_parts.append("=" * 80)
+        log_parts.append("Complete step-by-step processing details from terminal output:")
+        log_parts.append("")
+        
+        # Email Pipeline Logs
+        if 'email_pipeline' in processing_logs:
+            email_logs = processing_logs['email_pipeline']
+            log_parts.append("📧 === EMAIL PIPELINE PROCESSING ===")
+            
+            # Classification details
+            if 'classification' in email_logs:
+                classification_data = email_logs['classification']
+                log_parts.append("🔍 STEP 1: Email Classification")
+                log_parts.append(f"   📋 Classification Result: {classification_data.get('result', 'Unknown')}")
+                log_parts.append(f"   📊 Confidence: {classification_data.get('confidence', 0):.2f}")
+                if classification_data.get('reasoning'):
+                    log_parts.append(f"   💭 Reasoning: {classification_data.get('reasoning')}")
+                log_parts.append("")
+            
+            # Entity extraction details  
+            if 'entity_extraction' in email_logs:
+                entity_data = email_logs['entity_extraction']
+                log_parts.append("🏷️  STEP 2: Entity Extraction")
+                log_parts.append(f"   ✅ Success: {entity_data.get('success', False)}")
+                if entity_data.get('entities'):
+                    log_parts.append("   📋 Extracted Entities:")
+                    for key, value in entity_data['entities'].items():
+                        if isinstance(value, list):
+                            log_parts.append(f"      • {key}: {value} (LIST)")
+                        else:
+                            log_parts.append(f"      • {key}: {value}")
+                log_parts.append("")
+            
+            # Memory check details
+            if 'memory_check' in email_logs:
+                memory_data = email_logs['memory_check']
+                log_parts.append("💾 STEP 3: Memory Store Check")
+                log_parts.append(f"   🆕 Status: {memory_data.get('status', 'Unknown')}")
+                log_parts.append(f"   ✅ Already Prepped: {memory_data.get('already_prepped', False)}")
+                if memory_data.get('match_details'):
+                    match_details = memory_data['match_details']
+                    log_parts.append("   📋 Match Details:")
+                    log_parts.append(f"      • Company: {match_details.get('matched_company', 'N/A')}")
+                    log_parts.append(f"      • Role: {match_details.get('matched_role', 'N/A')}")
+                    log_parts.append(f"      • Date: {match_details.get('prep_date', 'N/A')}")
+                log_parts.append("")
+        
+        # Deep Research Pipeline Logs
+        if 'deep_research' in processing_logs:
+            research_logs = processing_logs['deep_research']
+            log_parts.append("🔬 === DEEP RESEARCH PIPELINE PROCESSING ===")
+            
+            # Overall research metrics
+            if 'metrics' in research_logs:
+                metrics = research_logs['metrics']
+                log_parts.append("📊 RESEARCH OVERVIEW:")
+                log_parts.append(f"   🔍 Total Sources Discovered: {metrics.get('sources_discovered', 0)}")
+                log_parts.append(f"   ✅ Sources Validated: {metrics.get('sources_validated', 0)}")
+                log_parts.append(f"   📝 Citations Generated: {metrics.get('citations_generated', 0)}")
+                log_parts.append(f"   🔗 LinkedIn Profiles Found: {metrics.get('linkedin_profiles_found', 0)}")
+                log_parts.append(f"   ⏱️  Processing Time: {metrics.get('processing_time', 0):.1f}s")
+                log_parts.append("")
+            
+            # Company analysis details
+            if 'company_analysis' in research_logs:
+                company_data = research_logs['company_analysis']
+                log_parts.append("🏢 COMPANY ANALYSIS AGENT:")
+                log_parts.append(f"   📊 Phase 1: Company Identity Verification")
+                log_parts.append(f"   📊 Phase 2: Industry & Market Analysis")
+                log_parts.append(f"   📈 Confidence Score: {company_data.get('confidence_score', 0):.2f}")
+                log_parts.append(f"   ✅ Sources Validated: {company_data.get('sources_validated', 0)}")
+                
+                # Company validation reasoning
+                if company_data.get('validation_log'):
+                    log_parts.append("   📊 Company Validation Results:")
+                    for validation_entry in company_data['validation_log'][:8]:  # Show top 8
+                        log_parts.append(f"      {validation_entry}")
+                log_parts.append("")
+            
+            # Role analysis details
+            if 'role_analysis' in research_logs:
+                role_data = research_logs['role_analysis'] 
+                log_parts.append("💼 ROLE ANALYSIS AGENT:")
+                log_parts.append(f"   🔍 Phase 1: Role Requirements Analysis")
+                log_parts.append(f"   🔍 Phase 2: Skills & Market Analysis")
+                log_parts.append(f"   📈 Confidence Score: {role_data.get('confidence_score', 0):.2f}")
+                log_parts.append(f"   ✅ Sources Validated: {role_data.get('sources_validated', 0)}")
+                log_parts.append("")
+            
+            # Interviewer analysis details
+            if 'interviewer_analysis' in research_logs:
+                interviewer_data = research_logs['interviewer_analysis']
+                log_parts.append("👤 INTERVIEWER ANALYSIS AGENT:")
+                log_parts.append(f"   🔍 Phase 1: Targeted LinkedIn Profile Search")
+                log_parts.append(f"   🔍 Phase 2: Professional Background Research")
+                log_parts.append(f"   📈 Confidence Score: {interviewer_data.get('confidence_score', 0):.2f}")
+                log_parts.append(f"   🔗 LinkedIn Profiles Found: {interviewer_data.get('linkedin_profiles_found', 0)}")
+                
+                # LinkedIn search queries
+                if interviewer_data.get('search_queries'):
+                    log_parts.append("   🔍 Search Queries Used:")
+                    for query in interviewer_data['search_queries'][:5]:  # Show top 5
+                        log_parts.append(f"      • {query}")
+                
+                # Profile validation reasoning
+                if interviewer_data.get('validation_log'):
+                    log_parts.append("   📊 Profile Validation Results:")
+                    for validation_entry in interviewer_data['validation_log'][:8]:  # Show top 8
+                        log_parts.append(f"      {validation_entry}")
+                
+                # Name extraction results
+                if interviewer_data.get('extracted_names'):
+                    log_parts.append(f"   💡 Names Extracted: {', '.join(interviewer_data['extracted_names'][:3])}")
+                
+                # Search suggestions
+                if interviewer_data.get('search_suggestions'):
+                    log_parts.append("   🎯 Search Suggestions Generated:")
+                    for suggestion in interviewer_data['search_suggestions'][:3]:
+                        log_parts.append(f"      • {suggestion}")
+                log_parts.append("")
+            
+            # Research quality reflection
+            if 'quality_reflection' in research_logs:
+                quality_data = research_logs['quality_reflection']
+                log_parts.append("🤔 RESEARCH QUALITY REFLECTION:")
+                log_parts.append(f"   📊 Overall Confidence: {quality_data.get('overall_confidence', 0):.2f}")
+                log_parts.append(f"   🏆 Research Quality: {quality_data.get('quality_rating', 'Unknown')}")
+                log_parts.append(f"   📚 Sufficient for Prep Guide: {quality_data.get('sufficient_for_prep_guide', False)}")
+                if quality_data.get('reflection_reasoning'):
+                    log_parts.append(f"   💭 Reasoning: {quality_data.get('reflection_reasoning')}")
+                log_parts.append("")
+        
+        # Prep Guide Generation Logs
+        if 'prep_guide_generation' in processing_logs:
+            prep_logs = processing_logs['prep_guide_generation']
+            log_parts.append("📚 === PREP GUIDE GENERATION ===")
+            log_parts.append(f"   ✅ Success: {prep_logs.get('success', False)}")
+            log_parts.append(f"   📝 Guide Length: {prep_logs.get('guide_length', 0)} characters")
+            log_parts.append(f"   🔗 Citations Used: {prep_logs.get('citations_used', 0)}")
+            if prep_logs.get('generation_time'):
+                log_parts.append(f"   ⏱️  Generation Time: {prep_logs.get('generation_time', 0):.2f}s")
+            log_parts.append("")
+        
+        return "\n".join(log_parts)
