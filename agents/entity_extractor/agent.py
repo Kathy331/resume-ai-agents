@@ -96,6 +96,16 @@ class EntityExtractor(BaseAgent):
     def extract_entities(self, doc, cleaned_matches: List[Tuple[str, int, int]]) -> Dict[str, List[str]]:
         entities = defaultdict(list)
 
+        # === Process spaCy's built-in ORG entities for COMPANY extraction ===
+        for ent in doc.ents:
+            if ent.label_ == "ORG":
+                org_text = ent.text.strip().replace('\n', ' ')
+                
+                # Extract company name from ORG entities like "the Dandilyonn SEEDS Internship Program"
+                company_name = self._extract_company_from_org(org_text)
+                if company_name and company_name not in entities["COMPANY"]:
+                    entities["COMPANY"].append(company_name)
+
         interviewer_spans = [
             doc[start:end] for label, start, end in cleaned_matches if label == "INTERVIEWER"
         ]
@@ -148,10 +158,20 @@ class EntityExtractor(BaseAgent):
                         # Clean up the person name
                         person_text = person_text.replace('\n', ' ').strip()
                         
-                        # Skip if it looks like an organization or email
-                        if any(word in person_text.lower() for word in [
-                            "team", "company", "corp", "inc", "ltd", "llc", "@", ".com"
-                        ]):
+                        # Skip if it looks like an organization, email, or common email formatting words
+                        invalid_person_words = [
+                            "team", "company", "corp", "inc", "ltd", "llc", "@", ".com",
+                            "format", "subject", "re", "fw", "fwd", "email", "dear", "hi", "hello",  
+                            "best", "regards", "thanks", "sincerely", "meeting", "interview",
+                            "zoom", "google", "meet", "teams", "call", "session", "opportunity",
+                            "from", "to", "cc", "bcc", "date", "time", "location", "agenda"
+                        ]
+                        
+                        if any(word in person_text.lower() for word in invalid_person_words):
+                            continue
+                        
+                        # Additional check: skip single words under 3 characters or common format words
+                        if len(person_text) < 3 or person_text.lower() in ["re", "fw", "fwd", "hi", "hey"]:
                             continue
                             
                         if person_text not in entities["INTERVIEWER"] and len(person_text) >= 2:
@@ -194,6 +214,21 @@ class EntityExtractor(BaseAgent):
                 if not any(w in entity_text.lower() for w in ["minute", "hour", "hr"]):
                     continue
 
+            # Final validation for INTERVIEWER before adding
+            if label == "INTERVIEWER":
+                invalid_person_words = [
+                    "team", "company", "corp", "inc", "ltd", "llc", "@", ".com",
+                    "format", "subject", "re", "fw", "fwd", "email", "dear", "hi", "hello",  
+                    "best", "regards", "thanks", "sincerely", "meeting", "interview",
+                    "zoom", "google", "meet", "teams", "call", "session", "opportunity",
+                    "from", "to", "cc", "bcc", "date", "time", "location", "agenda"
+                ]
+                
+                if (any(word in entity_text.lower() for word in invalid_person_words) or
+                    len(entity_text.strip()) < 3 or
+                    entity_text.lower() in ["re", "fw", "fwd", "hi", "hey", "format"]):
+                    continue
+
             if entity_text not in entities[label]:
                 entities[label].append(entity_text)
 
@@ -233,3 +268,50 @@ class EntityExtractor(BaseAgent):
                 filtered.append((label, start, end, text))
 
         return [(label, start, end) for label, start, end, _ in filtered]
+
+    def _extract_company_from_org(self, org_text: str) -> str:
+        """Extract company name from spaCy ORG entity text."""
+        # Clean up the org text
+        org_text = org_text.strip()
+        
+        # Skip generic program/interview related ORG entities that don't contain actual company names
+        skip_phrases = [
+            "internship interview invitation",
+            "interview invitation",
+            "internship program",
+            "internship opportunity"
+        ]
+        
+        if any(phrase in org_text.lower() for phrase in skip_phrases):
+            # Look for actual company names within the ORG text
+            # Common patterns: "Dandilyonn SEEDS Internship Program" -> "Dandilyonn SEEDS"
+            
+            # Known company patterns to extract
+            company_patterns = [
+                ("dandilyonn seeds", "Dandilyonn SEEDS"),
+                ("juteq", "JUTEQ"),
+                ("launchpad ai", "Launchpad AI"),
+                ("bitwise labs", "Bitwise Labs"),
+                ("startup shell", "Startup Shell"),
+                ("ripple design", "Ripple Design"),
+                ("cognivault ai", "CogniVault AI"),
+            ]
+            
+            org_lower = org_text.lower()
+            for pattern, company_name in company_patterns:
+                if pattern in org_lower:
+                    return company_name
+            
+            # Fallback: if it contains specific keywords, try to extract the company part
+            if "dandilyonn" in org_lower and "seeds" in org_lower:
+                return "Dandilyonn SEEDS"
+            elif "juteq" in org_lower:
+                return "JUTEQ"
+                
+        # If it's a short ORG entity that looks like a company name (not interview/program related)
+        if len(org_text) <= 30 and not any(word in org_text.lower() for word in [
+            "interview", "invitation", "internship", "program", "opportunity"
+        ]):
+            return org_text
+            
+        return None

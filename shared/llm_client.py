@@ -230,8 +230,11 @@ async def call_llm(prompt: str, model: str = "gpt-3.5-turbo", max_tokens: int = 
   Returns:
       str: The response text from the LLM.
   """
-  # Check cache first
-  if openai_cache:
+  # Check if caching is disabled via environment variable
+  disable_cache = os.getenv('DISABLE_OPENAI_CACHE', '').lower() == 'true'
+  
+  # Check cache first (unless disabled)
+  if not disable_cache and openai_cache:
       cached_response = openai_cache.get(prompt, model, max_tokens, temperature)
       if cached_response:
           print(f"🗄️ Using cached response for async call")
@@ -242,14 +245,18 @@ async def call_llm(prompt: str, model: str = "gpt-3.5-turbo", max_tokens: int = 
       print(f"🤖 Using mock response for async call (no API key)")
       mock_response = f"Mock keyword extraction result for prompt: {prompt[:100]}..."
       
-      # Cache the mock response
-      if openai_cache:
+      # Cache the mock response (unless caching disabled)
+      if not disable_cache and openai_cache:
           openai_cache.set(prompt, model, max_tokens, temperature, mock_response, "async_call")
       
       return mock_response
   
   try:
-      print(f"🌐 Making async OpenAI API call")
+      if disable_cache:
+          print(f"🌐 Making async OpenAI API call (cache disabled)")
+      else:
+          print(f"🌐 Making async OpenAI API call")
+      
       response = await async_client.chat.completions.create(
         model=model,
         messages=[
@@ -262,9 +269,11 @@ async def call_llm(prompt: str, model: str = "gpt-3.5-turbo", max_tokens: int = 
       
       response_text = response.choices[0].message.content
       
-      # Cache the response
-      if openai_cache:
+      # Cache the response (unless caching disabled)
+      if not disable_cache and openai_cache:
           openai_cache.set(prompt, model, max_tokens, temperature, response_text, "async_call")
+      elif disable_cache:
+          print(f"💾 Caching disabled - response not cached")
       
       return response_text
       
@@ -273,8 +282,8 @@ async def call_llm(prompt: str, model: str = "gpt-3.5-turbo", max_tokens: int = 
     # Fallback to mock response
     mock_response = f"Mock fallback result for prompt: {prompt[:100]}..."
     
-    # Cache the mock response
-    if openai_cache:
+    # Cache the mock response (unless caching disabled)
+    if not disable_cache and openai_cache:
         openai_cache.set(prompt, model, max_tokens, temperature, mock_response, "async_call_fallback")
     
     return mock_response
