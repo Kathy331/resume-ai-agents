@@ -136,7 +136,7 @@ class PrepGuidePipeline:
             return "Unknown_Company"
     
     def _generate_comprehensive_prep_guide(self, email: Dict[str, Any], entities: Dict[str, Any], research_result: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate comprehensive personalized prep guide with citations"""
+        """Generate comprehensive personalized prep guide with intelligent analysis and reflection loops"""
         try:
             # Extract entity values (handle both string and list formats)
             def get_entity_string(entity_value):
@@ -155,103 +155,49 @@ class PrepGuidePipeline:
             email_body = email.get('body', '')
             from_sender = email.get('from', '')
             
-            # Build research context with citations
+            # Build research context with detailed analysis
             research_context = self._build_research_context_with_citations(research_result)
             citations_database = research_result.get('citations_database', {})
             
-            # Create comprehensive prompt for personalized prep guide
-            prompt = f"""
-            Generate a comprehensive, personalized interview preparation guide based on this SPECIFIC interview email and sophisticated research findings:
+            print(f"   🧠 Starting intelligent prep guide generation with reflection...")
             
-            **SPECIFIC INTERVIEW EMAIL DETAILS:**
-            From: {from_sender}
-            Subject: {email_subject}
-            Interview Dates: {', '.join(dates) if dates else 'Not specified'}
-            Format: {format_type}
+            # PHASE 1: Generate Deep Insights from Research Data
+            insights_result = self._generate_deep_insights(research_result, company, role, interviewer)
             
-            **EXTRACTED INTERVIEW DETAILS:**
-            - Company: {company}
-            - Role: {role}
-            - Interviewer: {interviewer}
+            # PHASE 2: Create Personalized Interviewer Profile 
+            interviewer_profile = self._create_detailed_interviewer_profile(research_result, company, interviewer)
             
-            **SOPHISTICATED RESEARCH FINDINGS WITH CITATIONS:**
-            {research_context}
+            # PHASE 3: Extract Conversation Hooks and Rapport Points
+            conversation_hooks = self._extract_conversation_hooks(research_result, company, interviewer)
             
-            Create a PERSONALIZED and ACTIONABLE prep guide with these sections:
+            # PHASE 4: Generate Dynamic Prep Guide with Reflection Loop
+            prep_guide_result = self._generate_dynamic_prep_guide_with_reflection(
+                email, entities, research_result, insights_result, interviewer_profile, conversation_hooks
+            )
             
-            1. **Before the Interview** - SPECIFIC actions based on THIS email:
-               - Response deadline and exact timing from the email
-               - Specific time slots mentioned in the email to choose from
-               - Who to reply to and contact information
-               - Company mission, products, and current projects to research
-               - Specific technologies and approaches to understand based on research
-               
-            2. **Company Analysis** - Based on research findings:
-               - What problems they solve and their approach
-               - Recent developments and market position
-               - Technologies they use (include specific findings from research)
-               - Key insights from company research with citations
-               
-            3. **Role Analysis** - Tailored to this specific role:
-               - What they're looking for in this role based on research
-               - Key skills and qualifications needed
-               - How to demonstrate relevant experience
-               - Technical requirements and expectations
-               
-            4. **Interviewer Background** - Based on LinkedIn and professional research:
-               - Professional background and expertise areas
-               - Recent posts, articles, or achievements found in research
-               - Common interests or connection points to discuss
-               - LinkedIn profile insights and recommendations
-               
-            5. **Questions to Ask** - Intelligent questions based on research findings:
-               - Company-specific questions based on recent developments
-               - Role-specific questions about expectations and growth
-               - Interviewer-specific questions based on their background
-               - Technical questions relevant to the role
-               
-            6. **Strategic Recommendations** - How to position yourself:
-               - Key talking points based on research findings
-               - How to align your experience with their needs
-               - Conversation starters based on interviewer research
-               - Follow-up strategies
+            if not prep_guide_result.get('success'):
+                return prep_guide_result
             
-            **CRITICAL REQUIREMENTS:**
-            - Include specific citations [Citation 1], [Citation 2], etc. for ALL findings and recommendations
-            - Use the numbered citation system from the research database
-            - Base timing and logistics on the ACTUAL email content provided
-            - Include SPECIFIC findings from LinkedIn profiles, company websites, and research
-            - Make every recommendation immediately actionable with clear next steps
-            - Every fact, insight, and recommendation MUST have a citation number
-            - Format citations as [Citation X] where X corresponds to the citation number
-            - Ensure all advice is personalized to this specific interview opportunity
-            """
+            # Count sections and citations
+            sections_generated = self._count_sections(prep_guide_result['prep_guide_content'])
+            citations_used = len(citations_database)
             
-            # Generate prep guide using LLM
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            print(f"   ✅ Enhanced prep guide generated ({len(prep_guide_result['prep_guide_content'])} characters)")
+            sections_count = len(sections_generated) if isinstance(sections_generated, list) else sections_generated
+            print(f"   📚 Sections: {sections_count}")
+            print(f"   📝 Citations: {citations_used}")
+            print(f"   🎯 Insights Generated: {len(insights_result.get('insights', []))}")
+            print(f"   🤝 Conversation Hooks: {len(conversation_hooks.get('hooks', []))}")
             
-            try:
-                prep_guide_content = loop.run_until_complete(call_llm(prompt))
-                
-                # Count sections and citations
-                sections_generated = self._count_sections(prep_guide_content)
-                citations_used = len(citations_database)
-                
-                print(f"   ✅ Prep guide generated ({len(prep_guide_content)} characters)")
-                sections_count = len(sections_generated) if isinstance(sections_generated, list) else sections_generated
-                print(f"   📚 Sections: {sections_count}")
-                print(f"   📝 Citations: {citations_used}")
-                
-                return {
-                    'success': True,
-                    'prep_guide_content': prep_guide_content,
-                    'citations_used': citations_used,
-                    'sections_generated': sections_generated
-                }
-                
-            finally:
-                loop.close()
+            return {
+                'success': True,
+                'prep_guide_content': prep_guide_result['prep_guide_content'],
+                'citations_used': citations_used,
+                'sections_generated': sections_generated,
+                'insights_generated': len(insights_result.get('insights', [])),
+                'conversation_hooks': len(conversation_hooks.get('hooks', [])),
+                'reflection_iterations': prep_guide_result.get('reflection_iterations', 0)
+            }
                 
         except Exception as e:
             print(f"   ❌ Prep guide generation error: {str(e)}")
@@ -700,3 +646,445 @@ class PrepGuidePipeline:
             log_parts.append("")
         
         return "\n".join(log_parts)
+
+    def _generate_deep_insights(self, research_result: Dict[str, Any], company: str, role: str, interviewer: str) -> Dict[str, Any]:
+        """Generate deep insights from research data using AI analysis"""
+        try:
+            research_data = research_result.get('research_data', {})
+            confidence_scores = research_result.get('validation_metrics', {}).get('confidence_scores', [])
+            avg_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0
+            
+            # Build comprehensive research summary for analysis
+            research_summary = self._build_research_summary(research_data)
+            
+            insights_prompt = f"""
+            Analyze the following research data and generate deep, actionable insights for interview preparation:
+            
+            **RESEARCH DATA SUMMARY:**
+            {research_summary}
+            
+            **TARGET DETAILS:**
+            - Company: {company}
+            - Role: {role} 
+            - Interviewer: {interviewer}
+            - Average Confidence Score: {avg_confidence:.2f}
+            
+            Generate specific insights in these categories:
+            
+            1. **Company Strategy Insights** - What does this research reveal about their strategic direction?
+            2. **Role-Specific Insights** - What unique aspects of this role can be inferred?
+            3. **Interviewer Insights** - What can we learn about the interviewer's priorities and background?
+            4. **Market Position Insights** - How is this company positioned in their market?
+            5. **Technology Stack Insights** - What technologies and approaches do they prioritize?
+            6. **Culture & Values Insights** - What does the research suggest about company culture?
+            
+            For each insight, provide:
+            - The specific insight (1-2 sentences)
+            - Supporting evidence from research
+            - How to leverage this in the interview
+            - Confidence level (High/Medium/Low)
+            
+            Focus on non-obvious, strategic insights that go beyond surface-level information.
+            """
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                insights_response = loop.run_until_complete(call_llm(insights_prompt))
+                return {
+                    'success': True,
+                    'insights': insights_response,
+                    'confidence_score': avg_confidence
+                }
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            print(f"   ⚠️ Insights generation error: {str(e)}")
+            return {'success': False, 'error': str(e)}
+
+    def _create_detailed_interviewer_profile(self, research_result: Dict[str, Any], company: str, interviewer: str) -> Dict[str, Any]:
+        """Create a detailed interviewer profile with conversation hooks"""
+        try:
+            research_data = research_result.get('research_data', {})
+            interviewer_data = research_data.get('interviewer_analysis', {})
+            
+            if not interviewer_data.get('success'):
+                return {'success': False, 'error': 'No interviewer research data available'}
+            
+            # Extract interviewer research details
+            linkedin_analysis = interviewer_data.get('linkedin_analysis', '')
+            validated_sources = interviewer_data.get('validated_sources', [])
+            linkedin_profiles_found = interviewer_data.get('linkedin_profiles_found', 0)
+            
+            profile_prompt = f"""
+            Create a comprehensive interviewer profile based on research findings:
+            
+            **INTERVIEWER:** {interviewer}
+            **COMPANY:** {company}
+            **LINKEDIN PROFILES FOUND:** {linkedin_profiles_found}
+            
+            **RESEARCH FINDINGS:**
+            {linkedin_analysis}
+            
+            **VALIDATED SOURCES:** {len(validated_sources)} sources found
+            
+            Create a detailed profile including:
+            
+            1. **Professional Summary** (2-3 sentences about their background and expertise)
+            2. **Current Role & Responsibilities** (what they likely do at the company)
+            3. **Professional Interests** (areas they seem passionate about)
+            4. **Recent Activity** (any recent posts, achievements, or projects mentioned)
+            5. **Communication Style** (inferred from their online presence)
+            6. **Potential Connection Points** (topics that might resonate with them)
+            7. **Interview Approach** (how they might conduct the interview based on their background)
+            
+            **CONFIDENCE ASSESSMENT:**
+            - Profile Confidence: [High/Medium/Low] based on available data
+            - Data Quality: [Strong/Moderate/Limited] based on research depth
+            
+            Be specific and actionable. If information is limited, clearly state that and focus on what can be reasonably inferred.
+            """
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                profile_response = loop.run_until_complete(call_llm(profile_prompt))
+                return {
+                    'success': True,
+                    'profile': profile_response,
+                    'linkedin_profiles_found': linkedin_profiles_found,
+                    'sources_count': len(validated_sources)
+                }
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            print(f"   ⚠️ Interviewer profile generation error: {str(e)}")
+            return {'success': False, 'error': str(e)}
+
+    def _extract_conversation_hooks(self, research_result: Dict[str, Any], company: str, interviewer: str) -> Dict[str, Any]:
+        """Extract specific conversation hooks and rapport points"""
+        try:
+            research_data = research_result.get('research_data', {})
+            citations_database = research_result.get('citations_database', {})
+            
+            # Gather all validated sources for conversation hook analysis
+            all_sources = []
+            for analysis_type in ['company_analysis', 'role_analysis', 'interviewer_analysis']:
+                analysis_data = research_data.get(analysis_type, {})
+                if analysis_data.get('success'):
+                    sources = analysis_data.get('validated_sources', [])
+                    for source_data in sources[:3]:  # Top 3 from each category
+                        source = source_data.get('source', {})
+                        all_sources.append({
+                            'title': source.get('title', ''),
+                            'url': source.get('url', ''),
+                            'content': source.get('content', '')[:500],  # First 500 chars
+                            'type': analysis_type
+                        })
+            
+            hooks_prompt = f"""
+            Analyze these research sources to identify specific conversation hooks and rapport-building opportunities:
+            
+            **TARGET:**
+            - Company: {company}
+            - Interviewer: {interviewer}
+            
+            **RESEARCH SOURCES:**
+            {chr(10).join([f"• {s['title'][:100]} ({s['type']})" for s in all_sources[:10]])}
+            
+            **AVAILABLE CITATIONS:** {len(citations_database)} citations
+            
+            Generate specific conversation hooks in these categories:
+            
+            1. **Recent Company News/Developments** - Specific recent events or announcements to reference
+            2. **Industry Trends** - Current trends the company is involved in or affected by
+            3. **Technology Discussions** - Specific tech stacks, tools, or approaches they use
+            4. **Interviewer's Interests** - Specific topics the interviewer has shown interest in
+            5. **Company Culture** - Cultural elements or values that could be discussion points
+            6. **Career Growth** - Opportunities or paths that could be explored
+            
+            For each hook, provide:
+            - The specific talking point
+            - Why it's relevant to this company/interviewer
+            - How to naturally bring it up in conversation
+            - Which citation to reference (if applicable)
+            
+            Make each hook specific and actionable, not generic advice.
+            """
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                hooks_response = loop.run_until_complete(call_llm(hooks_prompt))
+                return {
+                    'success': True,
+                    'hooks': hooks_response,
+                    'sources_analyzed': len(all_sources)
+                }
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            print(f"   ⚠️ Conversation hooks generation error: {str(e)}")
+            return {'success': False, 'error': str(e)}
+
+    def _generate_dynamic_prep_guide_with_reflection(self, email: Dict[str, Any], entities: Dict[str, Any], 
+                                                   research_result: Dict[str, Any], insights_result: Dict[str, Any],
+                                                   interviewer_profile: Dict[str, Any], conversation_hooks: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate dynamic prep guide with reflection loop for quality improvement"""
+        try:
+            # Extract entity values
+            def get_entity_string(entity_value):
+                if isinstance(entity_value, list):
+                    return entity_value[0] if entity_value else ''
+                return str(entity_value) if entity_value else ''
+            
+            company = get_entity_string(entities.get('company', 'Unknown Company'))
+            role = get_entity_string(entities.get('role', 'Unknown Role'))
+            interviewer = get_entity_string(entities.get('interviewer', 'Unknown Interviewer'))
+            dates = entities.get('date', [])
+            format_type = get_entity_string(entities.get('format', 'Unknown Format'))
+            
+            # Email details
+            email_subject = email.get('subject', '')
+            email_body = email.get('body', '')
+            from_sender = email.get('from', '')
+            
+            max_iterations = 2
+            current_iteration = 0
+            best_guide = None
+            
+            while current_iteration < max_iterations:
+                current_iteration += 1
+                print(f"   🔄 Generating prep guide - Iteration {current_iteration}")
+                
+                # Generate prep guide
+                guide_result = self._generate_single_prep_guide_iteration(
+                    email, entities, research_result, insights_result, 
+                    interviewer_profile, conversation_hooks, current_iteration
+                )
+                
+                if not guide_result.get('success'):
+                    continue
+                
+                # Evaluate quality
+                quality_score = self._evaluate_prep_guide_quality(guide_result['content'], research_result)
+                
+                print(f"      📊 Quality Score: {quality_score:.2f}")
+                
+                if quality_score >= 0.8 or current_iteration == max_iterations:
+                    best_guide = guide_result
+                    break
+                    
+                # If quality is insufficient, try again with feedback
+                print(f"      🔄 Quality insufficient ({quality_score:.2f}), iterating...")
+            
+            if best_guide:
+                return {
+                    'success': True,
+                    'prep_guide_content': best_guide['content'],
+                    'reflection_iterations': current_iteration,
+                    'final_quality_score': quality_score
+                }
+            else:
+                return {'success': False, 'error': 'Failed to generate satisfactory prep guide'}
+                
+        except Exception as e:
+            print(f"   ❌ Dynamic prep guide generation error: {str(e)}")
+            return {'success': False, 'error': str(e)}
+
+    def _generate_single_prep_guide_iteration(self, email: Dict[str, Any], entities: Dict[str, Any], 
+                                            research_result: Dict[str, Any], insights_result: Dict[str, Any],
+                                            interviewer_profile: Dict[str, Any], conversation_hooks: Dict[str, Any],
+                                            iteration: int) -> Dict[str, Any]:
+        """Generate a single iteration of the prep guide"""
+        try:
+            # Extract entity values
+            def get_entity_string(entity_value):
+                if isinstance(entity_value, list):
+                    return entity_value[0] if entity_value else ''
+                return str(entity_value) if entity_value else ''
+            
+            company = get_entity_string(entities.get('company', 'Unknown Company'))
+            role = get_entity_string(entities.get('role', 'Unknown Role'))
+            interviewer = get_entity_string(entities.get('interviewer', 'Unknown Interviewer'))
+            dates = entities.get('date', [])
+            format_type = get_entity_string(entities.get('format', 'Unknown Format'))
+            
+            # Email details
+            email_subject = email.get('subject', '')
+            from_sender = email.get('from', '')
+            
+            # Build comprehensive context
+            research_context = self._build_research_context_with_citations(research_result)
+            citations_database = research_result.get('citations_database', {})
+            
+            # Create enhanced prompt with all insights
+            enhanced_prompt = f"""
+            Generate a highly personalized and actionable interview preparation guide based on comprehensive research and analysis:
+            
+            **SPECIFIC INTERVIEW DETAILS:**
+            From: {from_sender}
+            Subject: {email_subject}
+            Company: {company}
+            Role: {role}
+            Interviewer: {interviewer}
+            Interview Dates: {', '.join(dates) if dates else 'Not specified'}
+            Format: {format_type}
+            
+            **DEEP RESEARCH INSIGHTS:**
+            {insights_result.get('insights', 'No deep insights available')}
+            
+            **DETAILED INTERVIEWER PROFILE:**
+            {interviewer_profile.get('profile', 'Limited interviewer information available')}
+            
+            **CONVERSATION HOOKS & RAPPORT POINTS:**
+            {conversation_hooks.get('hooks', 'No specific conversation hooks identified')}
+            
+            **RESEARCH CONTEXT WITH CITATIONS:**
+            {research_context}
+            
+            **ITERATION FOCUS:** This is iteration {iteration} - ensure maximum personalization and specificity.
+            
+            Create a comprehensive prep guide with these enhanced sections:
+            
+            1. **Before the Interview** 
+               - Specific response requirements from the email
+               - Exact scheduling details and contact information
+               - Pre-interview research tasks with priorities
+               - Company-specific preparation points with citations
+            
+            2. **Company Deep Dive**
+               - Strategic insights about their market position with evidence
+               - Recent developments and their implications
+               - Technology stack and approach analysis
+               - Cultural insights and values alignment
+            
+            3. **Role Analysis & Positioning**
+               - Role expectations based on research findings
+               - Required skills with specific examples to highlight
+               - Technical requirements and how to demonstrate competency
+               - Growth opportunities and career progression
+            
+            4. **Interviewer Intelligence**
+               - Professional background summary with confidence assessment
+               - Communication style and likely interview approach
+               - Specific interests and expertise areas
+               - Connection points and rapport-building opportunities
+            
+            5. **Strategic Questions to Ask**
+               - Company-specific questions showing deep research
+               - Role-specific questions demonstrating understanding
+               - Interviewer-specific questions based on their background
+               - Technical and strategic questions with rationale
+            
+            6. **Conversation Hooks & Talking Points**
+               - Recent company news to reference naturally
+               - Industry trends to discuss knowledgeably
+               - Technology topics for technical connection
+               - Career growth discussions and future vision
+            
+            7. **Confidence & Quality Assessment**
+               - Research confidence levels for each section
+               - Data quality indicators (Strong/Moderate/Limited)
+               - Areas where more information would be helpful
+            
+            **QUALITY REQUIREMENTS:**
+            - Every recommendation must be specific and actionable
+            - Include confidence levels for different insights
+            - Use citations [Citation X] for all factual claims
+            - Make talking points naturally conversational
+            - Ensure recommendations are immediately implementable
+            - Highlight areas where research is strong vs. limited
+            
+            **CITATION FORMAT:** Use [Citation X] where X matches the research database numbers
+            """
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                prep_guide_content = loop.run_until_complete(call_llm(enhanced_prompt))
+                return {
+                    'success': True,
+                    'content': prep_guide_content
+                }
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def _evaluate_prep_guide_quality(self, prep_guide_content: str, research_result: Dict[str, Any]) -> float:
+        """Evaluate the quality of generated prep guide"""
+        try:
+            quality_factors = []
+            
+            # Factor 1: Length and comprehensiveness
+            length_score = min(len(prep_guide_content) / 3000, 1.0)  # Target ~3000 chars
+            quality_factors.append(length_score)
+            
+            # Factor 2: Citation usage
+            citation_count = prep_guide_content.count('[Citation')
+            expected_citations = len(research_result.get('citations_database', {}))
+            citation_score = min(citation_count / max(expected_citations, 1), 1.0) if expected_citations > 0 else 0.5
+            quality_factors.append(citation_score)
+            
+            # Factor 3: Specific vs generic content
+            specific_indicators = ['specific', 'recent', 'latest', 'current', 'noted', 'found', 'identified']
+            generic_indicators = ['general', 'typical', 'common', 'standard', 'basic']
+            
+            specific_count = sum(prep_guide_content.lower().count(word) for word in specific_indicators)
+            generic_count = sum(prep_guide_content.lower().count(word) for word in generic_indicators)
+            
+            specificity_score = min(specific_count / max(specific_count + generic_count, 1), 1.0)
+            quality_factors.append(specificity_score)
+            
+            # Factor 4: Research confidence integration
+            research_confidence = research_result.get('overall_confidence', 0.5)
+            quality_factors.append(research_confidence)
+            
+            # Calculate overall quality score
+            overall_quality = sum(quality_factors) / len(quality_factors)
+            
+            return overall_quality
+            
+        except Exception as e:
+            print(f"   ⚠️ Quality evaluation error: {str(e)}")
+            return 0.5
+
+    def _build_research_summary(self, research_data: Dict[str, Any]) -> str:
+        """Build a comprehensive research summary for insight generation"""
+        summary_parts = []
+        
+        # Company analysis summary
+        company_analysis = research_data.get('company_analysis', {})
+        if company_analysis.get('success'):
+            summary_parts.append("**COMPANY ANALYSIS:**")
+            summary_parts.append(f"- Industry Analysis: {company_analysis.get('industry_analysis', 'Not available')}")
+            summary_parts.append(f"- Analysis Summary: {company_analysis.get('analysis_summary', 'Not available')}")
+            summary_parts.append(f"- Confidence: {company_analysis.get('confidence_score', 0):.2f}")
+            summary_parts.append(f"- Sources Validated: {len(company_analysis.get('validated_sources', []))}")
+        
+        # Role analysis summary
+        role_analysis = research_data.get('role_analysis', {})
+        if role_analysis.get('success'):
+            summary_parts.append("\n**ROLE ANALYSIS:**")
+            summary_parts.append(f"- Skills Analysis: {role_analysis.get('skills_analysis', 'Not available')}")
+            summary_parts.append(f"- Analysis Summary: {role_analysis.get('analysis_summary', 'Not available')}")
+            summary_parts.append(f"- Confidence: {role_analysis.get('confidence_score', 0):.2f}")
+        
+        # Interviewer analysis summary
+        interviewer_analysis = research_data.get('interviewer_analysis', {})
+        if interviewer_analysis.get('success'):
+            summary_parts.append("\n**INTERVIEWER ANALYSIS:**")
+            summary_parts.append(f"- LinkedIn Analysis: {interviewer_analysis.get('linkedin_analysis', 'Not available')}")
+            summary_parts.append(f"- Profiles Found: {interviewer_analysis.get('linkedin_profiles_found', 0)}")
+            summary_parts.append(f"- Confidence: {interviewer_analysis.get('confidence_score', 0):.2f}")
+        
+        return "\n".join(summary_parts) if summary_parts else "No comprehensive research data available"
