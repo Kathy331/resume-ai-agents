@@ -19,7 +19,7 @@ from shared.google_oauth.dual_gmail_services import check_gmail_authentication
 # Set page config
 st.set_page_config(
     page_title="Resume AI Assistant",
-    page_icon="📄",
+    page_icon="🐙",
     layout="wide"
 )
 
@@ -588,14 +588,16 @@ def show_user_authentication_instructions():
         """)
 
 # Header
-st.markdown("""
-<div class="header">
-    <div class="logo">
-        <div class="logo-icon">📄</div>
-        <div class="logo-text">Resume AI Assistant</div>
+col_logo, col_title = st.columns([1, 6])
+with col_logo:
+    st.image("ui/images/inky2.png", width=60)
+
+with col_title:
+    st.markdown("""
+    <div class="logo-text" style="font-size:1.8rem;font-weight:600;margin-top:0.4rem;color:#125584;">
+        Resume AI Assistant
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # Authentication status bar
 show_authentication_status()
