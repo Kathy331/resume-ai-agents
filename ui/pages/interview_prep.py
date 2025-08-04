@@ -16,12 +16,37 @@ sys.path.append(str(project_root))
 # Import workflow components
 try:
     from workflows.interview_prep_workflow import InterviewPrepWorkflow
-    from shared.google_oauth.google_email_functions import init_gmail_service, create_draft_email, send_draft_email, send_email_directly
+    from shared.google_oauth.dual_gmail_services import get_user_gmail_service, get_bot_gmail_service, check_gmail_authentication
     from shared.google_oauth.google_apis_start import create_service
     IMPORTS_AVAILABLE = True
 except ImportError as e:
     IMPORTS_AVAILABLE = False
     IMPORT_ERROR = str(e)
+
+def send_email_with_bot_service(service, recipient_email, subject, html_body):
+    """Send email using the bot Gmail service"""
+    try:
+        message = MIMEMultipart('alternative')
+        message['to'] = recipient_email
+        message['subject'] = subject
+        
+        # Create HTML part
+        html_part = MIMEText(html_body, 'html')
+        message.attach(html_part)
+        
+        # Encode message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        
+        # Send email
+        send_message = service.users().messages().send(
+            userId='me', 
+            body={'raw': raw_message}
+        ).execute()
+        
+        return True
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return False
 
 def apply_custom_css():
     """Apply custom CSS styling"""
@@ -289,11 +314,22 @@ def render_interview_prep():
     
     # Display current email configuration
     if st.session_state.user_email:
+        # Get authentication status from dual Gmail services
+        auth_status = check_gmail_authentication()
+        
+        user_email = auth_status.get('user_email', 'Not authenticated')
+        bot_email = auth_status.get('bot_email', 'Not authenticated')
+        
+        # Status check
+        user_status = '✅ Connected' if auth_status['user_authenticated'] else '❌ Not connected'
+        bot_status = '✅ Ready to send' if auth_status['bot_authenticated'] else '❌ Not authenticated'
+            
         st.markdown(f"""
         <div class="status-card">
             <strong>Email Configuration:</strong><br>
-            📧 Your Email: <code>{st.session_state.user_email}</code><br>
-            🤖 Bot Email: <code>Inkyhelps@gmail.com</code>
+            📧 Your Email: <code>{user_email}</code> {user_status}<br>
+            🤖 Sender Account: <code>{bot_email}</code> {bot_status}<br>
+            📡 Status: {bot_status}
         </div>
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -426,105 +462,135 @@ def display_single_prep_guide(company: str):
         """, unsafe_allow_html=True)
 
 def send_single_prep_guide(company: str, recipient_email: str):
-    """Send a single prep guide via email"""
+    """Send a single prep guide via email using bot service"""
     try:
-        # Initialize Gmail service
-        service = create_service('gmail', 'v1', 'shared/google_oauth/credentials.json', ['https://www.googleapis.com/auth/gmail.send'])
+        # Check bot authentication status
+        auth_status = check_gmail_authentication()
+        if not auth_status['bot_authenticated']:
+            st.error("❌ Bot email not authenticated. Contact admin to set up bot account.")
+            return
         
-        if service:
-            prep_content = st.session_state.prep_guides[company]['content']
-            subject = f"🎯 Interview Prep Guide for {company}"
-            
-            # Create HTML email body
-            html_body = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="background-color: #DDF1F6; padding: 20px; border-radius: 10px; border: 2px solid #125584;">
-                    <h1 style="color: #125584;">🎯 Interview Prep Guide</h1>
-                    <h2 style="color: #125584;">Company: {company}</h2>
-                    <hr style="border: 1px solid #125584;">
-                    <div style="background-color: white; padding: 15px; border-radius: 8px; white-space: pre-wrap;">
+        # Get bot service
+        bot_service = get_bot_gmail_service()
+        if not bot_service:
+            st.error("❌ Failed to get bot Gmail service")
+            return
+        
+        # Get bot email for display
+        bot_email = auth_status.get('bot_email', 'Bot Account')
+        st.info(f"📧 Sending from bot account: {bot_email}")
+        
+        prep_content = st.session_state.prep_guides[company]['content']
+        subject = f"🎯 Interview Prep Guide for {company}"
+        
+        # Create HTML email body
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="background-color: #DDF1F6; padding: 20px; border-radius: 10px; border: 2px solid #125584;">
+                <h1 style="color: #125584;">🎯 Interview Prep Guide</h1>
+                <h2 style="color: #125584;">Company: {company}</h2>
+                <hr style="border: 1px solid #125584;">
+                <div style="background-color: white; padding: 15px; border-radius: 8px; white-space: pre-wrap;">
 {prep_content}
-                    </div>
-                    <hr style="border: 1px solid #125584;">
-                    <p style="text-align: center; color: #125584; font-style: italic;">
-                        Generated by Interview Prep AI • {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-                    </p>
                 </div>
-            </body>
-            </html>
-            """
-            
-            # Send email
-            result = send_email_directly(service, recipient_email, subject, html_body, 'html')
-            
-            if result:
-                st.success(f"✅ Prep guide for {company} sent to {recipient_email}")
-            else:
-                st.error("❌ Failed to send email")
+                <hr style="border: 1px solid #125584;">
+                <p style="text-align: center; color: #125584; font-style: italic;">
+                    Generated by Interview Prep AI • {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Send email using bot service
+        result = send_email_with_bot_service(bot_service, recipient_email, subject, html_body)
+        
+        if result:
+            st.success(f"✅ Prep guide for {company} sent to {recipient_email}")
         else:
-            st.error("❌ Failed to initialize Gmail service")
+            st.error("❌ Failed to send email")
             
     except Exception as e:
         st.error(f"❌ Error sending email: {str(e)}")
 
 def send_all_prep_guides(recipient_email: str):
-    """Send all prep guides in a single email using Bot credentials"""
+    """Send all prep guides in a single email using bot Gmail service"""
     try:
-        # Initialize Gmail service with Bot credentials
-        service = create_service('gmail', 'v1', 'shared/google_oauth/credentials.json', ['https://www.googleapis.com/auth/gmail.send'])
+        # Check bot authentication status
+        auth_status = check_gmail_authentication()
+        if not auth_status['bot_authenticated']:
+            st.error("❌ Bot email not authenticated. Contact admin to set up bot account.")
+            return
         
-        if service:
-            companies = list(st.session_state.prep_guides.keys())
-            subject = f"🎯 Interview Prep Guides - {len(companies)} Companies"
-            
-            # Create combined HTML content
-            html_body = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="background-color: #DDF1F6; padding: 20px; border-radius: 10px; border: 2px solid #125584;">
-                    <h1 style="color: #125584;">🎯 Interview Prep Guides</h1>
-                    <p style="color: #125584;"><strong>Companies:</strong> {', '.join(companies)}</p>
-                    <p style="color: #125584;"><strong>Sent from:</strong> Inkyhelps@gmail.com</p>
-                    <hr style="border: 1px solid #125584;">
-            """
-            
-            for company in companies:
-                prep_content = st.session_state.prep_guides[company]['content']
-                html_body += f"""
-                    <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                        <h2 style="color: #125584; border-bottom: 2px solid #125584; padding-bottom: 10px;">
-                            🏢 {company}
-                        </h2>
-                        <div style="white-space: pre-wrap;">
-{prep_content}
-                        </div>
-                    </div>
-                """
-            
+        # Get bot service
+        bot_service = get_bot_gmail_service()
+        if not bot_service:
+            st.error("❌ Failed to get bot Gmail service")
+            return
+        
+        # Get bot email for display
+        bot_email = auth_status.get('bot_email', 'Bot Account')
+        st.info(f"📧 Sending from bot account: {bot_email}")
+        
+        companies = list(st.session_state.prep_guides.keys())
+        subject = f"🎯 Interview Prep Guides - {len(companies)} Companies"
+        
+        # Create combined HTML content
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="background-color: #DDF1F6; padding: 20px; border-radius: 10px; border: 2px solid #125584;">
+                <h1 style="color: #125584;">🎯 Interview Prep Guides</h1>
+                <p style="color: #125584;"><strong>Companies:</strong> {', '.join(companies)}</p>
+                <p style="color: #125584;"><strong>Sent from:</strong> {bot_email}</p>
+                <hr style="border: 1px solid #125584;">
+        """
+        
+        for company in companies:
+            prep_content = st.session_state.prep_guides[company]['content']
             html_body += f"""
-                    <hr style="border: 1px solid #125584;">
-                    <p style="text-align: center; color: #125584; font-style: italic;">
-                        Generated by Interview Prep AI • {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br>
-                        Bot Email: Inkyhelps@gmail.com
-                    </p>
+                <div style="background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <h2 style="color: #125584; border-bottom: 2px solid #125584; padding-bottom: 10px;">
+                        🏢 {company}
+                    </h2>
+                    <div style="white-space: pre-wrap;">
+{prep_content}
+                    </div>
                 </div>
-            </body>
-            </html>
             """
-            
-            # Send email
-            result = send_email_directly(service, recipient_email, subject, html_body, 'html')
-            
-            if result:
-                st.success(f"✅ All prep guides for {len(companies)} companies sent to {recipient_email}")
-            else:
-                st.error("❌ Failed to send email")
+        
+        html_body += f"""
+                <hr style="border: 1px solid #125584;">
+                <p style="text-align: center; color: #125584; font-style: italic;">
+                    Generated by Interview Prep AI • {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br>
+                    Sent via Bot Gmail Service
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Send email using bot service
+        result = send_email_with_bot_service(bot_service, recipient_email, subject, html_body)
+        
+        if result:
+            st.success(f"✅ All prep guides for {len(companies)} companies sent to {recipient_email}")
+            st.success(f"📧 Email sent from: {bot_email}")
         else:
-            st.error("❌ Failed to initialize Gmail service")
+            st.error("❌ Failed to send email")
             
     except Exception as e:
         st.error(f"❌ Error sending all prep guides: {str(e)}")
+        
+        # Suggest solution
+        with st.expander("🔧 Troubleshooting"):
+            st.write("**Possible solutions:**")
+            st.write("1. Check that Gmail API is enabled in Google Cloud Console")
+            st.write("2. Verify that the credentials file exists and is valid")
+            st.write("3. Try re-authenticating by deleting token files and running again")
+            st.write("4. Ensure you have the correct scopes enabled")
+            st.code("rm token_files/token_gmail_v1.json", language="bash")
 
 if __name__ == "__main__":
     render_interview_prep()
