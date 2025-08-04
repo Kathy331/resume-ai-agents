@@ -29,6 +29,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from pipelines.email_pipeline import EmailPipeline
 from pipelines.deep_research_pipeline import DeepResearchPipeline
 from pipelines.prep_guide_pipeline import PrepGuidePipeline
+from pipelines.enhanced_prep_guide_pipeline import EnhancedPrepGuidePipeline
 
 # Import shared utilities
 from shared.google_oauth.google_email_setup import get_gmail_service
@@ -251,23 +252,49 @@ class InterviewPrepWorkflow:
                 'reflection_reasoning': f"Research quality assessment passed with {research_pipeline_result.get('overall_confidence', 0):.2f} confidence"
             }
             
-            # PIPELINE STAGE 4: Prep Guide Generation
-            print(f"\n🔄 PIPELINE STAGE 4: Prep Guide Generation")
-            prep_guide_result = self.prep_guide_pipeline.generate_prep_guide(
+            # PIPELINE STAGE 4: Enhanced Prep Guide Generation with Reflection System
+            print(f"\n🔄 PIPELINE STAGE 4: Enhanced Prep Guide Generation")
+            print("Using enhanced pipeline with reflection loops and comprehensive guidelines...")
+            
+            # Use enhanced prep guide pipeline with reflection system
+            prep_guide_result = self.enhanced_prep_guide_pipeline.generate_enhanced_prep_guide(
+                email,
+                email_pipeline_result.get('entities', {}),
+                research_pipeline_result,
+                email_index
+            )
+            
+            # Also generate traditional prep guide for comparison (optional fallback)
+            traditional_result = self.prep_guide_pipeline.generate_prep_guide(
                 email,
                 email_pipeline_result.get('entities', {}),
                 research_pipeline_result,
                 email_index,
-                result['detailed_logs']  # Pass all collected logs
+                result['detailed_logs']
             )
-            result['pipeline_results']['prep_guide_pipeline'] = prep_guide_result
-            result['detailed_logs']['prep_guide_generation'] = self._extract_prep_guide_logs(prep_guide_result)
+            
+            result['pipeline_results']['enhanced_prep_guide'] = prep_guide_result
+            result['pipeline_results']['traditional_prep_guide'] = traditional_result
+            result['detailed_logs']['prep_guide_generation'] = {
+                'enhanced': self._extract_enhanced_prep_guide_logs(prep_guide_result),
+                'traditional': self._extract_prep_guide_logs(traditional_result)
+            }
+            
+            # Use enhanced result as primary
             result['prep_guide_generated'] = prep_guide_result.get('success', False)
             result['company_keyword'] = prep_guide_result.get('company_keyword', '')
             result['output_file'] = prep_guide_result.get('output_file', '')
+            result['quality_scores'] = prep_guide_result.get('quality_scores', {})
+            result['reflection_iterations'] = prep_guide_result.get('reflection_iterations', 0)
             
             if not result['prep_guide_generated']:
-                result['errors'].append(f"Prep guide generation failed: {prep_guide_result.get('errors', ['Unknown error'])[0]}")
+                result['errors'].append(f"Enhanced prep guide generation failed: {prep_guide_result.get('errors', ['Unknown error'])[0]}")
+                # Try fallback to traditional if enhanced fails
+                if traditional_result.get('success', False):
+                    print("⚠️ Falling back to traditional prep guide generation")
+                    result['prep_guide_generated'] = True
+                    result['output_file'] = traditional_result.get('output_file', '')
+                    result['fallback_used'] = True
             
             result['processing_time'] = (datetime.now() - email_start_time).total_seconds()
             
@@ -460,6 +487,21 @@ class InterviewPrepWorkflow:
             'generation_time': prep_result.get('generation_time', 0)
         }
         return logs
+    
+    def _extract_enhanced_prep_guide_logs(self, prep_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract logs from enhanced prep guide generation with reflection system"""
+        logs = {
+            'success': prep_result.get('success', False),
+            'guide_length': len(str(prep_result.get('prep_guide_content', ''))),
+            'citations_count': prep_result.get('citations_count', 0),
+            'reflection_iterations': prep_result.get('reflection_iterations', 0),
+            'sections_completed': len(prep_result.get('sections_completed', [])),
+            'processing_time': prep_result.get('processing_time', 0),
+            'quality_scores': prep_result.get('quality_scores', {}),
+            'output_file': prep_result.get('output_file', ''),
+            'errors': prep_result.get('errors', [])
+        }
+        return logs
 
 
 # Main execution with enhanced cache management
@@ -542,3 +584,42 @@ if __name__ == "__main__":
         print(f"💡 Use 'python workflows/cache_manager.py --clear-all' if cache corruption suspected")
         import traceback
         traceback.print_exc()
+
+
+def main():
+    """Main entry point for the interview prep workflow"""
+    parser = argparse.ArgumentParser(description='Interview Preparation Workflow')
+    parser.add_argument('--max-emails', type=int, default=10, 
+                       help='Maximum number of emails to process (default: 10)')
+    parser.add_argument('--folder', type=str, 
+                       help='Gmail folder to process (overrides env variable)')
+    parser.add_argument('--clear-openai-cache', action='store_true',
+                       help='Clear OpenAI cache before running')
+    
+    args = parser.parse_args()
+    
+    # Clear cache if requested
+    if args.clear_openai_cache:
+        print("🧹 Clearing OpenAI cache...")
+        clear_openai_cache()
+    
+    # Show cache status
+    cache_info = get_openai_cache_info()
+    print(f"📊 Cache Status: {cache_info['files']} files, {cache_info['size_mb']} MB")
+    
+    # Run workflow
+    workflow = InterviewPrepWorkflow()
+    results = workflow.run_workflow(max_emails=args.max_emails, folder=args.folder)
+    
+    # Print final summary
+    print(f"\n" + "=" * 80)
+    print("📊 WORKFLOW SUMMARY")
+    print("=" * 80)
+    print(f"✅ Processed: {results.get('processed_count', 0)} emails")
+    print(f"📝 Generated: {results.get('guide_count', 0)} prep guides")
+    if results.get('errors'):
+        print(f"❌ Errors: {len(results['errors'])}")
+
+
+if __name__ == "__main__":
+    main()
