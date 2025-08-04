@@ -11,685 +11,666 @@ sys.path.append(str(project_root))
 ui_root = Path(__file__).parent.parent
 sys.path.append(str(ui_root))
 
-# Import the interview prep page
+# Import the interview prep page and authentication
 from pages.interview_prep import render_interview_prep
+from shared.google_oauth.dual_gmail_services import check_gmail_authentication
 
-#streamlit run ui/testui/app.py
 # Set page config
 st.set_page_config(
-    page_title="Job Application Workflow UI",
-    page_icon="🎯",
-    layout="wide"
+    page_title="Resume AI Assistant",
+    page_icon="📄",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Custom CSS with your specified color scheme
+# Enhanced CSS with better design and animations
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
     :root {
         --primary: #DDF1F6;
         --secondary: #DFEDEF;
         --accent: #FBA09F;
         --text: #125584;
-        --light: #e0e0e0;
-        --dark: #121212;
-        --gray: #b0bec5;
-        --border-radius: 8px;
-        --shadow: 0 2px 10px rgba(0,0,0,0.1);
+        --success: #10B981;
+        --warning: #F59E0B;
+        --error: #EF4444;
+        --border-radius: 12px;
+        --shadow: 0 4px 20px rgba(18, 85, 132, 0.08);
+        --shadow-hover: 0 8px 25px rgba(18, 85, 132, 0.15);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* Override Streamlit's default theme */
+    * {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    /* Main app styling */
     .stApp {
-        background-color: #DFEDEF !important;
-        color: #125584 !important;
+        background: linear-gradient(135deg, #DFEDEF 0%, #DDF1F6 100%);
+        color: var(--text);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg, .css-1544g2n {
+        background: linear-gradient(180deg, #DDF1F6 0%, #DFEDEF 100%);
+        border-right: 1px solid rgba(18, 85, 132, 0.1);
     }
     
     /* Main content area */
     .main .block-container {
-        background-color: #DFEDEF !important;
-        color: #125584 !important;
-        padding-top: 1rem !important;
+        padding-top: 2rem;
+        max-width: 1200px;
     }
     
-    /* Sidebar */
-    .css-1d391kg {
-        background-color: #DDF1F6 !important;
-    }
-    
-    /* Override Streamlit's text colors */
+    /* Override Streamlit's default colors */
     .stMarkdown, .stText, p, div, span, h1, h2, h3, h4, h5, h6 {
-        color: #125584 !important;
-    }
-    
-    /* Override input field backgrounds */
-    .stTextInput > div > div > input {
-        background-color: #DDF1F6 !important;
-        color: #125584 !important;
-        border: 2px solid #125584 !important;
-    }
-    
-    .stTextArea > div > div > textarea {
-        background-color: #DDF1F6 !important;
-        color: #125584 !important;
-        border: 2px solid #125584 !important;
-    }
-    
-    .stSelectbox > div > div > div {
-        background-color: #DDF1F6 !important;
-        color: #125584 !important;
-    }
-
-    body {
-        background-color: var(--secondary) !important;
-        color: var(--text) !important;
-    }
-
-    * {
-        box-sizing: border-box;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .header {
-        background: linear-gradient(135deg, var(--primary), var(--accent));
-        color: var(--text);
-        padding: 1rem 2rem;
-        box-shadow: var(--shadow);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-radius: 0;
-    }
-
-    .logo {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .logo-icon {
-        font-size: 2rem;
-    }
-
-    .logo-text {
-        font-size: 1.5rem;
-        font-weight: 600;
-    }
-
-    .section-title {
-        font-size: 1.2rem;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid var(--text);
         color: var(--text);
     }
-
-    .step-card {
-        background: var(--primary);
+    
+    /* Enhanced header */
+    .app-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+        padding: 2rem;
         border-radius: var(--border-radius);
-        padding: 1.5rem;
         box-shadow: var(--shadow);
-        border-left: 4px solid var(--text);
-        margin-bottom: 1rem;
+        margin-bottom: 2rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .app-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23125584' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+        pointer-events: none;
+    }
+    
+    .app-title {
+        font-size: 2.5rem;
+        font-weight: 700;
         color: var(--text);
+        margin: 0;
+        position: relative;
+        z-index: 1;
     }
-
-    .step-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 0.8rem;
-    }
-
-    .step-icon {
-        font-size: 1.5rem;
-        color: var(--text);
-    }
-
-    .step-title {
-        font-weight: 600;
+    
+    .app-subtitle {
         font-size: 1.1rem;
-    }
-
-    .step-description {
         color: var(--text);
-        margin-bottom: 1rem;
         opacity: 0.8;
+        margin-top: 0.5rem;
+        position: relative;
+        z-index: 1;
     }
-
-    .upload-area {
-        border: 2px dashed var(--text);
+    
+    /* Enhanced cards */
+    .feature-card {
+        background: white;
         border-radius: var(--border-radius);
         padding: 2rem;
-        text-align: center;
-        background: var(--primary);
-        color: var(--text);
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(18, 85, 132, 0.1);
+        transition: var(--transition);
         margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
     }
-
+    
+    .feature-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+    }
+    
+    .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--accent), var(--primary));
+    }
+    
+    .card-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    
+    .card-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 0.8rem;
+    }
+    
+    .card-description {
+        color: var(--text);
+        opacity: 0.8;
+        line-height: 1.6;
+    }
+    
+    /* Status indicators */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin: 0.25rem;
+    }
+    
+    .status-success {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+        border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    
+    .status-warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: var(--warning);
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    
+    .status-error {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--error);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    
+    /* Enhanced buttons */
+    .stButton > button {
+        background: linear-gradient(135deg, var(--text) 0%, var(--accent) 100%);
+        color: white;
+        border: none;
+        border-radius: var(--border-radius);
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-hover);
+    }
+    
+    .stButton > button::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+    
+    .stButton > button:hover::before {
+        left: 100%;
+    }
+    
+    /* Form inputs */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stSelectbox > div > div > div {
+        background: white;
+        border: 2px solid rgba(18, 85, 132, 0.1);
+        border-radius: var(--border-radius);
+        color: var(--text);
+        transition: var(--transition);
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(251, 160, 159, 0.1);
+    }
+    
+    /* File uploader */
+    .upload-zone {
+        border: 2px dashed rgba(18, 85, 132, 0.3);
+        border-radius: var(--border-radius);
+        padding: 3rem 2rem;
+        text-align: center;
+        background: linear-gradient(135deg, white 0%, var(--primary) 100%);
+        transition: var(--transition);
+        margin: 1rem 0;
+    }
+    
+    .upload-zone:hover {
+        border-color: var(--accent);
+        background: linear-gradient(135deg, var(--primary) 0%, white 100%);
+    }
+    
     .upload-icon {
         font-size: 3rem;
         color: var(--text);
         margin-bottom: 1rem;
+        opacity: 0.7;
     }
-
-    .btn {
-        background: var(--text);
-        color: white;
-        border: none;
-        padding: 0.8rem 1.5rem;
-        border-radius: var(--border-radius);
-        font-weight: 600;
-        transition: background 0.3s;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-    }
-
-    .btn:hover {
-        background: var(--accent);
-        color: var(--text);
-    }
-
-    .btn-secondary {
-        background: var(--accent);
-        color: var(--text);
-    }
-
-    .btn-secondary:hover {
-        background: var(--text);
-        color: white;
-    }
-
-    .btn-accent {
-        background: var(--accent);
-        color: var(--text);
-    }
-
-    .btn-accent:hover {
-        background: var(--text);
-        color: white;
-    }
-
-    .status-indicator {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 8px;
-    }
-
-    .status-active {
-        background-color: #4caf50;
-    }
-
-    .status-pending {
-        background-color: #ffc107;
-    }
-
-    .status-inactive {
-        background-color: #9e9e9e;
-    }
-
-    .progress-bar {
-        height: 8px;
-        background: #424242;
-        border-radius: 4px;
-        margin: 1.5rem 0;
-        overflow: hidden;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: var(--accent);
-        width: 65%;
-    }
-
-    .stat-card {
-        background: var(--primary);
+    
+    /* Progress indicators */
+    .progress-container {
+        background: white;
         border-radius: var(--border-radius);
         padding: 1.5rem;
         box-shadow: var(--shadow);
-        text-align: center;
-        color: var(--text);
-        border: 1px solid var(--text);
+        margin: 1rem 0;
     }
-
-    .stat-value {
-        font-size: 2rem;
+    
+    .progress-bar {
+        height: 8px;
+        background: rgba(18, 85, 132, 0.1);
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 1rem 0;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--primary));
+        transition: width 0.3s ease;
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+    
+    /* Metrics */
+    .metric-card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(18, 85, 132, 0.1);
+        transition: var(--transition);
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-hover);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
         font-weight: 700;
         color: var(--text);
-        margin: 0.5rem 0;
-    }
-
-    .stat-label {
-        color: var(--text);
-        opacity: 0.8;
-    }
-
-    .input-group label {
-        display: block;
         margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+        color: var(--text);
+        opacity: 0.7;
+        font-size: 0.9rem;
         font-weight: 500;
-        color: var(--text);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
-
-    .input-group input, 
-    .input-group textarea {
-        width: 100%;
-        padding: 0.8rem;
-        border: 1px solid var(--text);
-        background: var(--primary);
-        color: var(--text);
+    
+    /* Sidebar navigation */
+    .nav-item {
+        padding: 0.75rem 1rem;
+        margin: 0.25rem 0;
         border-radius: var(--border-radius);
-        font-size: 1rem;
-    }
-
-    .input-group textarea {
-        min-height: 120px;
-        resize: vertical;
-    }
-
-    .actions {
-        display: flex;
-        gap: 1rem;
-        margin-top: 1.5rem;
-        flex-wrap: wrap;
-    }
-
-    .stButton>button {
-        width: auto;
-        background-color: var(--text) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: var(--border-radius) !important;
-        font-weight: 600 !important;
-        padding: 0.5rem 1rem !important;
-    }
-    
-    .stButton>button:hover {
-        background-color: var(--accent) !important;
-        color: white !important;
-    }
-    
-    /* Ensure all button text is white and readable */
-    .stButton>button span {
-        color: white !important;
-    }
-    
-    .stButton>button:hover span {
-        color: white !important;
-    }
-    
-    /* Navigation buttons specific styling */
-    .stButton>button[kind="primary"] {
-        background-color: #125584 !important;
-        color: white !important;
-        border: 2px solid #125584 !important;
-    }
-    
-    .stButton>button[kind="primary"]:hover {
-        background-color: #FBA09F !important;
-        color: white !important;
-        border: 2px solid #FBA09F !important;
-    }
-    
-    /* Force white text on all buttons */
-    button[data-testid="baseButton-primary"] {
-        background-color: #125584 !important;
-        color: white !important;
-    }
-    
-    button[data-testid="baseButton-primary"]:hover {
-        background-color: #FBA09F !important;
-        color: white !important;
-    }
-    
-    /* Override any text color inheritance in buttons */
-    .stButton p, .stButton div, .stButton span {
-        color: white !important;
-    }
-    
-    /* File upload button */
-    .stFileUploader button {
-        background-color: #125584 !important;
-        color: white !important;
-        border: 2px solid #125584 !important;
-    }
-    
-    .stFileUploader button:hover {
-        background-color: #FBA09F !important;
-        color: white !important;
-    }
-    
-    /* Checkbox and radio button labels */
-    .stCheckbox label, .stRadio label {
-        color: #125584 !important;
-    }
-    
-    /* Tabs styling */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: #DDF1F6 !important;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background-color: #DDF1F6 !important;
-        color: #125584 !important;
-        border: 1px solid #125584 !important;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background-color: #125584 !important;
-        color: white !important;
-    }
-
-    /* Fix metric cards */
-    .css-1xarl3l {
-        background-color: #DDF1F6 !important;
-        color: #125584 !important;
-    }
-    
-    /* File uploader */
-    .stFileUploader > div {
-        background-color: #DDF1F6 !important;
-        color: #125584 !important;
-        border: 2px dashed #125584 !important;
-    }
-    
-    /* Success/Error messages */
-    .stSuccess {
-        background-color: #DDF1F6 !important;
-        color: #125584 !important;
-    }
-    
-    .stError {
-        background-color: #FBA09F !important;
-        color: #125584 !important;
-    }
-    
-    .stWarning {
-        background-color: #FBA09F !important;
-        color: #125584 !important;
-    }
-    
-    .stInfo {
-        background-color: #DDF1F6 !important;
-        color: #125584 !important;
-    }
-    
-    /* Override any remaining dark backgrounds */
-    [data-testid="stAppViewContainer"] {
-        background-color: #DFEDEF !important;
-    }
-    
-    [data-testid="stHeader"] {
-        background-color: #DFEDEF !important;
-    }
-    
-    [data-testid="stToolbar"] {
-        background-color: #DFEDEF !important;
-    }
-    
-    /* Spinner and loading elements */
-    .stSpinner > div {
-        border-color: #125584 !important;
-    }
-
-    .nav-button {
-        background: var(--text);
-        color: white;
-        border: none;
-        padding: 0.8rem 1.5rem;
-        border-radius: var(--border-radius);
-        margin: 0.2rem;
-        font-weight: 600;
+        transition: var(--transition);
         cursor: pointer;
-        transition: all 0.3s;
+        border: 1px solid transparent;
     }
-
-    .nav-button:hover {
-        background: var(--accent);
-        color: var(--text);
+    
+    .nav-item:hover {
+        background: rgba(18, 85, 132, 0.05);
+        border-color: rgba(18, 85, 132, 0.1);
     }
-
-    .nav-button.active {
+    
+    .nav-item.active {
         background: var(--accent);
-        color: var(--text);
+        color: white;
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .app-title {
+            font-size: 2rem;
+        }
+        
+        .feature-card {
+            padding: 1.5rem;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+        }
     }
 </style>
-
 """, unsafe_allow_html=True)
 
-# Header
-st.markdown("""
-<div class="header">
-    <div class="logo">
-        <div class="logo-icon">🎯</div>
-        <div class="logo-text">JobFlow AI</div>
-    </div>
-    <div>
-        <button class="btn">User Profile</button>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# Initialize session state for navigation
-if 'current_page' not in st.session_state:
-    st.session_state.current_page = 'workflow'
-
-# Navigation
-st.markdown("### 🧭 Navigation")
-col_nav1, col_nav2 = st.columns(2)
-
-with col_nav1:
-    if st.button("🎯 Job Application Workflow", key="nav_workflow"):
-        st.session_state.current_page = 'workflow'
-        st.rerun()
-
-with col_nav2:
-    if st.button("📚 Interview Prep AI", key="nav_interview"):
-        st.session_state.current_page = 'interview_prep'
-        st.rerun()
-
-# Display current page indicator
-current_page_display = "Job Application Workflow" if st.session_state.current_page == 'workflow' else "Interview Prep AI"
-st.markdown(f"""
-<div style="text-align: center; padding: 10px; background: linear-gradient(135deg, #DDF1F6, #FBA09F); border-radius: 8px; margin: 10px 0;">
-    <strong style="color: #125584;">Current Page: {current_page_display}</strong>
-</div>
-""", unsafe_allow_html=True)
-
-# Page routing
-if st.session_state.current_page == 'interview_prep':
-    # Display Interview Prep page
-    render_interview_prep()
-else:
-    # Display original workflow content
-    # Main layout
-    col1, col2 = st.columns([1, 3])
-
-    # Sidebar content
-    with col1:
-        # Workflow steps
-        st.markdown('<div class="section">', unsafe_allow_html=True)
-        st.markdown('<h2 class="section-title">Workflow Navigation</h2>', unsafe_allow_html=True)
-        
-        steps = [
-            {"icon": "⭐", "title": "Resume Upload", "desc": "Upload your resume for processing", "status": "active"},
-            {"icon": "🔍", "title": "Resume Analysis", "desc": "Extracting skills and experience", "status": "active"},
-            {"icon": "📋", "title": "Job Description", "desc": "Input target job information", "status": "active"},
-            {"icon": "🎯", "title": "Job Matching", "desc": "Comparing your profile with job", "status": "active"},
-            {"icon": "📧", "title": "Email Drafting", "desc": "Creating personalized outreach", "status": "pending"}
-        ]
-        
-        for step in steps:
-            status_class = f"status-{step['status']}"
-            st.markdown(f"""
-            <div class="step-card">
-                <div class="step-header">
-                    <div class="step-icon">{step['icon']}</div>
-                    <div class="step-title">{step['title']}</div>
-                </div>
-                <p>{step['desc']}</p>
-                <span class="status-indicator {status_class}"></span> 
-                {step['status'].title()}
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+def show_authentication_status():
+    """Enhanced authentication status display"""
+    auth_status = check_gmail_authentication()
     
-        
-        # System status
-        st.markdown('<div class="section">', unsafe_allow_html=True)
-        st.markdown('<h2 class="section-title">System Status</h2>', unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="stat-card">
-            <div class="stat-value">87%</div>
-            <div class="stat-label">Workflow Progress</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="progress-bar">
-            <div class="progress-fill"></div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        col_stat1, col_stat2 = st.columns(2)
-        with col_stat1:
-            st.markdown("""
-            <div class="stat-card">
-                <div class="stat-value">4</div>
-                <div class="stat-label">Emails Drafted</div>
+    st.markdown("### 🔐 Authentication Status")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if auth_status['user_authenticated']:
+            st.markdown(f"""
+            <div class="status-badge status-success">
+                📧 User Email: ✅ {auth_status['user_email'] or 'Connected'}
             </div>
             """, unsafe_allow_html=True)
-        with col_stat2:
+        else:
             st.markdown("""
-            <div class="stat-card">
-                <div class="stat-value">2</div>
-                <div class="stat-label">Interviews Scheduled</div>
+            <div class="status-badge status-warning">
+                📧 User Email: ⚠️ Not Connected
             </div>
             """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)    # Main content
+    
     with col2:
-        # Dashboard stats
-        st.markdown('<div class="dashboard-stats">', unsafe_allow_html=True)
-        col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
-        
-        with col_stat1:
-            st.markdown("""
-            <div class="stat-card">
-                <div class="stat-value">12</div>
-                <div class="stat-label">Applications Sent</div>
+        if auth_status['bot_authenticated']:
+            st.markdown(f"""
+            <div class="status-badge status-success">
+                🤖 Bot Email: ✅ {auth_status['bot_email'] or 'Connected'}
             </div>
             """, unsafe_allow_html=True)
-        
-        with col_stat2:
+        else:
             st.markdown("""
-            <div class="stat-card">
-                <div class="stat-value">3</div>
-                <div class="stat-label">Responses Received</div>
+            <div class="status-badge status-error">
+                🤖 Bot Email: ❌ Not Connected
             </div>
             """, unsafe_allow_html=True)
+    
+    if st.button("🔄 Refresh Status", type="primary"):
+        st.rerun()
+
+def show_workflow_steps():
+    """Display workflow progress in sidebar"""
+    st.markdown("### 📋 Workflow Progress")
+    
+    steps = [
+        {"icon": "📄", "title": "Resume Upload", "progress": 100},
+        {"icon": "🔍", "title": "Resume Analysis", "progress": 100},
+        {"icon": "📋", "title": "Job Description", "progress": 85},
+        {"icon": "🎯", "title": "Job Matching", "progress": 75},
+        {"icon": "📧", "title": "Email Drafting", "progress": 60},
+        {"icon": "🚀", "title": "Send & Track", "progress": 0}
+    ]
+    
+    for i, step in enumerate(steps):
+        status = "✅" if step["progress"] == 100 else "🔄" if step["progress"] > 0 else "⏳"
         
-        with col_stat3:
-            st.markdown("""
-            <div class="stat-card">
-                <div class="stat-value">78%</div>
-                <div class="stat-label">Match Average</div>
+        st.markdown(f"""
+        <div style="margin: 0.5rem 0; padding: 0.75rem; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <span style="font-size: 1.2rem;">{step['icon']}</span>
+                <strong style="color: #125584;">{step['title']}</strong>
+                <span style="margin-left: auto; font-size: 0.9rem;">{status}</span>
             </div>
-            """, unsafe_allow_html=True)
-        
-        with col_stat4:
-            st.markdown("""
-            <div class="stat-card">
-                <div class="stat-value">1</div>
-                <div class="stat-label">Upcoming Interviews</div>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {step['progress']}%;"></div>
             </div>
-            """, unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Email draft review
-        st.markdown('<div class="section">', unsafe_allow_html=True)
-        st.markdown('<h2 class="section-title">Job Application Workflow</h2>', unsafe_allow_html=True)
-        
+        </div>
+        """, unsafe_allow_html=True)
+
+def render_workflow_page():
+    """Main workflow page content"""
+    
+    # Header
+    st.markdown("""
+    <div class="app-header">
+        <h1 class="app-title">📄 Job Application Workflow</h1>
+        <p class="app-subtitle">Streamline your job search with AI-powered automation</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Dashboard metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
         st.markdown("""
-        <div class="step-card">
-            <div class="step-header">
-                <div class="step-icon">📧</div>
-                <div class="step-title">Email Draft Review</div>
-            </div>
-            <p class="step-description">Review and edit the generated email before sending</p>
+        <div class="metric-card">
+            <div class="metric-value">12</div>
+            <div class="metric-label">Applications Sent</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="metric-card">
+            <div class="metric-value">3</div>
+            <div class="metric-label">Responses Received</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div class="metric-card">
+            <div class="metric-value">78%</div>
+            <div class="metric-label">Match Average</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown("""
+        <div class="metric-card">
+            <div class="metric-value">1</div>
+            <div class="metric-label">Upcoming Interviews</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Main content sections
+    col_main1, col_main2 = st.columns([2, 1])
+    
+    with col_main1:
+        # Email draft section
+        st.markdown("""
+        <div class="feature-card">
+            <div class="card-icon">📧</div>
+            <h3 class="card-title">Email Draft Review</h3>
+            <p class="card-description">Review and customize your personalized outreach email</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Email form
-        subject = st.text_input("Subject Line", "Exploring Opportunities at Tech Innovations Inc.")
+        subject = st.text_input("📝 Subject Line", "Exploring Software Engineering Opportunities at Tech Innovations Inc.")
         
-        email_content = st.text_area("Email Content", 
+        email_content = st.text_area("✉️ Email Content", 
 """Dear Sarah Johnson,
 
-I came across your profile while researching Tech Innovations Inc. and was impressed by your work on sustainable cloud solutions. As a software engineer with 5 years of experience in cloud technologies and environmental sustainability, I believe my skills align well with your team's focus on green technology.
+I hope this email finds you well. I came across your profile while researching Tech Innovations Inc. and was impressed by your work on sustainable cloud solutions. As a software engineer with 5 years of experience in cloud technologies and environmental sustainability, I believe my skills align perfectly with your team's mission.
 
-In my previous role at GreenTech Solutions, I reduced server energy consumption by 30% through infrastructure optimization. I'm particularly excited about Tech Innovations' commitment to carbon-neutral operations and would love to contribute to your sustainability initiatives.
+In my previous role at GreenTech Solutions, I successfully:
+• Reduced server energy consumption by 30% through infrastructure optimization
+• Led a team of 4 developers in implementing carbon-tracking systems
+• Architected scalable solutions handling 10M+ daily transactions
 
-I would appreciate the opportunity to discuss how my experience can support your team's goals. Are you available for a brief conversation next week?
+I'm particularly excited about Tech Innovations' commitment to carbon-neutral operations and would love to contribute to your sustainability initiatives. Your recent blog post about renewable energy integration in cloud infrastructure really resonated with my passion for green technology.
+
+Would you be available for a brief conversation next week to discuss how my experience can support your team's goals?
 
 Best regards,
 Alex Morgan
-Software Engineer""", height=300)
+Senior Software Engineer
+alex.morgan@email.com | (555) 123-4567""", height=400)
         
         # Action buttons
         col_btn1, col_btn2, col_btn3 = st.columns(3)
+        
         with col_btn1:
-            if st.button("Save Draft", key="save"):
-                st.success("Draft saved successfully!")
+            if st.button("💾 Save Draft", type="secondary"):
+                st.success("✅ Draft saved successfully!")
         
         with col_btn2:
-            if st.button("Send Email", key="send"):
-                st.success("Email sent successfully! The workflow will proceed to scheduling follow-ups.")
+            if st.button("🚀 Send Email", type="primary"):
+                st.success("🎉 Email sent successfully! Tracking initiated.")
+                st.balloons()
         
         with col_btn3:
-            if st.button("Generate New Version", key="regenerate"):
-                new_email = """Dear Sarah,
-
-I hope this email finds you well. I'm reaching out regarding potential opportunities at Tech Innovations Inc. After reviewing your company's impressive work in sustainable technology, I believe my experience in cloud infrastructure and environmental solutions could be valuable to your team.
-
-In my current role as Senior Software Engineer at GreenTech, I've led projects that reduced our carbon footprint by 35% through server optimization and renewable energy adoption. I'm particularly drawn to Tech Innovations' Green Cloud Initiative and would be excited to contribute to similar projects.
-
-Would you be available for a brief discussion next week?
-
-Best regards,
-Alex Morgan"""
-                st.session_state.email_content = new_email
-                st.experimental_rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Job description upload
-        st.markdown('<div class="section">', unsafe_allow_html=True)
-        st.markdown('<h2 class="section-title">Upload New Job Description</h2>', unsafe_allow_html=True)
-        
+            if st.button("🔄 Generate New Version"):
+                st.info("🤖 Generating alternative version...")
+    
+    with col_main2:
+        # Quick stats and recent activity
         st.markdown("""
-        <div class="upload-area">
-            <div class="upload-icon">📋</div>
-            <h3>Upload Job Description</h3>
-            <p>Drag & drop or click to upload a job posting</p>
-            <p>Supported formats: PDF, DOCX, TXT</p>
+        <div class="feature-card">
+            <div class="card-icon">📊</div>
+            <h3 class="card-title">Recent Activity</h3>
         </div>
         """, unsafe_allow_html=True)
         
-        uploaded_file = st.file_uploader("Choose a file", type=["pdf", "docx", "txt"])
+        st.markdown("""
+        <div style="background: white; padding: 1rem; border-radius: 8px; margin: 0.5rem 0;">
+            <strong>🎯 Tech Corp</strong><br>
+            <small style="color: #666;">Applied 2 hours ago</small>
+        </div>
+        <div style="background: white; padding: 1rem; border-radius: 8px; margin: 0.5rem 0;">
+            <strong>💬 StartupXYZ</strong><br>
+            <small style="color: #666;">Response received</small>
+        </div>
+        <div style="background: white; padding: 1rem; border-radius: 8px; margin: 0.5rem 0;">
+            <strong>📅 InnovateLab</strong><br>
+            <small style="color: #666;">Interview scheduled</small>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Job description upload section
+    st.markdown("""
+    <div class="feature-card">
+        <div class="card-icon">📋</div>
+        <h3 class="card-title">Add New Job Opportunity</h3>
+        <p class="card-description">Upload job descriptions or paste URLs to analyze and prepare applications</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    tab1, tab2 = st.tabs(["📁 Upload File", "🔗 Job URL"])
+    
+    with tab1:
+        st.markdown("""
+        <div class="upload-zone">
+            <div class="upload-icon">📄</div>
+            <h4>Upload Job Description</h4>
+            <p>Drag & drop or click to upload</p>
+            <small>Supported: PDF, DOCX, TXT</small>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        uploaded_file = st.file_uploader("Choose a file", type=["pdf", "docx", "txt"], label_visibility="collapsed")
         if uploaded_file:
-            st.success(f"File {uploaded_file.name} uploaded successfully!")
+            st.success(f"✅ {uploaded_file.name} uploaded successfully!")
+    
+    with tab2:
+        job_url = st.text_input("🔗 Job Posting URL", placeholder="https://company.com/careers/job-123")
         
-        job_url = st.text_input("Or Enter Job Posting URL", placeholder="https://...")
-        
-        if st.button("Process Job Description"):
-            if uploaded_file or job_url:
-                st.success("Job description processed successfully!")
+        if st.button("🔍 Analyze Job Posting"):
+            if job_url:
+                st.success("✅ Job posting analyzed successfully!")
+                st.info("🤖 AI is now matching your profile with job requirements...")
             else:
-                st.warning("Please upload a file or enter a job URL")
+                st.warning("⚠️ Please enter a valid job URL")
+
+def render_interview_prep_page():
+    """Interview prep page wrapper"""
+    
+    # Header
+    st.markdown("""
+    <div class="app-header">
+        <h1 class="app-title">📚 Interview Prep AI</h1>
+        <p class="app-subtitle">AI-powered interview preparation and practice</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Check authentication
+    auth_status = check_gmail_authentication()
+    if not auth_status['user_authenticated']:
+        st.markdown("""
+        <div class="feature-card">
+            <div class="card-icon">🔗</div>
+            <h3 class="card-title">Connect Your Email</h3>
+            <p class="card-description">To access interview preparation features, please connect your Gmail account:</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("""
+        **📋 Setup Instructions:**
+        
+        1. Open terminal in VS Code
+        2. Run: `python setup_bot_email.py`
+        3. Choose option 1 (User Authentication)
+        4. Follow browser authentication process
+        5. Click "Refresh Status" in the sidebar
+        
+        **🔒 Privacy & Security:**
+        - Your email is used only for reading interview invitations
+        - All data remains secure and private
+        - The bot sends emails separately from a dedicated account
+        """)
+    else:
+        # Render the actual interview prep page
+        render_interview_prep()
+
+# Sidebar navigation
+with st.sidebar:
+    st.markdown("### 🧭 Navigation")
+    
+    # Navigation menu
+    page = st.radio(
+        "Choose a page:",
+        ["🎯 Job Application Workflow", "📚 Interview Prep AI"],
+        label_visibility="collapsed"
+    )
+    
+    st.divider()
+    
+    # Authentication status in sidebar
+    show_authentication_status()
+    
+    st.divider()
+    
+    # Workflow steps (only show on workflow page)
+    if "Workflow" in page:
+        show_workflow_steps()
+    
+    st.divider()
+    
+    # Quick actions
+    st.markdown("### ⚡ Quick Actions")
+    if st.button("📊 View Analytics", use_container_width=True):
+        st.info("📈 Analytics dashboard coming soon!")
+    
+    if st.button("⚙️ Settings", use_container_width=True):
+        st.info("🛠️ Settings panel coming soon!")
+    
+    if st.button("❓ Help & Support", use_container_width=True):
+        st.info("📚 Help documentation coming soon!")
+
+# Main content based on navigation
+if "Interview Prep" in page:
+    render_interview_prep_page()
+else:
+    render_workflow_page()
+
+# Footer
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; padding: 1rem; opacity: 0.7;">
+    <small>© 2024 Resume AI Assistant | Built with ❤️ and Streamlit</small>
+</div>
+""", unsafe_allow_html=True)
