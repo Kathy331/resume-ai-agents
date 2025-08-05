@@ -130,15 +130,40 @@ class EnhancedPrepGuidePipeline:
     def _build_citations_database(self, research_data: Dict[str, Any]):
         """Build citations database from research data"""
         
+        # Debug: Print research data structure
+        print(f"   🔍 Research data keys: {list(research_data.keys())}")
         citations_db = research_data.get('citations_database', {})
+        print(f"   � Citations database structure: {type(citations_db)} with {len(citations_db)} entries")
         
-        for category, sources in citations_db.items():
-            if isinstance(sources, list):
-                for source in sources:
-                    if isinstance(source, str) and source.startswith('http'):
-                        # Extract title from URL or use category
-                        title = f"{category.title()} Research Source"
-                        self.citation_manager.add_citation(category, title, source)
+        citations_added = 0
+        
+        # Add citations from the research citations database
+        for citation_id, citation_data in citations_db.items():
+            print(f"   📝 Processing citation {citation_id}: {type(citation_data)}")
+            if isinstance(citation_data, dict):
+                source_url = citation_data.get('source', '')
+                print(f"      📎 Source: {source_url[:100]}...")
+                if source_url and 'http' in source_url:
+                    # Extract title and URL from the source string
+                    if ' - http' in source_url:
+                        title_part = source_url.split(' - http')[0]
+                        url_part = 'http' + source_url.split(' - http')[1]
+                    else:
+                        title_part = citation_data.get('agent', 'Research Source')
+                        url_part = source_url
+                    
+                    self.citation_manager.add_citation(
+                        category=citation_data.get('agent', 'research'),
+                        title=title_part,
+                        url=url_part
+                    )
+                    citations_added += 1
+                    print(f"      ✅ Added citation: {title_part[:50]}...")
+        
+        if citations_added == 0:
+            print("   ⚠️  No research sources found - prep guide will not include citation references")
+        else:
+            print(f"   📝 Added {citations_added} citations to database")
     
     def _generate_prep_guide_content(self, personalization_data: Dict[str, Any], 
                                    email: Dict[str, Any], 
@@ -177,6 +202,12 @@ class EnhancedPrepGuidePipeline:
     
     def _add_citation_references(self, content: str) -> str:
         """Add citation references to content where appropriate"""
+        
+        # Only add citation references if we actually have citations
+        if self.citation_manager.get_citations_count() == 0:
+            # Remove any existing citation references from AI-generated content
+            content = re.sub(r'\s*\[Citation \d+\]', '', content)
+            return content
         
         # Simple citation insertion - can be made more sophisticated
         patterns = [
@@ -258,13 +289,30 @@ The {role_title} position offers excellent opportunities for professional growth
         )
         
         # Citations database
-        citations_section = f"""
+        if self.citation_manager.get_citations_count() > 0:
+            citations_section = f"""
 ================================================================================
 RESEARCH CITATIONS DATABASE
 ================================================================================
 Complete database of all research citations used in the preparation guide:
 
 {self.citation_manager.format_citations_database()}
+================================================================================"""
+        else:
+            citations_section = f"""
+================================================================================
+RESEARCH CITATIONS DATABASE
+================================================================================
+No external research sources were found during the research phase.
+This prep guide is based on:
+• Analysis of the interview email content
+• General industry knowledge and best practices
+• Strategic interview preparation frameworks
+
+Note: For enhanced preparation, consider conducting additional manual research on:
+• Company website and recent news
+• Interviewer's LinkedIn profile and recent activity
+• Industry trends and competitive landscape
 ================================================================================"""
         
         # Technical metadata

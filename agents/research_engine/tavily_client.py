@@ -45,6 +45,23 @@ class EnhancedTavilyClient:
         results = search_tavily(query, search_depth, max_results)
         return {"results": results}
     
+    def search_general(self, query: str, max_results: int = 5):
+        """General search method required by research pipeline"""
+        results = search_tavily(query, "basic", max_results)
+        return {"results": results}
+    
+    def search_linkedin(self, query: str, max_results: int = 5):
+        """LinkedIn-specific search method"""
+        linkedin_query = f"{query} site:linkedin.com"
+        results = search_tavily(linkedin_query, "basic", max_results)
+        return {"results": results}
+    
+    def search_company(self, company_name: str, max_results: int = 5):
+        """Company-specific search method"""
+        company_query = f"{company_name} company website about"
+        results = search_tavily(company_query, "basic", max_results)
+        return {"results": results}
+    
     def get_search_context(self, query: str, search_depth: str = "basic", max_results: int = 5):
         """Get search context"""
         return self.search(query, search_depth, max_results)
