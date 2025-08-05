@@ -181,6 +181,11 @@ Ensure you have Python 3.10+
     ```
     there will be an `outputs` file generated for you to better see your test results 
 
+8. Get Secret File: 
+
+    In order to run Google API functions, you must have a secret json file inside the `google_oauth` file.
+    To get this file, please contact any of the developers!
+
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
