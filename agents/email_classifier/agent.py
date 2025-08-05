@@ -20,11 +20,27 @@ class EmailClassifierAgent(BaseAgent):
         for email in emails:
             subject = email.get("subject", "").lower()
             body = email.get("body", "").lower()
-            sender = email.get("from", "").lower()
-            recipients = [r.lower() for r in email.get("to", [])]
+            # Handle both 'from'/'sender' and 'to'/'recipients' field names
+            sender = email.get("from", email.get("sender", "")).lower()
+            recipients_raw = email.get("to", email.get("recipients", []))
+            # Handle recipients as either list or string
+            if isinstance(recipients_raw, str):
+                recipients = [recipients_raw.lower()]
+            else:
+                recipients = [r.lower() for r in recipients_raw] if recipients_raw else []
 
-            # Classify as "interview" if subject/body contains interview keywords
-            if any(keyword in subject or keyword in body for keyword in [
+            # Check for exclusion patterns first (to avoid false positives)
+            exclusion_patterns = [
+                "security alert", "security notification", "suspicious activity",
+                "account security", "sign-in alert", "login alert", "password reset",
+                "two-factor authentication", "2fa", "account access", "verify your identity",
+                "unusual activity", "new device", "location sign-in", "gmail security"
+            ]
+            
+            is_security_alert = any(pattern in subject or pattern in body for pattern in exclusion_patterns)
+            
+            # Classify as "interview" if subject/body contains interview keywords AND is not a security alert
+            if not is_security_alert and any(keyword in subject or keyword in body for keyword in [
                 "interview", "recruiter", "interview invitation", "interview schedule", 
                 "interview confirmation", "interview details", "interview request",
                 "interview time", "interview date", "interview location", "interview link",

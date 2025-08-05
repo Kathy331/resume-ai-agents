@@ -235,6 +235,42 @@ def send_draft_email(service, draft_id):
     draft = service.users().drafts().send(userId='me', body={'id': draft_id}).execute()
     return draft
 
+def send_email_directly(service, to_email, subject, body, body_type='html'):
+    """
+    Send an email directly using Gmail API
+    
+    Args:
+        service: Gmail API service object
+        to_email: Recipient email address
+        subject: Email subject
+        body: Email body content
+        body_type: 'plain' or 'html'
+    
+    Returns:
+        Response from Gmail API or None if failed
+    """
+    try:
+        message = MIMEMultipart()
+        message['to'] = to_email
+        message['subject'] = subject
+        
+        # Add body
+        message.attach(MIMEText(body, body_type))
+        
+        # Encode message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        
+        # Send email
+        send_message = service.users().messages().send(
+            userId='me', 
+            body={'raw': raw_message}
+        ).execute()
+        
+        return send_message
+    except Exception as e:
+        print(f"Failed to send email: {str(e)}")
+        return None
+
 def delete_draft_email(service, draft_id):
     service.users().drafts().delete(userId='me', id=draft_id).execute()
 

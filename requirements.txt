@@ -9,14 +9,50 @@ tavily-python
 requests
 pytest
 pytest-asyncio
-langchain
+
+# LangChain ecosystem - with specific versions to avoid conflicts
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-community>=0.0.10
+langgraph>=0.1.15
+langsmith>=0.1.0
+
+# Google APIs for Gmail integration
 google-auth
 google-auth-oauthlib
 google-api-python-client
-langgraph
-spacy
+
+# ML and NLP dependencies
+spacy>=3.7.0
 scikit-learn
 tqdm
+numpy
+pandas
+
+# Additional dependencies for your agents
+jinja2>=3.1.6
+markupsafe>=3.0.2
+aiofiles
+asyncio-throttle
+
+# Email processing
+email-validator
+python-dateutil
+
+# Memory and caching
+diskcache
+redis  # optional for advanced caching
+
+# Utility libraries
+typing-extensions
+dataclasses-json
+
+# Vector stores (uncomment as needed)
 # chromadb
 # pinecone-client
 # weaviate-client
+
+# Development and testing
+black
+flake8
+mypy
