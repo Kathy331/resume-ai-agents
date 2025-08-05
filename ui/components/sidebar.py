@@ -43,7 +43,6 @@ def render_sidebar():
             ("🏠 Dashboard", "Dashboard"),
             ("📧 Email Pipeline", "Email Pipeline"),
             ("📄 Resume Pipeline", "Resume Pipeline"),
-            ("🔬 Research Engine", "Research Engine"),
             ("❓ Question Generation", "Question Generation"),
             ("⚙️ Settings", "Settings")
         ]
@@ -88,10 +87,6 @@ def render_sidebar():
         # Resume pipeline status
         resume_status = "🟢 Ready" if st.session_state.get('resume_pipeline_ready') else "🟡 Pending"
         st.markdown(f"**Resume Pipeline:** {resume_status}")
-        
-        # Research engine status
-        research_status = "🟢 Online" if st.session_state.get('research_engine_online') else "🔴 Offline"
-        st.markdown(f"**Research Engine:** {research_status}")
         
         st.markdown("---")
         

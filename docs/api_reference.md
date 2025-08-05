@@ -9,12 +9,10 @@ For detailed pricing information, check: https://openai.com/api/pricing/
 | **Task** | **Recommended Model** | **Why** | **Usage in Project** |
 |---|---|---|---|
 | Email classification & entity extraction | `gpt-4o-mini` | Cost-efficient, fast NLP tasks | `agents/email_classifier/`, `agents/entity_extractor/` |
-| Interview question generation | `gpt-4o` | High-quality reasoning for personalized content | `agents/question_generation/` |
-| Company & role research synthesis | `gpt-4-turbo-preview` | Advanced reasoning for complex research tasks | `agents/research_engine/` |
-| Resume analysis & skill extraction | `gpt-4o-mini` | Structured data extraction | `agents/resume_analyzer/` |
-| Email writing & personalization | `gpt-4o` | Creative writing with context awareness | `agents/email_writer/` |
-| Code generation & debugging | `gpt-4o` | Technical task support | Development utilities |
-| Text embeddings for similarity | `text-embedding-3-small` | Vector search & deduplication | `shared/vector_store.py`, memory systems |
+| Interview guide generation | `gpt-4o` | High-quality reasoning for comprehensive guides | `shared/openai_cache.py` |
+| Company & role research synthesis | Tavily API | Web search and intelligence gathering | `api/run_tavily.py`, `shared/tavily_client.py` |
+| Keyword extraction & company matching | `gpt-4o-mini` | Structured data extraction | `agents/keyword_extractor/` |
+| Memory and deduplication | `text-embedding-3-small` | Vector search & similarity matching | `agents/memory_systems/` |
 
 ### API Configuration
 
@@ -39,16 +37,16 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
 ### Usage in Project
 
-| **Component** | **Purpose** | **Search Depth** |
+| **Component** | **Purpose** | **Integration Type** |
 |---|---|---|
-| `agents/research_engine/company_researcher.py` | Company intelligence gathering | `advanced` |
-| `agents/research_engine/interviewer_researcher.py` | Professional background research | `basic` |
-| `agents/research_engine/role_researcher.py` | Job market and role analysis | `advanced` |
+| `api/run_tavily.py` | Company intelligence gathering | `API integration` |
+| `shared/tavily_client.py` | Tavily API client with caching | `Client library` |
+| `shared/openai_cache.py` | OpenAI API with response caching | `Cached client` |
 
 ### API Limits & Best Practices
-- **Rate Limiting**: Monitor usage to avoid hitting API limits
-- **Search Depth**: Use `advanced` for comprehensive research, `basic` for quick facts
-- **Caching**: Implement result caching to reduce redundant API calls
+- **Rate Limiting**: Monitor Tavily and OpenAI usage to avoid hitting API limits
+- **Caching Strategy**: Implement intelligent caching to reduce redundant API calls
+- **Cost Optimization**: Use cached responses for development and repeated queries
 
 ---
 

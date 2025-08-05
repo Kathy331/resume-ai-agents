@@ -50,7 +50,6 @@ def render_email_pipeline():
             {"name": "Gmail Fetch", "status": "Active", "processed": 245, "success_rate": 99.2, "avg_time": "1.2s"},
             {"name": "Email Classification", "status": "Active", "processed": 245, "success_rate": 96.7, "avg_time": "0.8s"},
             {"name": "Entity Extraction", "status": "Active", "processed": 67, "success_rate": 94.1, "avg_time": "1.5s"},
-            {"name": "Research Engine", "status": "Active", "processed": 67, "success_rate": 91.0, "avg_time": "12.3s"},
             {"name": "Question Generation", "status": "Active", "processed": 67, "success_rate": 97.8, "avg_time": "3.2s"},
             {"name": "Email Delivery", "status": "Active", "processed": 67, "success_rate": 100.0, "avg_time": "0.5s"},
         ]

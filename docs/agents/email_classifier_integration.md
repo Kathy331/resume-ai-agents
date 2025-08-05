@@ -15,17 +15,17 @@ The `EmailClassifierAgent` has been successfully integrated into the Resume AI A
   - Updated `EmailPipeline._classify_email()` method for single email processing
   - Maintains backward compatibility with existing workflow
 
-### 2. **Workflow Orchestration** 
-- **File**: `agents/orchestrator/langgraph_coordinator.py`
-  - Updated `classify_emails_node()` to use new agent
+### 2. **Workflow Coordination** 
+- **File**: `workflows/interview_prep_workflow.py`
+  - Main workflow orchestration for individual email processing
   - Added `user_email` parameter support for personal email detection
   - Enhanced state management with user context
-  - Updated `EmailWorkflowState` and `initialize_state()` functions
+  - Individual email processing with terminal feedback
 
 ### 3. **Workflow Runner**
-- **File**: `agents/orchestrator/workflow_runner.py` 
-  - Added `user_email` parameter to `run_email_pipeline()`
-  - Updated async version with user email support
+- **File**: `workflows/workflow_runner.py` 
+  - Support functions for email pipeline orchestration
+  - Updated async processing with user email support
   - Enhanced function signatures and documentation
 
 ### 4. **Documentation Updates**

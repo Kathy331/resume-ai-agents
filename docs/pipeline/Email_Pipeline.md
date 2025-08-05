@@ -1,53 +1,82 @@
-# Email Pipeline Flow with LangGraph
+# Email Pipeline Documentation
 
-## Overview & Purpose
+## Overview
 
-The Email Pipeline is an intelligent email processing system designed to automatically handle job related emails, particularly interview invitations. This pipeline automatically identifies, processes, and researches interview invitations while avoiding redundant work.
+The Email Pipeline is the first stage of the Interview Prep Workflow, responsible for:
+1. **Email Classification**: Determining if emails are interview-related
+2. **Entity Extraction**: Extracting key information from interview emails
+3. **Memory Management**: Checking for duplicate processing and storing entity data
 
-## Flow Diagram
-This Pipeline does not include Tavily Research Yet
+## Entry Point Integration
+
+The Email Pipeline receives emails from the **INTERVIEW_FOLDER** specified in the `.env` file. The workflow processes emails one by one to ensure individual, focused processing.
+
+## Data Flow Visualization
 
 ```
-📧 Raw Emails
+📂 INTERVIEW_FOLDER Email Files
     ↓
-🏷️  Email Classification
+📬 Email Classifier Agent
     ↓
-    ├─ Interview_invite? ──→ YES ──→ 🧠 Entity Extraction
+    ├─ Interview Email? ──→ YES ──→ 🎯 Entity Extractor Agent
     │                                    ↓
-    │                               📋 Memory Similarity Check
+    │                               🧠 Memory Systems Check
     │                                    ↓
-    │                               ┌─ High Similarity + Prepped? ──→ YES ──→ ⏭️  Skip Research
-    │                               │                                          ↓
-    │                               └─ NO ──→ 🔍 Tavily Research ──→ 💾 Update Memory
-    │                                                ↓
-    └─ Other Categories ──→ 📊 Format Output ←──────┘
+    │                               ┌─ Already Processed? ──→ YES ──→ ⏭️ Skip Duplicate
+    │                               │                                    ↓
+    │                               └─ NO ──→ 💾 Store Entity Information ──→ 🔬 Deep Research Pipeline
+    │                                              ↓
+    └─ Personal/Other ──→ ⏭️ Skip to Next Email ←──────┘
                               ↓
-                          ✅ Complete
+                          ➡️ Process Next Email
 ```
-## Core Tools & Technologies
-- **LangGraph**: Workflow orchestration with conditional routing (better than linear LangChain chains, Langgraph provide persistent state across nodes, and smart conditional routing )
-- **Gmail API**: Automated email fetching and parsing
-- **AI Classification**: Intelligent email categorization (Interview vs Personal vs Other)
-- **Entity Extraction**: Extract company, role, interviewer, candidate, date, time, duration, dates, from email content.
-- **Memory System**: Smart deduplication, remembers what was already processed
 
-## How It Works
-1. **Fetch** emails from your Gmail inbox
-2. **Classify** each email (Interview_invite, Personal, Others)
-3. **Extract** key information (company, role, interviewer) from interview emails
-4. **Check memory** - have we seen this company/role before?
-5. **Conditional research** - only research NEW opportunities (saves time & API costs)
-6. **Store results** in memory for future reference
+## Pipeline Components
 
-## LangGraph Nodes
-1. **setup_gmail** - Initialize Gmail service
-2. **fetch_emails** - Retrieve emails from specified folder
-3. **classify_emails** - Categorize emails (Interview_invite, Personal, etc.)
-4. **setup_enhanced_pipeline** - Initialize enhanced processing agents
-5. **process_interviews** - Advanced interview processing workflow:
-   - Entity extraction (Company, Role, Date, Interviewer)
-   - Memory similarity search
-   - Conditional research based on similarity scores
+### 1. Email Classifier Agent (`agents/email_classifier/agent.py`)
+
+**Purpose**: Classify emails into categories to route them appropriately.
+
+**Classifications**:
+- **Interview Email**: Emails containing interview invitations, scheduling, or related communications
+- **Personal Email**: Personal correspondence requiring different handling
+- **Other**: General emails that don't fit interview or personal categories
+
+**Terminal Output**: Shows classification result for each email being processed.
+
+**Implementation**:
+```python
+# Classification is shown in terminal as:
+# "📧 Email classified as: INTERVIEW"
+# "📧 Email classified as: PERSONAL" 
+# "📧 Email classified as: OTHER"
+```
+
+### 2. Entity Extractor Agent (`agents/entity_extractor/agent.py`)
+
+**Purpose**: Extract key information from interview emails for research and preparation.
+
+**Extracted Entities**:
+- **Company Name**: Organization conducting the interview
+- **Interviewer Names**: Names of people conducting the interview
+- **Role Details**: Position title, department, level
+- **Interview Timing**: Date, time, and scheduling information
+- **Interview Format**: In-person, video call, phone, etc.
+
+**Terminal Output**: Shows extracted entities and their values.
+
+### 3. Memory Systems (`agents/memory_systems/`)
+
+**Purpose**: Prevent duplicate processing and maintain interview context.
+
+**Components**:
+- **Interview Store**: Local storage for processed interviews
+- **Shared Memory**: Cross-pipeline data sharing
+- **Duplicate Detection**: Checks if email has been processed before
+
+**Terminal Output**: 
+- "🧠 Already Prepped: [Company Name]" (for duplicates)
+- "🧠 New Email: Processing [Company Name]" (for new emails)
    - Memory storage/updates
 6. **format_output** - Generate user-friendly summaries
 7. **error_handler** - Handle errors with retry logic

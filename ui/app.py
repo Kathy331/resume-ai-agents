@@ -8,7 +8,7 @@ project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
 # Import page modules
-from pages import dashboard, email_pipeline, resume_pipeline, research_engine, question_generation, settings
+from pages import dashboard, email_pipeline, resume_pipeline, question_generation, settings
 from components import sidebar, stats_cards, activity_feed
 
 # Configure page
@@ -90,8 +90,6 @@ def main():
         email_pipeline.render_email_pipeline()
     elif selected_page == "Resume Pipeline":
         resume_pipeline.render_resume_pipeline()
-    elif selected_page == "Research Engine":
-        research_engine.render_research_engine()
     elif selected_page == "Question Generation":
         question_generation.render_question_generation()
     elif selected_page == "Settings":
