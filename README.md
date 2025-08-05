@@ -12,7 +12,7 @@
     <img src="ui/images/Inky.png" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">Resume AI Agents</h3>
+  <h3 align="center">InterviewPrep AI Agents</h3>
 
   <p align="center">
     A modular AI system that automates job search and application workflows using specialized agents.
