@@ -1,4 +1,4 @@
-#workflows/interview_prep_workflow.py
+#!/usr/bin/env python3
 """
 Interview Prep Workflow - Main Entry Point
 ==========================================
@@ -28,7 +28,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Import pipeline modules
 from pipelines.email_pipeline import EmailPipeline
 from pipelines.deep_research_pipeline import DeepResearchPipeline
-from pipelines.prep_guide_pipeline import PrepGuidePipeline
+from pipelines.enhanced_prep_guide_pipeline import EnhancedPrepGuidePipeline
 
 # Import shared utilities
 from shared.google_oauth.google_email_setup import get_gmail_service
@@ -49,13 +49,13 @@ class InterviewPrepWorkflow:
         # Initialize pipeline components
         self.email_pipeline = EmailPipeline()
         self.research_pipeline = DeepResearchPipeline()
-        self.prep_guide_pipeline = PrepGuidePipeline()
-        
+        self.prep_guide_pipeline = EnhancedPrepGuidePipeline()
+
         print("🚀 INTERVIEW PREP WORKFLOW INITIALIZED")
         print("Pipeline Components Loaded:")
         print("   📧 Email Pipeline (Classification, Entity Extraction, Memory Check)")
         print("   🔬 Deep Research Pipeline (Multi-agent Research with Tavily)")
-        print("   📚 Prep Guide Pipeline (Personalized Guide Generation)")
+        print("   📚 Enhanced Prep Guide Pipeline (AI-Generated + Citations)")
         print("💡 Use 'python workflows/cache_manager.py --status' for cache management")
     
     def run_workflow(self, max_emails: int = 10, folder: str = None) -> Dict[str, Any]:
