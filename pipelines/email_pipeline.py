@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#pipelines/email_pipeline.py
 """
 Email Pipeline - Email Classification, Entity Extraction & Memory Check
 ======================================================================

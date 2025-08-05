@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#workflows/interview_prep_workflow.py
 """
 Interview Prep Workflow - Main Entry Point
 ==========================================

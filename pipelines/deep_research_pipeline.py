@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#pipelines/deep_research_pipeline.py
 """
 Deep Research Pipeline - Sophisticated Research with Tavily Integration
 =====================================================================
