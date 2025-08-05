@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#pipelines/prep_guide_pipeline.py
 """
 Prep Guide Pipeline - Personalized Interview Preparation Guide Generation
 ========================================================================
