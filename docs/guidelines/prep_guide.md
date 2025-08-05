@@ -23,6 +23,195 @@ This document outlines the structured approach for generating comprehensive, res
 - Adapt technical focus based on job requirements
 - Reference interviewer's background and interests
 
+## Minimum Viable Guide (MVG) Threshold
+
+### Purpose
+Not all interviews will have abundant data available. The MVG defines the absolute minimum acceptable standard for a prep guide after 3 reflection loops. If these thresholds aren't met, the system will provide specific warnings about information gaps.
+
+### MVG Criteria (Must achieve ALL to pass)
+
+#### **Critical Sections (Must be Complete)**
+- ✅ **Section 1: Summary Overview** - All available logistics captured
+- ✅ **Section 2: Company Snapshot** - Minimum 3 factual insights with citations
+- ✅ **Section 3: Role Deep Dive** - Job description analysis complete
+- ✅ **Section 4: Interviewer Intelligence** - At least basic professional info gathered
+
+#### **Content Quality Minimums**
+- ✅ **Minimum 5 Citations**: At least 5 working citations across all sections
+- ✅ **Company Specificity**: At least 3 company-specific (not generic) insights
+- ✅ **Recent Information**: At least 2 pieces of information from last 12 months
+- ✅ **Actionable Questions**: Minimum 8 specific questions across categories
+- ✅ **Technical Alignment**: Technical prep matches job requirements (if technical role)
+
+#### **Research Depth Minimums**
+- ✅ **Company Research**: Mission, recent news, and 1 competitive insight
+- ✅ **Role Context**: Key responsibilities and required skills identified
+- ✅ **Interviewer Profile**: Name, title, and basic background (LinkedIn minimum)
+- ✅ **Preparation Timeline**: At least 24-hour countdown checklist
+
+### MVG Scoring Thresholds
+
+#### **Aggregate Score Requirements**
+- **Content Depth**: Minimum 5/10 (at least "Adequate")
+- **Personalization**: Minimum 4/10 (basic customization present)
+- **Citation Quality**: Minimum 5/10 (some working citations)
+- **Overall MVG Score**: Minimum 15/30 combined
+
+#### **Section-Specific Minimums**
+
+**Section 1 - Summary Overview (MVG: Complete)**
+- Company name and role title confirmed
+- Interview logistics captured (even if incomplete)
+- Format and platform identified
+
+**Section 2 - Company Snapshot (MVG: 3 insights + 2 citations)**
+- Company mission/description
+- At least 1 recent development with citation
+- Basic market position or tech stack info with citation
+
+**Section 3 - Role Deep Dive (MVG: Job analysis + 1 citation)**
+- Core responsibilities summarized
+- Key technical requirements identified
+- At least 1 insight about team/role context
+
+**Section 4 - Interviewer Intelligence (MVG: Basic profile + 1 citation)**
+- Name and title confirmed
+- LinkedIn profile or professional background
+- At least 1 specific insight about their role/expertise
+
+**Sections 5-8 (MVG: Functional but may be generic)**
+- Questions present (may include some generic ones)
+- Basic technical preparation (even if general)
+- Timeline structure exists
+- Strategic guidance provided
+
+### Warning System for Sub-MVG Guides
+
+#### **Critical Warnings (Block delivery)**
+```
+⚠️ CRITICAL: This prep guide does not meet minimum viable standards.
+Missing essential elements:
+• [Specific missing sections]
+• [Citation count: X/5 minimum]
+• [Company-specific insights: X/3 minimum]
+
+Recommendation: Additional research required before interview.
+```
+
+#### **Quality Warnings (Deliver with caveats)**
+```
+📋 QUALITY NOTICE: This prep guide meets minimum standards but has limitations:
+• Limited recent company information available
+• [Specific interviewer intel missing]
+• [Technical preparation may be generic]
+
+Suggestion: Supplement with additional manual research.
+```
+
+#### **Information Gap Warnings (Specific guidance)**
+```
+🔍 RESEARCH GAPS IDENTIFIED:
+Company Intelligence:
+• ❌ No recent news/developments found
+• ❌ Limited technical stack information
+• ✅ Basic company profile complete
+
+Interviewer Intelligence:
+• ❌ No recent LinkedIn activity found
+• ❌ Limited professional background
+• ✅ Basic role information available
+
+Technical Preparation:
+• ⚠️  Generic technical advice (role-specific info limited)
+• ✅ Basic preparation framework provided
+
+RECOMMENDED ACTIONS:
+1. Manual LinkedIn search for [Interviewer Name]
+2. Check company engineering blog: [suggested URL]
+3. Review job posting for additional technical details
+```
+
+### Fallback Strategies for Missing Information
+
+#### **When Company Information is Limited**
+1. **Industry-Standard Approach**: Use role-based technical preparation
+2. **Generic Company Research**: Focus on publicly available information
+3. **Competitor Analysis**: Research similar companies in same space
+4. **Role-Focused Strategy**: Emphasize technical competencies over company specifics
+
+#### **When Interviewer Information is Unavailable**
+1. **Team-Based Preparation**: Research the team/department generally
+2. **Role-Based Questions**: Focus on position-specific inquiries
+3. **Company Culture Focus**: Prepare questions about team dynamics
+4. **Technical Leadership Angle**: Assume technical discussion focus
+
+#### **When Recent Company News is Scarce**
+1. **Historical Context**: Use older but significant company milestones
+2. **Industry Trends**: Connect company to broader industry movements
+3. **Product Focus**: Deep dive on company's main products/services
+4. **Market Position**: Analyze competitive landscape thoroughly
+
+### Automated MVG Assessment
+
+#### **Post-Reflection 3 Checklist**
+```python
+def assess_mvg_compliance(prep_guide):
+    mvg_score = {
+        'critical_sections': check_critical_sections_complete(),
+        'citation_count': count_working_citations(),
+        'company_specificity': assess_company_specific_content(),
+        'recent_info': count_recent_information(),
+        'actionable_questions': count_specific_questions(),
+        'technical_alignment': assess_technical_relevance()
+    }
+    
+    if mvg_score['total'] < MVG_THRESHOLD:
+        return generate_specific_warnings(mvg_score)
+    else:
+        return approve_for_delivery(prep_guide)
+```
+
+#### **Warning Generation Logic**
+- **Critical Failure**: < 50% of MVG criteria met → Block delivery
+- **Quality Concerns**: 50-70% of MVG criteria met → Deliver with warnings
+- **Acceptable Quality**: 70-85% of MVG criteria met → Minor advisory notes
+- **High Quality**: > 85% of MVG criteria met → No warnings needed
+
+### User Interface for MVG Warnings
+
+#### **In Prep Guide Header**
+```
+📊 GUIDE QUALITY ASSESSMENT
+✅ Meets minimum viable standards
+⚠️  Some information limitations (see notes below)
+❌ Critical information missing - additional research recommended
+
+Last Research Attempt: [Timestamp]
+Research Sources Attempted: [Count]
+Reflection Loops Completed: 3/3
+```
+
+#### **Actionable Improvement Suggestions**
+```
+🎯 TO IMPROVE THIS GUIDE:
+Priority 1 (Critical):
+• Search "[Company Name] recent news 2024" manually
+• Find [Interviewer Name] LinkedIn profile
+• Verify interview logistics directly
+
+Priority 2 (Enhancement):
+• Research [Company Name] engineering blog
+• Look up [Interviewer Name] recent posts/articles
+• Find additional role-specific technical requirements
+
+Priority 3 (Optional):
+• Explore [Company Name] GitHub repositories
+• Research team structure and dynamics
+• Find company culture insights on Glassdoor
+```
+
+This MVG framework ensures that users receive either high-quality, research-backed prep guides or clear guidance on what additional research they need to conduct themselves. It prevents the delivery of inadequate guides while providing constructive paths forward when information is limited.
+
 ## Required Prep Guide Structure
 
 ### 📄 **Section 1: Summary Overview**
