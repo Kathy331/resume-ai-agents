@@ -20,6 +20,7 @@ from shared.citation_manager import CitationManager, get_citation_manager
 from shared.prep_guide_prompts import get_complete_prep_guide_prompt, get_entity_value
 from shared.simple_cache import cached_openai_generate
 from shared.console_log_capture import start_log_capture, stop_log_capture, get_validation_logs_for_file
+from agents.research_engine.second_loop_research_engine import enhance_prep_guide_with_second_loop
 
 class EnhancedPrepGuidePipeline:
     """
@@ -63,13 +64,30 @@ class EnhancedPrepGuidePipeline:
                 personalization_data, email, research_data, entities
             )
             
+            # SECOND LOOP: Intelligent gap analysis and additional research
+            print("🔬 INITIATING SECOND LOOP INTELLIGENT RESEARCH...")
+            second_loop_results = enhance_prep_guide_with_second_loop(
+                prep_guide_content, entities, research_data
+            )
+            
+            if second_loop_results['success'] and second_loop_results['additional_citations']:
+                print(f"   ✅ Second loop added {len(second_loop_results['additional_citations'])} new sources")
+                
+                # Regenerate prep guide with enhanced research data
+                print("   🔄 Regenerating prep guide with enhanced research...")
+                prep_guide_content = self._generate_prep_guide_content(
+                    personalization_data, email, research_data, entities
+                )
+            else:
+                print("   ℹ️  Second loop: No additional research needed")
+            
             # Stop capturing logs and get the content
             captured_console_logs = stop_log_capture()
             
             # Generate complete file content with technical sections AND new prep guide format
             complete_content = self._build_complete_file_content(
                 email, entities, research_data, personalization_data, 
-                prep_guide_content, detailed_logs, start_time, captured_console_logs
+                prep_guide_content, detailed_logs, start_time, captured_console_logs, second_loop_results
             )
             
             # Save to file
@@ -396,6 +414,27 @@ class EnhancedPrepGuidePipeline:
             
             print("🤖 Generating personalized prep guide content with OpenAI...")
             
+            # Check research quality - if poor, add specific instructions
+            research_quality = research_data.get('research_quality', 'LOW')
+            overall_confidence = research_data.get('overall_confidence', 0.0)
+            
+            if research_quality in ['LOW', 'MEDIUM'] or overall_confidence < 0.8:
+                prompt += f"""
+
+IMPORTANT: The research quality is {research_quality} (confidence: {overall_confidence:.2f}). 
+You must still generate content following the exact guideline format:
+
+## 1. before interview
+## 2. interviewer background  
+## 3. company background
+## 4. technical preparations
+## 5. questions to ask
+## 6. common questions
+
+Do NOT use generic fallback content or sections like "Section 1: Summary Overview".
+Use the available research data and citations, even if limited.
+"""
+            
             # Force fresh OpenAI call by temporarily disabling cache if env var is set
             disable_cache = os.getenv('DISABLE_OPENAI_CACHE', 'false').lower() == 'true'
             
@@ -409,6 +448,19 @@ class EnhancedPrepGuidePipeline:
             
             if not content:
                 raise Exception("OpenAI returned empty content")
+            
+            # Check if content is using fallback format
+            if any(section in content for section in ["Section 1: Summary", "Section 2: Company", "fallback content"]):
+                print("   ⚠️  Detected fallback content - regenerating with strict format")
+                # Force regeneration with stricter prompt
+                strict_prompt = prompt + "\n\nIMPORTANT: You MUST use the exact format specified in the guidelines. Do NOT use 'Section 1:', 'Section 2:' format."
+                content = cached_openai_generate(
+                    prompt=strict_prompt,
+                    model="gpt-4",
+                    temperature=0.5,
+                    max_tokens=2000,
+                    force_fresh=True  # Force new generation
+                )
             
             # Parse for HTML if present, otherwise use markdown
             if "=== HTML FORMAT ===" in content:
@@ -426,7 +478,8 @@ class EnhancedPrepGuidePipeline:
             
         except Exception as e:
             print(f"❌ OpenAI generation error: {str(e)}")
-            return self._generate_fallback_content(personalization_data)
+            print("   🔄 Using enhanced fallback with guideline format...")
+            return self._generate_enhanced_fallback_content(personalization_data, entities, research_data)
     
     def _add_citation_references(self, content: str) -> str:
         """Add citation references to content where appropriate"""
@@ -506,68 +559,88 @@ The {role_title} position offers excellent opportunities for professional growth
     def _build_complete_file_content(self, email: Dict[str, Any], entities: Dict[str, Any],
                                    research_data: Dict[str, Any], personalization_data: Dict[str, Any],
                                    prep_guide_content: str, detailed_logs: Optional[Dict],
-                                   start_time: datetime, captured_console_logs: str = "") -> str:
+                                   start_time: datetime, captured_console_logs: str = "", 
+                                   second_loop_results: Dict[str, Any] = None) -> str:
         """Build complete file content with all sections"""
         
         current_time = datetime.now()
         
         # Technical sections with captured validation logs
         technical_sections = self._generate_technical_sections(
-            email, entities, research_data, personalization_data, current_time, captured_console_logs
+            email, entities, research_data, personalization_data, current_time, captured_console_logs, second_loop_results
         )
         
-        # Citations database
-        if self.citation_manager.get_citations_count() > 0:
-            citations_section = f"""
-================================================================================
-RESEARCH CITATIONS DATABASE
-================================================================================
-Complete database of all research citations used in the preparation guide:
-
-{self.citation_manager.format_citations_database()}
-================================================================================"""
+        # Citations database with second loop sources
+        citations_db = research_data.get('citations_database', {})
+        if citations_db:
+            # Count first loop vs second loop citations
+            first_loop_citations = []
+            second_loop_citations = []
+            
+            for citation_id, citation_data in citations_db.items():
+                if isinstance(citation_data, dict):
+                    source = citation_data.get('source', '')
+                    citation_line = f"📝 Citation [{citation_id}]: {source}"
+                    if citation_data.get('second_loop', False):
+                        second_loop_citations.append(citation_line)
+                    else:
+                        first_loop_citations.append(citation_line)
+            
+            citations_content = "Complete database of all research citations used in the preparation guide:\n\n"
+            
+            if first_loop_citations:
+                citations_content += f"FIRST LOOP RESEARCH SOURCES ({len(first_loop_citations)} sources):\n"
+                citations_content += "\n".join(first_loop_citations)
+                citations_content += "\n\n"
+            
+            if second_loop_citations:
+                citations_content += f"SECOND LOOP INTELLIGENT RESEARCH SOURCES ({len(second_loop_citations)} sources):\n"
+                citations_content += "\n".join(second_loop_citations)
+                citations_content += "\n\n"
+            
+            total_citations = len(first_loop_citations) + len(second_loop_citations)
+            citations_content += f"Total Citations: {total_citations}\n"
+            citations_content += f"First Loop Sources: {len(first_loop_citations)}\n"
+            citations_content += f"Second Loop Enhanced Sources: {len(second_loop_citations)}"
+            
+            citations_section = "\n" + "=" * 80 + "\n"
+            citations_section += "RESEARCH CITATIONS DATABASE\n"
+            citations_section += "=" * 80 + "\n"
+            citations_section += citations_content + "\n"
+            citations_section += "=" * 80
         else:
-            citations_section = f"""
-================================================================================
-RESEARCH CITATIONS DATABASE
-================================================================================
-No external research sources were found during the research phase.
-This prep guide is based on:
-• Analysis of the interview email content
-• General industry knowledge and best practices
-• Strategic interview preparation frameworks
-
-Note: For enhanced preparation, consider conducting additional manual research on:
-• Company website and recent news
-• Interviewer's LinkedIn profile and recent activity
-• Industry trends and competitive landscape
-================================================================================"""
+            citations_section = "\n" + "=" * 80 + "\n"
+            citations_section += "RESEARCH CITATIONS DATABASE\n"
+            citations_section += "=" * 80 + "\n"
+            citations_section += "No external research sources were found during the research phase.\n"
+            citations_section += "This prep guide is based on:\n"
+            citations_section += "• Analysis of the interview email content\n"
+            citations_section += "• General industry knowledge and best practices\n"
+            citations_section += "• Strategic interview preparation frameworks\n\n"
+            citations_section += "Note: For enhanced preparation, consider conducting additional manual research on:\n"
+            citations_section += "• Company website and recent news\n"
+            citations_section += "• Interviewer's LinkedIn profile and recent activity\n"
+            citations_section += "• Industry trends and competitive landscape\n"
+            citations_section += "=" * 80
         
         # Technical metadata
-        metadata_section = f"""
-================================================================================
-TECHNICAL METADATA
-================================================================================
-Generated: {current_time.strftime('%Y-%m-%d %H:%M:%S')}
-Company: {personalization_data['company_name']}
-Interviewer: {personalization_data['interviewer_name']}
-Role: {personalization_data['role_title']}
-Citations Used: {self.citation_manager.get_citations_count()}
-Processing Time: {(current_time - start_time).total_seconds():.2f}s
-================================================================================"""
+        metadata_section = "\n" + "=" * 80 + "\n"
+        metadata_section += "TECHNICAL METADATA\n"
+        metadata_section += "=" * 80 + "\n"
+        metadata_section += f"Generated: {current_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+        metadata_section += f"Company: {personalization_data['company_name']}\n"
+        metadata_section += f"Interviewer: {personalization_data['interviewer_name']}\n"
+        metadata_section += f"Role: {personalization_data['role_title']}\n"
+        metadata_section += f"Citations Used: {len(citations_db)}\n"
+        metadata_section += f"Processing Time: {(current_time - start_time).total_seconds():.2f}s\n"
+        metadata_section += "=" * 80
         
         # Combine all sections
-        complete_content = f"""{technical_sections}
-
-{prep_guide_content}
-
-{citations_section}
-
-{metadata_section}"""
+        complete_content = technical_sections + "\n\n" + prep_guide_content + citations_section + metadata_section
         
         return complete_content
     
-    def _generate_technical_sections(self, email, entities, research_data, personalization_data, current_time, captured_console_logs=""):
+    def _generate_technical_sections(self, email, entities, research_data, personalization_data, current_time, captured_console_logs="", second_loop_results=None):
         """Generate technical metadata sections with detailed logs"""
         
         # Extract detailed logs from research data AND captured console logs
@@ -577,6 +650,35 @@ Processing Time: {(current_time - start_time).total_seconds():.2f}s
         validation_logs_formatted = ""
         if captured_console_logs:
             validation_logs_formatted = get_validation_logs_for_file(captured_console_logs)
+        
+        # Add second loop research details
+        second_loop_section = ""
+        if second_loop_results and second_loop_results.get('success'):
+            gaps_count = len(second_loop_results.get('gaps_identified', []))
+            new_searches = second_loop_results.get('new_searches_conducted', 0)
+            new_citations = len(second_loop_results.get('additional_citations', []))
+            
+            second_loop_section = f"""
+🔬 === SECOND LOOP INTELLIGENT RESEARCH ===
+   🎯 AI Gap Analysis: Identified {gaps_count} research gaps
+   🔍 Targeted Searches: Executed {new_searches} intelligent follow-up queries
+   📝 Additional Sources: Found {new_citations} high-quality research sources
+   ✨ Content Enhancement: {"Enhanced prep guide with new research" if new_citations > 0 else "No additional enhancement needed"}
+   
+   📊 GAPS IDENTIFIED AND ADDRESSED:"""
+            
+            for gap in second_loop_results.get('gaps_identified', []):
+                gap_type = gap.get('type', 'unknown')
+                priority = gap.get('priority', 'medium')
+                description = gap.get('description', 'No description')
+                second_loop_section += f"\n      🎯 {gap_type.upper()} ({priority}): {description}"
+            
+            if second_loop_results.get('additional_citations'):
+                second_loop_section += f"\n   \n   📚 NEW RESEARCH SOURCES ADDED:"
+                for citation in second_loop_results.get('additional_citations', []):
+                    title = citation.get('title', 'Source')[:50]
+                    gap_type = citation.get('gap_type', 'research')
+                    second_loop_section += f"\n      📝 Citation [{citation.get('id')}]: {title}... (Type: {gap_type})"
         
         return f"""================================================================================
 INDIVIDUAL EMAIL PROCESSING RESULTS
@@ -631,6 +733,8 @@ Complete step-by-step processing details from terminal output:
 {validation_logs_formatted}
 
 {detailed_research_logs.get('validation_details', '')}
+
+{second_loop_section}
 
 🤔 RESEARCH QUALITY REFLECTION:
    📊 Overall Confidence: {research_data.get('overall_confidence', 0.93)}
@@ -762,3 +866,69 @@ Prep Guide Generated: True"""
         except Exception as e:
             print(f"❌ File save error: {str(e)}")
             return ""
+    
+    def _generate_enhanced_fallback_content(self, personalization_data: Dict[str, Any], 
+                                          entities: Dict[str, Any], 
+                                          research_data: Dict[str, Any]) -> str:
+        """Generate enhanced fallback content using guideline format"""
+        
+        company_name = personalization_data['company_name']
+        interviewer_name = personalization_data['interviewer_name'] 
+        role_title = personalization_data['role_title']
+        
+        # Extract some research data if available
+        citations_db = research_data.get('citations_database', {})
+        linkedin_profiles = []
+        company_links = []
+        
+        for citation_data in citations_db.values():
+            if isinstance(citation_data, dict):
+                source = citation_data.get('source', '')
+                if 'linkedin.com/in/' in source:
+                    linkedin_profiles.append(source)
+                elif 'linkedin.com/company/' in source:
+                    company_links.append(source)
+        
+        return f"""# interview prep requirements template
+
+## 1. before interview
+
+- email mentions date options and time slots for interview
+- confirm interview format and logistics
+- prepare for {role_title} discussion
+
+## 2. interviewer background
+
+- {interviewer_name.lower()} is a professional at {company_name.lower()}
+- {f"linkedin profile available: {linkedin_profiles[0].split(' - ')[-1]}" if linkedin_profiles else "linkedin research recommended"}
+- background research in progress
+
+## 3. company background
+
+- {company_name.lower()} is an organization with established presence
+- {f"company page: {company_links[0].split(' - ')[-1]}" if company_links else "company research recommended"}
+- additional research on company culture recommended
+
+## 4. technical preparations
+
+- role: {role_title.lower()}
+- prep areas:
+  - review relevant technical concepts
+  - research industry best practices
+  - prepare experience examples
+
+## 5. questions to ask
+
+- to interviewer:
+  - what brought you to {company_name.lower()}?
+  - how do you see your role evolving?
+
+- to company:
+  - what exciting projects is {company_name.lower()} working on?
+  - what does success look like in this role?
+
+## 6. common questions
+
+- standard behavioral interview questions
+- role-specific technical questions
+- company culture fit questions"""

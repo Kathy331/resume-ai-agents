@@ -67,7 +67,8 @@ class ConsoleLogCapture:
             'interviewer_validations': [],
             'tavily_queries': [],
             'linkedin_searches': [],
-            'citation_processing': []
+            'citation_processing': [],
+            'validation_results': []
         }
         
         lines = console_content.split('\n')
@@ -79,31 +80,27 @@ class ConsoleLogCapture:
             # Detect sections
             if '=== COMPANY ANALYSIS AGENT ACTIVATED ===' in line:
                 current_section = 'company'
-            elif '=== INTERVIEWER ANALYSIS AGENT (LINKEDIN FOCUS) ===' in line:
+            elif '=== INTERVIEWER ANALYSIS AGENT' in line:
                 current_section = 'interviewer'
-            elif 'Company Validation Results:' in line:
-                current_section = 'company_validation'
-            elif 'Validation Results:' in line and current_section == 'interviewer':
-                current_section = 'interviewer_validation'
+            elif 'Company Validation Results:' in line or 'Validation Results:' in line:
+                current_section = 'validation_results'
             
-            # Capture validation details
-            if current_section == 'company_validation':
-                if '✅ VALIDATED:' in line or '❌ REJECTED:' in line:
+            # Capture all validation details
+            if '✅ VALIDATED:' in line or '❌ REJECTED:' in line:
+                validation_logs['validation_results'].append(line)
+                if current_section == 'company':
                     validation_logs['company_validations'].append(line)
-            elif current_section == 'interviewer_validation':
-                if '✅ VALIDATED:' in line or '❌ REJECTED:' in line:
+                elif current_section == 'interviewer':
                     validation_logs['interviewer_validations'].append(line)
             
-            # Capture Tavily queries
-            if '🔍 Query:' in line or 'Fresh Tavily search' in line:
+            # Capture specific patterns
+            if 'Fresh Tavily search' in line or '🔍 Query:' in line:
                 validation_logs['tavily_queries'].append(line)
             
-            # Capture LinkedIn searches
-            if 'LinkedIn Search:' in line or '✅ LinkedIn Profile Found:' in line:
+            if 'LinkedIn Search:' in line or '✅ LinkedIn Profile Found:' in line or '🎯 LinkedIn Post' in line:
                 validation_logs['linkedin_searches'].append(line)
             
-            # Capture citation processing
-            if '📝 Processing citation' in line or '✅ Added citation:' in line:
+            if '📝 Processing citation' in line or '✅ Added citation:' in line or '🚫 Filtered out' in line:
                 validation_logs['citation_processing'].append(line)
         
         return validation_logs
@@ -113,8 +110,15 @@ class ConsoleLogCapture:
         
         formatted = []
         
+        # Add all validation results first
+        if validation_logs['validation_results']:
+            formatted.append("📊 DETAILED VALIDATION RESULTS:")
+            for log in validation_logs['validation_results']:
+                formatted.append(f"   {log}")
+            formatted.append("")
+        
         if validation_logs['company_validations']:
-            formatted.append("📊 COMPANY VALIDATION RESULTS:")
+            formatted.append("🏢 COMPANY VALIDATION RESULTS:")
             for log in validation_logs['company_validations']:
                 formatted.append(f"   {log}")
             formatted.append("")
@@ -127,18 +131,24 @@ class ConsoleLogCapture:
         
         if validation_logs['tavily_queries']:
             formatted.append("🔍 TAVILY SEARCH QUERIES:")
-            for log in validation_logs['tavily_queries'][:10]:  # Limit to avoid too much detail
+            for log in validation_logs['tavily_queries'][:15]:  # Show more queries
                 formatted.append(f"   {log}")
-            if len(validation_logs['tavily_queries']) > 10:
-                formatted.append(f"   ... and {len(validation_logs['tavily_queries']) - 10} more queries")
+            if len(validation_logs['tavily_queries']) > 15:
+                formatted.append(f"   ... and {len(validation_logs['tavily_queries']) - 15} more queries")
             formatted.append("")
         
         if validation_logs['linkedin_searches']:
             formatted.append("🔗 LINKEDIN SEARCH DETAILS:")
-            for log in validation_logs['linkedin_searches'][:15]:  # Limit to avoid too much detail
+            for log in validation_logs['linkedin_searches'][:20]:  # Show more results
                 formatted.append(f"   {log}")
-            if len(validation_logs['linkedin_searches']) > 15:
-                formatted.append(f"   ... and {len(validation_logs['linkedin_searches']) - 15} more results")
+            if len(validation_logs['linkedin_searches']) > 20:
+                formatted.append(f"   ... and {len(validation_logs['linkedin_searches']) - 20} more results")
+            formatted.append("")
+        
+        if validation_logs['citation_processing']:
+            formatted.append("📝 CITATION PROCESSING DETAILS:")
+            for log in validation_logs['citation_processing']:
+                formatted.append(f"   {log}")
             formatted.append("")
         
         return '\n'.join(formatted)
