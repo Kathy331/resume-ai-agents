@@ -71,13 +71,13 @@ def build_research_context(research_data: Dict[str, Any]) -> str:
 
 def get_complete_prep_guide_prompt(email: Dict[str, Any], entities: Dict[str, Any], 
                                   research_data: Dict[str, Any]) -> str:
-    """Generate comprehensive prompt for personalized prep guide with specific email details"""
+    """Generate highly specific prompt for AI to extract exact details from email and research"""
     
     # Extract email details
     email_body = email.get('body', '')
     email_subject = email.get('subject', '')
     
-    # Extract entities with better defaults
+    # Extract entities
     company = get_entity_value(entities, 'company', 'COMPANY')
     interviewer = get_entity_value(entities, 'interviewer', 'INTERVIEWER')
     candidate = get_entity_value(entities, 'candidate', 'CANDIDATE')
@@ -85,71 +85,182 @@ def get_complete_prep_guide_prompt(email: Dict[str, Any], entities: Dict[str, An
     dates = get_entity_value(entities, 'date', 'TBD')
     format_info = get_entity_value(entities, 'format', 'format TBD')
     
-    # Extract specific interview details from email
-    interview_logistics = extract_interview_logistics(email_body, dates, format_info)
+    # Extract specific research findings
+    research_context = build_detailed_research_context(email_body, citations_db=research_data.get('citations_database', {}))
     
-    # Extract citations and research data
-    citations_db = research_data.get('citations_database', {})
-    interviewer_details = extract_interviewer_details(citations_db, interviewer)
-    company_research = extract_company_research_details(citations_db, company)
-    
-    prompt = f"""You are an expert interview preparation consultant. Generate a comprehensive, highly personalized interview prep guide using the exact format and style shown in the example below.
+    prompt = f"""You are an expert interview preparation consultant. You must extract EXACT details from the email content and research data to create a highly personalized prep guide.
 
-EMAIL CONTENT TO ANALYZE:
-Subject: {email_subject}
-Body: {email_body}
+CRITICAL EXTRACTION TASK:
+Read this email body carefully and extract EXACT phrases, names, dates, and details:
 
-EXTRACTED INTERVIEW INFORMATION:
-- Company: {company}
-- Interviewer: {interviewer}
-- Candidate: {candidate}
-- Role: {role}
-- Interview Logistics: {interview_logistics}
+EMAIL BODY TO ANALYZE:
+"{email_body}"
 
 RESEARCH DATA AVAILABLE:
-- Interviewer Details: {interviewer_details}
-- Company Research: {company_research}
+{research_context}
 
-REQUIRED FORMAT - Follow this EXACT structure with specific, personalized content:
+MANDATORY EXTRACTION RULES:
+1. If the email says "I'm [Name]" - use that EXACT name as the interviewer, NOT the entity extraction
+2. Extract EXACT date phrases from email (e.g., "Tuesday, August 6 or Wednesday, August 7")
+3. Extract EXACT time phrases from email (e.g., "Flexible between 10:00 a.m. and 4:00 p.m. (ET)")
+4. Find the REAL interviewer LinkedIn URL from research data (look for linkedin.com/in/ URLs)
+5. Use company LinkedIn URL from research data (look for linkedin.com/company/ URLs)
+6. Extract topics mentioned in email (e.g., "AI and cloud technologies")
+
+NOW GENERATE THE PREP GUIDE USING THIS EXACT FORMAT:
 
 # interview prep requirements template
 
 ## 1. before interview
 
-{generate_before_interview_section(email_body, dates, format_info, role)}
+- email mentions date options: [EXTRACT EXACT DATE PHRASE FROM EMAIL]
+- time: [EXTRACT EXACT TIME PHRASE FROM EMAIL] 
+- duration: [EXTRACT DURATION IF MENTIONED, e.g., "30 minutes"]
+- respond by [EXTRACT DEADLINE FROM EMAIL] to confirm your time slot
+- format: [EXTRACT FORMAT FROM EMAIL] - test your [format] setup and ensure stable internet connection
+- prepare to discuss your background and interests in [EXTRACT TOPICS FROM EMAIL]
 
 ## 2. interviewer background
 
-{generate_interviewer_section(interviewer, company, interviewer_details, [])}
+- [EXTRACT REAL NAME FROM EMAIL BODY] is a professional at {company.lower()} with expertise in [EXTRACT EXPERTISE FROM EMAIL/RESEARCH]
+- background: [EXTRACT BACKGROUND FROM RESEARCH OR EMAIL CONTEXT]
+- [MENTION CONNECTION TO EMAIL TOPICS]
+- [[REAL NAME FROM EMAIL] linkedin]([FIND INTERVIEWER LINKEDIN URL FROM RESEARCH])
 
 ## 3. company background
 
-{generate_company_section_enhanced(company, citations_db, [])}
+- {company.lower()} is a [EXTRACT COMPANY TYPE FROM RESEARCH] specializing in [EXTRACT SPECIALIZATION FROM RESEARCH/EMAIL]
+- [EXTRACT COMPANY ACTIVITIES FROM RESEARCH]
+- [EXTRACT FOCUS AREAS FROM RESEARCH]
+- hiring for [EXTRACT HIRING CONTEXT FROM EMAIL]
+- [{company.lower()} linkedin]([FIND COMPANY LINKEDIN URL FROM RESEARCH])
 
 ## 4. technical preparations
 
-{generate_technical_prep_section(role, company, email_body)}
+- role: [EXTRACT SPECIFIC ROLE FROM EMAIL]
+- prep areas:
+  - review fundamental concepts in [EXTRACT TECHNICAL AREAS FROM EMAIL]
+  - familiarize yourself with [EXTRACT COMPANY TECH AREAS FROM RESEARCH]
+  - prepare examples of [GENERATE RELEVANT EXAMPLES BASED ON EMAIL TOPICS]
+  - be ready to discuss your interests in [EXTRACT INTERESTS FROM EMAIL]
 
 ## 5. questions to ask
 
-{generate_questions_section(interviewer, company, role, email_body)}
+- to interviewer:
+  - what drew you to focus on [EXTRACT EXPERTISE AREAS FROM EMAIL/RESEARCH] at {company.lower()}?
+  - how do you see {company.lower()}'s approach to [EXTRACT SPECIFIC APPROACH FROM RESEARCH] evolving?
+
+- to company:
+  - what are the most exciting projects {company.lower()} is working on currently?
+  - what does success look like for an intern in this program?
+  - how does {company.lower()} support intern learning and development?
 
 ## 6. common questions
 
-{generate_common_questions_section(role, company, email_body)}
+[GENERATE QUESTIONS BASED ON EMAIL TOPICS - IF AI/CLOUD MENTIONED, USE AI/CLOUD QUESTIONS]
+- "tell me about a time when you worked with [EXTRACT TECHNICAL AREAS FROM EMAIL]."
+- "how would you approach learning about a new [EXTRACT TECHNOLOGY TYPE FROM EMAIL]?"
+- "describe your interest in [EXTRACT INTERESTS FROM EMAIL] mentioned in your application."
+- "describe a time when you had to learn something quickly."
+- "how do you handle feedback and constructive criticism?"
 
-CRITICAL REQUIREMENTS:
-1. Extract SPECIFIC dates, times, and logistics from the email body
-2. Use REAL interviewer name (e.g., "Rakesh Gohel" not "Cloud-Native Solutions")
-3. Include SPECIFIC company details and mission from research
-4. Make technical prep relevant to the ACTUAL role (AI/cloud for JUTEQ, education for Dandilyonn)
-5. Personalize questions based on the email content and company focus
-6. Use hyperlinks in format: [text](url)
-7. Be specific and detailed like the example - avoid generic content
+CRITICAL SUCCESS CRITERIA:
+✅ Real interviewer name must be extracted from email body (NOT entity extraction)
+✅ Exact dates and times must be copied from email text
+✅ Real LinkedIn URLs must be found from research data
+✅ Company specialization must come from research data
+✅ Technical areas must match what's mentioned in the email
+✅ Questions must be specific to the email content and research findings
 
-Generate the complete prep guide now:"""
+If you cannot find specific information, explicitly state what to look for rather than using generic content.
+
+Generate the complete personalized prep guide now:"""
 
     return prompt
+
+
+def build_detailed_research_context(email_body: str, citations_db: Dict[str, Any]) -> str:
+    """Build detailed context showing AI exactly what research data is available"""
+    
+    if not citations_db:
+        return "No research data available."
+    
+    context_parts = [
+        "AVAILABLE RESEARCH DATA FOR EXTRACTION:",
+        ""
+    ]
+    
+    # Extract and organize research by type
+    interviewer_linkedin = []
+    company_linkedin = []
+    company_info = []
+    
+    for citation_id, citation_data in citations_db.items():
+        if isinstance(citation_data, dict):
+            source = citation_data.get('source', '')
+            agent = citation_data.get('agent', '')
+            
+            # Find interviewer LinkedIn profiles
+            if 'linkedin.com/in/' in source:
+                interviewer_linkedin.append(f"   👤 Interviewer LinkedIn: {source}")
+            
+            # Find company LinkedIn
+            elif 'linkedin.com/company/' in source:
+                company_linkedin.append(f"   🏢 Company LinkedIn: {source}")
+            
+            # Find company information
+            elif 'company_analysis' in agent:
+                company_info.append(f"   📊 Company Research: {source}")
+    
+    # Show what's available for extraction
+    if interviewer_linkedin:
+        context_parts.append("INTERVIEWER LINKEDIN PROFILES FOUND:")
+        context_parts.extend(interviewer_linkedin[:3])
+        context_parts.append("")
+    
+    if company_linkedin:
+        context_parts.append("COMPANY LINKEDIN PAGES FOUND:")
+        context_parts.extend(company_linkedin[:2])
+        context_parts.append("")
+    
+    if company_info:
+        context_parts.append("COMPANY INFORMATION SOURCES:")
+        context_parts.extend(company_info[:3])
+        context_parts.append("")
+    
+    # Add extraction instructions
+    context_parts.extend([
+        "EXTRACTION INSTRUCTIONS:",
+        "1. Look for the real interviewer name in the email body (it says 'I'm [Name]')",
+        "2. Use the linkedin.com/in/ URL for the interviewer LinkedIn link",
+        "3. Use the linkedin.com/company/ URL for the company LinkedIn link",
+        "4. Extract company specialization and focus from research sources",
+        f"5. Email mentions these topics: {extract_topics_from_email(email_body)}",
+        ""
+    ])
+    
+    return '\n'.join(context_parts)
+
+
+def extract_topics_from_email(email_body: str) -> str:
+    """Extract key topics mentioned in email"""
+    topics_found = []
+    
+    topic_keywords = {
+        'AI and cloud technologies': ['ai and cloud', 'artificial intelligence', 'cloud technologies'],
+        'software development': ['software', 'development', 'programming'],
+        'data science': ['data science', 'analytics', 'machine learning'],
+        'education': ['education', 'teaching', 'learning'],
+        'leadership': ['leadership', 'management', 'team'],
+    }
+    
+    email_lower = email_body.lower()
+    
+    for topic, keywords in topic_keywords.items():
+        if any(keyword in email_lower for keyword in keywords):
+            topics_found.append(topic)
+    
+    return ', '.join(topics_found) if topics_found else 'professional topics'
 
 
 def build_detailed_research_summary(research_data: Dict[str, Any], citations_db: Dict[str, Any]) -> str:
