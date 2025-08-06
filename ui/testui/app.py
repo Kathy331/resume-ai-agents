@@ -822,3 +822,266 @@ Alex Morgan"""
                 st.warning("Please upload a file or enter a job URL")
         
         st.markdown('</div>', unsafe_allow_html=True)
+
+# Add import for HTML formatter at the top
+import sys
+from pathlib import Path
+
+# Add project root to path
+project_root = Path(__file__).parent.parent.parent
+sys.path.append(str(project_root))
+
+# Import HTML formatter
+try:
+    from shared.html_formatter import generate_juteq_clean_content, generate_dandilyonn_clean_content
+    print("✅ HTML formatter imported successfully")
+except ImportError as e:
+    print(f"❌ Failed to import HTML formatter: {e}")
+    # Fallback - define inline
+    def generate_juteq_clean_content():
+        return """## 1. before interview
+
+- email mentions date options: Tuesday, August 6 or Wednesday, August 7
+- time: flexible between 10:00 a.m. and 4:00 p.m. (ET)
+- duration: 30 minutes
+- respond by end of day Friday, August 2 to confirm your time slot
+- format: virtual, zoom - test your zoom setup and ensure stable internet connection
+- prepare to discuss your background and interests in AI and cloud technologies
+
+## 2. interviewer background
+
+- rakesh gohel is a professional at juteq with expertise in AI and cloud technologies
+- background: scaling with AI agents, cloud-native solutions focus
+- mentioned interest in AI and cloud technologies in interview invitation
+- [rakesh gohel linkedin](https://ca.linkedin.com/in/rakeshgohel01)
+
+## 3. company background
+
+- juteq is a technology company specializing in AI and cloud-native solutions
+- active in AI trends and innovation as evidenced by recent LinkedIn posts
+- focuses on cloud-native innovation and DevOps solutions
+- hiring for internship positions in AI and cloud technologies
+- [juteq linkedin](https://ca.linkedin.com/company/juteq)
+
+## 4. technical preparations
+
+- role: juteq internship program
+- prep areas:
+  - review fundamental concepts in AI and cloud technologies (as mentioned in email)
+  - familiarize yourself with cloud-native solutions and DevOps practices
+  - prepare examples of any AI or cloud projects you've worked on
+  - be ready to discuss your interests in AI and cloud technologies
+
+## 5. questions to ask
+
+- to interviewer:
+  - what drew you to focus on AI and cloud technologies at juteq?
+  - how do you see juteq's approach to scaling with AI agents evolving?
+
+- to company:
+  - what are the most exciting projects juteq is working on currently?
+  - what does success look like for an intern in this program?
+  - how does juteq support intern learning and development?
+
+## 6. common questions
+
+- "tell me about a time when you worked with AI or cloud technologies."
+- "how would you approach learning about a new AI technology or cloud platform?"
+- "describe your interest in AI and cloud technologies mentioned in your application."
+- "describe a time when you had to learn something quickly."
+- "how do you handle feedback and constructive criticism?\""""
+    
+    def generate_dandilyonn_clean_content():
+        return """## 1. before interview
+
+- email mentions interview scheduling details and time slots
+- format: virtual meeting setup recommended
+- prepare to discuss your background and interests in education and technology
+- review the SEEDS internship program mission and values
+
+## 2. interviewer background
+
+- archana chaudhary is the founder of dandilyonn seeds with 25+ years of engineering leadership
+- background: adobe experience, stanford education, engineering leadership
+- focus on women in tech, mobile app development, non-profit work
+- [archana chaudhary linkedin](https://www.linkedin.com/in/jainarchana/)
+
+## 3. company background
+
+- dandilyonn seeds is a non-profit organization focused on education and environmental awareness
+- founded in 2018 with focus on educating female computer science students
+- SEEDS internship program for skill development and mentorship
+- mission: empowering women in technology through education and hands-on experience
+- [dandilyonn linkedin](https://www.linkedin.com/company/dandilyonn)
+
+## 4. technical preparations
+
+- role: dandilyonn seeds internship program
+- prep areas:
+  - review concepts in computer science education and non-profit work
+  - research environmental awareness and sustainability initiatives
+  - prepare examples of leadership, volunteering, or educational experience
+  - familiarize yourself with the SEEDS internship program mission
+
+## 5. questions to ask
+
+- to interviewer:
+  - what inspired you to start dandilyonn seeds and focus on education?
+  - how do you balance engineering leadership with non-profit mission?
+
+- to company:
+  - what exciting initiatives is dandilyonn seeds pursuing?
+  - what does success look like for an intern in this program?
+  - how does dandilyonn seeds support intern learning and development?
+
+## 6. common questions
+
+- "tell me about a time when you demonstrated leadership or initiative."
+- "how do you see technology being used to address social or environmental issues?"
+- "what draws you to educational or non-profit work?"
+- "describe your experience with mentoring or helping others learn."
+- "describe a time when you had to learn something quickly."
+- "how do you handle feedback and constructive criticism?\""""
+
+def display_prep_guides():
+    """Display editable interview prep guides"""
+    st.header("📋 Interview Prep Guides")
+    
+    # Company selection
+    company_options = ["Select Company", "JUTEQ", "Dandilyonn SEEDS"]
+    selected_company = st.selectbox("Choose a company:", company_options)
+    
+    if selected_company == "JUTEQ":
+        st.markdown("### 🚀 JUTEQ Interview Prep Guide")
+        st.markdown("*AI & Cloud Technologies Internship*")
+        
+        # Get clean content
+        content = generate_juteq_clean_content()
+        
+        # Create editable text area
+        edited_content = st.text_area(
+            "Edit your prep guide:",
+            value=content,
+            height=600,
+            key="juteq_editor"
+        )
+        
+        # Save button
+        col1, col2, col3 = st.columns([1, 1, 2])
+        with col1:
+            if st.button("� Save Changes", key="save_juteq"):
+                # Save to user storage
+                save_user_guide("JUTEQ", edited_content)
+                st.success("✅ Guide saved successfully!")
+        
+        with col2:
+            # Download button
+            st.download_button(
+                label="📥 Download",
+                data=edited_content,
+                file_name="JUTEQ_prep_guide.md",
+                mime="text/markdown"
+            )
+        
+    elif selected_company == "Dandilyonn SEEDS":
+        st.markdown("### 🌱 Dandilyonn SEEDS Interview Prep Guide")
+        st.markdown("*Education & Environmental Awareness Internship*")
+        
+        # Get clean content
+        content = generate_dandilyonn_clean_content()
+        
+        # Create editable text area
+        edited_content = st.text_area(
+            "Edit your prep guide:",
+            value=content,
+            height=600,
+            key="dandilyonn_editor"
+        )
+        
+        # Save button
+        col1, col2, col3 = st.columns([1, 1, 2])
+        with col1:
+            if st.button("� Save Changes", key="save_dandilyonn"):
+                # Save to user storage
+                save_user_guide("Dandilyonn", edited_content)
+                st.success("✅ Guide saved successfully!")
+        
+        with col2:
+            # Download button
+            st.download_button(
+                label="📥 Download",
+                data=edited_content,
+                file_name="Dandilyonn_prep_guide.md",
+                mime="text/markdown"
+            )
+    
+    elif selected_company == "Select Company":
+        st.info("👆 Please select a company to view and edit the interview prep guide")
+        
+        # Show preview of both companies
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("#### 🚀 JUTEQ Preview")
+            st.markdown("- AI & Cloud Technologies")
+            st.markdown("- Interviewer: Rakesh Gohel")
+            st.markdown("- 30-minute virtual interview")
+            
+        with col2:
+            st.markdown("#### 🌱 Dandilyonn SEEDS Preview")
+            st.markdown("- Education & Environmental Focus")
+            st.markdown("- Interviewer: Archana Chaudhary")
+            st.markdown("- Non-profit internship program")
+
+def save_user_guide(company: str, content: str):
+    """Save user-edited guide to storage"""
+    import os
+    from pathlib import Path
+    
+    # Create user storage directory
+    storage_dir = Path("user_storage")
+    storage_dir.mkdir(exist_ok=True)
+    
+    # Save file
+    filename = f"{company}_edited_guide.md"
+    file_path = storage_dir / filename
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+    
+    print(f"✅ Saved user guide: {file_path}")
+
+def load_user_guide(company: str) -> str:
+    """Load user-edited guide from storage"""
+    from pathlib import Path
+    
+    storage_dir = Path("user_storage")
+    filename = f"{company}_edited_guide.md"
+    file_path = storage_dir / filename
+    
+    if file_path.exists():
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    
+    # Return default content if no saved version
+    if company == "JUTEQ":
+        return generate_juteq_clean_content()
+    else:
+        return generate_dandilyonn_clean_content()
+
+def main():
+    """Main Streamlit application"""
+    st.set_page_config(
+        page_title="Interview Prep Assistant",
+        page_icon="📋",
+        layout="wide"
+    )
+    
+    st.title("📋 Interview Prep Assistant")
+    st.markdown("*Edit and customize your interview preparation guides*")
+    
+    # Display the editable prep guides
+    display_prep_guides()
+
+if __name__ == "__main__":
+    main()
