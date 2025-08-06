@@ -1,273 +1,118 @@
-## This is a sample interview prep guide for a technical role at an AI infrastructure company. It includes details about the interviewer, company, role, and preparation strategies.
-# 👤 Interviewer Profile
-
-**Name:** Priya Deshmukh  
-**Title:** Staff Software Engineer – AI Infrastructure  
-**Company:** Nebula Systems (AI-first cloud infrastructure startup)  
-**LinkedIn:** [linkedin.com/in/priyadeshmukh-ai](https://linkedin.com/in/priyadeshmukh-ai)
-
-### 🎓 Background Highlights
-- M.S. in Computer Science from Stanford (2016)
-- 4 years at Google on TPU compiler team
-- Now leads the internal LLM deployment platform at Nebula Systems
-- Recently spoke at MLOps World 2025 on “Optimizing Latency in Multi-Tenant AI Inference”
-
-### 🛠️ Expertise Areas
-- Distributed inference systems  
-- Model quantization and optimization  
-- Kubernetes and container orchestration for ML workloads  
-
-### 🔍 Recent Activity
-- Published blog: *“Serving 10B parameter models at 50ms latency”* (June 2025)  
-- GitHub contributor to open-source TorchServe plugin  
-
----
-
-# 🏢 Company + Role Context
-
-**Company:** Nebula Systems  
-**Stage:** Series C (Raised $120M in March 2025 from Sequoia and Lux Capital)  
-**Mission:** "To build the foundational AI-native cloud infrastructure for the next generation of applications."  
-**Product:** *Nebula Core* – serverless platform for LLM inference and edge AI  
-**Tech Stack:** Rust, CUDA, Go, Kubernetes, ONNX Runtime, Triton Inference Server  
-
-## 🎯 Role: Senior Backend Engineer – AI Infrastructure
-**Team:** Platform Systems  
-
-### 🔧 Key Responsibilities
-- Design scalable backend services for model routing and inference scheduling  
-- Optimize latency and cost-performance tradeoffs  
-- Collaborate with ML teams to deploy models  
-- Own CI/CD pipelines and monitoring infrastructure  
-
----
-
-# 📧 Sample Interview Invite Email
-
-**Subject:** Interview Invitation: Senior Backend Engineer at Nebula Systems
-
-Hi Jamie,
-
-Thank you for applying to Nebula Systems! We were impressed by your background and would like to invite you to the next round of our hiring process for the Senior Backend Engineer – AI Infrastructure position.
-
-This will be a 60-minute technical interview with Priya Deshmukh, our Staff Engineer leading the LLM Inference Platform. She'll walk you through a system design and architecture problem relevant to our real-world work.
-
-When: Thursday, August 8th at 1:00 PM ET
-Where: Google Meet (link to follow)
-
-Let us know if the time works for you.
-
-Best,
-Anna McCarthy
-Technical Recruiter | Nebula Systems
-
-
----
-
-# 🧠 Interview Prep Guide (MVG-Compliant)
-
----
-
-## 📄 Section 1: Summary Overview
-
-- **Candidate Name:** Jamie  
-- **Target Role:** Senior Backend Engineer – AI Infrastructure  
-- **Company Name:** Nebula Systems  
-- **Interview Date & Time:** Thursday, August 8th, 1:00 PM ET  
-- **Interviewer:** Priya Deshmukh, Staff Software Engineer  
-- **Format:** 60-minute virtual technical interview  
-- **Platform:** Google Meet  
-
-✅ MVG Check Passed  
-
----
-
-## 🏢 Section 2: Company Snapshot
-
-**Mission:** AI-native cloud infrastructure to power scalable, low-latency inference at edge and cloud scale.
-
-### 📰 Recent News
-- Raised $120M Series C [TechCrunch - March 2025](https://techcrunch.com/2025/03/05/nebula-systems-series-c/)  
-- Announced Nebula Core Edge [Nebula Blog - June 2025](https://nebula.systems/blog/edge-inference-launch)  
-
-**Tech Stack:** Rust, Go, CUDA, Kubernetes, ONNX Runtime  
-**Market Position:** Competes with Modal, Anyscale, AWS Inferentia-backed services  
-**Culture:**
-- Remote-first, quarterly offsites  
-- Flat structure, strong engineering focus  
-- OSS contributions encouraged  
-
-**Why Nebula?**
-- Strong technical culture  
-- Contributes to AI infra community  
-- Rapid growth in LLM deployment  
-
-✅ MVG Check Passed  
-
----
-
-## 👔 Section 3: Role Deep Dive
-
-### 🔍 Responsibilities
-- Build backend systems for model serving  
-- Improve routing logic (quantized, sharded models)  
-- Collaborate with ML and infra teams  
-- Implement monitoring and SLOs  
-
-### 🔧 Requirements
-- Strong in Go or Rust  
-- Experience with Kubernetes, Istio  
-- Skilled in distributed tracing, perf profiling  
-
-**Team Context:** Platform Systems — interfaces with ML and product  
-**Growth:** Tech Lead or Staff role within 12–18 months  
-**Success Metrics:**
-- 99.9% uptime  
-- p99 latency < 80ms  
-
-[Citation: Nebula Job Posting - July 2025](https://nebula.systems/careers/backend-infra)  
-
-✅ MVG Check Passed  
-
----
-
-## 👩‍💻 Section 4: Interviewer Intelligence
-
-- **Name:** Priya Deshmukh  
-- **Title:** Staff Software Engineer  
-- **LinkedIn:** [linkedin.com/in/priyadeshmukh-ai](https://linkedin.com/in/priyadeshmukh-ai)  
-- **Background:** Stanford M.S., Google TPU team alum, Nebula Systems LLM routing lead  
-- **Recent Activity:**
-  - MLOps World 2025 speaker  
-  - Blog on latency optimization [Nebula Blog - June 2025](https://nebula.systems/blog/latency-ai)
-
-**Connection Points:** OSS-focused, compiler and infra optimization expert  
-
-✅ MVG Check Passed  
-
----
-
-## ❓ Section 5: Strategic Questions to Ask
-
-### 👤 For Priya
-- What were the main performance bottlenecks in LLM inference?  
-- How do you manage latency vs accuracy trade-offs?
-
-### 🤝 Team Dynamics
-- How does your team work with ML researchers?  
-- How are infra decisions prioritized?
-
-### 🧭 Company/Product
-- What’s on the roadmap for Nebula Core Edge?  
-- How does Nebula compare with Anyscale or Modal?
-
-### 🎯 Role-Specific
-- What is the split between coding and design work?  
-- What are the biggest challenges for new hires?
-
-### 🛠 Technical Environment
-- What observability stack do you use?  
-- How do you manage CI/CD for inference models?
-
-✅ MVG Check Passed  
-
----
-
-## 📚 Section 6: Technical Preparation Checklist
-
-### 📌 Likely Topics
-- Distributed systems design (routing, caching)  
-- Model server architecture  
-- Performance profiling  
-
-### ❓ Sample Questions
-- Design serving for multiple LLM versions (Medium)  
-- How would you monitor distributed inference latency? (Hard)  
-- Trade-offs in quantization strategies (Medium)
-
-### 🔗 Study Resources
-- [Serving LLMs at Scale – Modal Labs](https://modal.com/blog/serving-llms)  
-- [AI Inference Infra – Anyscale Blog](https://www.anyscale.com/blog)  
-- [ONNX Runtime Docs](https://onnxruntime.ai/docs/)  
-
-### 🧑‍💻 GitHub to Review
-- [TorchServe](https://github.com/pytorch/serve)  
-- [Nebula OSS Plugin](https://github.com/nebula-systems/serve-router)
-
-### 🌐 Technical Trends
-- Quantized LLMs, LoRA  
-- Edge inference patterns  
-
-✅ MVG Check Passed  
-
----
-
-## 🧠 Section 7: Strategic Framing & Story Preparation
-
-### ⭐ STAR Stories
-- Migrated microservices to Kubernetes with low latency goals  
-- Resolved model rollback failure in prod  
-- Cut cold-start latency by 40%  
-- Built load-testing tooling for model routing infra  
-
-### 🎯 Value Proposition
-- Backend systems engineer with ML infra focus  
-- Go + K8s + tracing expertise  
-- Thrive in collaborative infra teams  
-
-### 🔍 Career Motivation
-- Want to build infra at LLM scale  
-- Seeking rapid iteration cycles, deep system ownership  
-
-### 💡 Why Nebula?
-- Strong mission + OSS culture  
-- Opportunity to work with top engineers like Priya  
-
-✅ MVG Check Passed  
-
----
-
-## 📋 Section 8: Interview Execution Plan
-
-### 🗓 1 Week Before
-- Read blog posts + research competitors  
-- Analyze job description + map role fit
-
-### ⏰ 24 Hours Before
-- Refresh system design patterns  
-- Review Priya’s LinkedIn/blog posts
-
-### 🖥 2 Hours Before
-- Set up quiet environment  
-- Check camera, mic, and Meet link
-
-### ⏱ 30 Minutes Before
-- Final review of strategic questions  
-- Skim citations and blog references
-
-### 🧑‍💼 During Interview
-- Confirm assumptions clearly  
-- Draw out system diagrams  
-- Connect to Priya’s past work
-
-### 📩 Post Interview
-- Send thank-you note  
-- Reflect on what went well  
-
-✅ MVG Check Passed  
-
----
-
-## 📊 GUIDE QUALITY ASSESSMENT
-
-✅ **Meets all MVG standards**  
-🟢 **Total Score:** 28/30
-
-- **Content Depth:** 9/10  
-- **Personalization:** 9/10  
-- **Citation Quality:** 10/10  
-
-📅 **Last Research Attempt:** August 4, 2025  
-🔁 **Reflection Loops Completed:** 3/3  
-
-
+> ⚠️ **formatting notice**  
+> hyperlinks should be embedded like this: [glassdoor](https://www.glassdoor.com)  
+> avoid bold or italic styling unless absolutely necessary.
+
+# interview prep requirements template
+
+## 1. before interview
+
+- email mention to pick time slot between aug, 6, 7, or 8 (all pst)  
+- make sure to complete any online assessments 24 hours before interview (if applicable)
+- others....(if needed)
+
+## 2. interviewer background
+
+- priya deshmukh is currently a staff software engineer at nebula systems, focused on AI infrastructure.  
+- she earned her M.S. in computer science from stanford in 2016.  
+- she previously worked at google on the TPU compiler team for 4 years.  
+- [linkedin.com/in/priyadeshmukh-ai](https://linkedin.com/in/priyadeshmukh-ai)
+
+## 3. company background
+
+- nebula systems is an AI-first cloud infrastructure startup focused on LLM deployment platforms. their mission is to make scalable AI serving as accessible as deploying a website.  
+- in jan 2025, they raised a $120m series C led by sequoia and are reportedly expanding their ML infra team.  
+- employee reviews on glassdoor highlight a strong engineering culture but note occasional pressure from fast-paced deadlines.  
+  - [glassdoor](https://www.glassdoor.com)  
+  - [techcrunch - jan 2025](https://techcrunch.com/example)
+
+## 4. technical preparations
+
+- role: backend-focused ML infrastructure engineer  
+- prep areas:
+  - leetcode medium/hard questions involving concurrency, caching, and scheduling  
+  - system design patterns: model serving, feature store, streaming architecture  
+  - hands-on familiarity with: docker, kubernetes, torchserve, triton inference server  
+  - concepts to review: a/b testing infra, dynamic batching, grpc performance tuning
+
+## 5. questions to ask
+
+- to interviewer:
+  - what drew you to the AI infra space, and what’s been most rewarding in your time at nebula?
+  - how do you see the infra stack evolving over the next 6–12 months?
+
+- to company:
+  - how do you ensure low-latency LLM serving at scale, especially under unpredictable traffic?
+  - what metrics does the company use to measure success in infrastructure reliability?
+
+## 6. common questions
+
+- “describe how you’d architect a scalable model serving system that can handle dynamic batch sizes.”  
+- “how would you improve latency if inference spikes 10x during peak usage?”  
+- reddit user mentioned being asked about GPU scheduling tradeoffs in production:  
+  - [reddit /r/mlops](https://www.reddit.com/r/mlops/comments/example_gpu_serving)
+
+
+
+----------------HTML FORMATTING----------------
+<div style="font-family: sans-serif; font-size: 16px; line-height: 1.5;">
+  <p>📋 Interview Prep Guide</p>
+
+  <p>1. Before Interview:</p>
+  <ul>
+    <li>Email mentions to pick a time slot between Aug 6, 7, or 8 (all PST).</li>
+    <li>Make sure to complete any online assessments 24 hours before interview (if applicable).</li>
+    <li>Others... (if needed).</li>
+  </ul>
+
+  <p>2. Interviewer Background:</p>
+  <ul>
+    <li>Priya Deshmukh is currently a staff software engineer at Nebula Systems, focused on AI infrastructure.</li>
+    <li>She earned her M.S. in computer science from Stanford in 2016.</li>
+    <li>She previously worked at Google on the TPU compiler team for 4 years.</li>
+    <li><a href="https://linkedin.com/in/priyadeshmukh-ai" target="_blank">linkedin</a></li>
+  </ul>
+
+  <p>3. Company Background:</p>
+  <ul>
+    <li>Nebula Systems is an AI-first cloud infrastructure startup focused on LLM deployment platforms. Their mission is to make scalable AI serving as accessible as deploying a website.</li>
+    <li>In Jan 2025, they raised a $120M Series C led by Sequoia and are reportedly expanding their ML infra team.</li>
+    <li>Employee reviews on <a href="https://www.glassdoor.com" target="_blank">glassdoor</a> highlight a strong engineering culture but note occasional pressure from fast-paced deadlines.</li>
+    <li><a href="https://techcrunch.com/example" target="_blank">techcrunch - jan 2025</a></li>
+  </ul>
+
+  <p>4. Technical Preparations:</p>
+  <ul>
+    <li>Role: backend-focused ML infrastructure engineer</li>
+    <li>Prep areas:
+      <ul>
+        <li>LeetCode medium/hard questions involving concurrency, caching, and scheduling</li>
+        <li>System design patterns: model serving, feature store, streaming architecture</li>
+        <li>Hands-on familiarity with: Docker, Kubernetes, TorchServe, Triton Inference Server</li>
+        <li>Concepts to review: A/B testing infra, dynamic batching, gRPC performance tuning</li>
+      </ul>
+    </li>
+  </ul>
+
+  <p>5. Questions to Ask:</p>
+  <p>To interviewer:</p>
+  <ul>
+    <li>What drew you to the AI infra space, and what’s been most rewarding in your time at Nebula?</li>
+    <li>How do you see the infra stack evolving over the next 6–12 months?</li>
+  </ul>
+  <p>To company:</p>
+  <ul>
+    <li>How do you ensure low-latency LLM serving at scale, especially under unpredictable traffic?</li>
+    <li>What metrics does the company use to measure success in infrastructure reliability?</li>
+  </ul>
+
+  <p>6. Common Questions:</p>
+  <ul>
+    <li>“Describe how you’d architect a scalable model serving system that can handle dynamic batch sizes.”</li>
+    <li>“How would you improve latency if inference spikes 10x during peak usage?”</li>
+    <li>Reddit user mentioned being asked about GPU scheduling tradeoffs in production:
+      <ul>
+        <li><a href="https://www.reddit.com/r/mlops/comments/example_gpu_serving" target="_blank">reddit /r/mlops</a></li>
+      </ul>
+    </li>
+  </ul>
+</div>
