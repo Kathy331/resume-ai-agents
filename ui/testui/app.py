@@ -12,7 +12,7 @@ ui_root = Path(__file__).parent.parent
 sys.path.append(str(ui_root))
 
 # Import the interview prep page and authentication
-from pages.interview_prep import render_interview_prep
+from pages.interview_prep_fixed import render_interview_prep
 from shared.google_oauth.dual_gmail_services import check_gmail_authentication
 
 #streamlit run ui/testui/app.py

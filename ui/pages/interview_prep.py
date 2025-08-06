@@ -461,6 +461,47 @@ def display_single_prep_guide(company: str):
         </div>
         """, unsafe_allow_html=True)
 
+def extract_prep_guide_template(full_content: str) -> str:
+    """Extract only the interview prep requirements template from full content"""
+    lines = full_content.split('\n')
+    
+    # Find the start of the prep guide template
+    start_idx = -1
+    for i, line in enumerate(lines):
+        if line.strip() == "# interview prep requirements template":
+            start_idx = i + 1  # Skip the title line
+            break
+    
+    if start_idx == -1:
+        # Try to find just the sections without title
+        for i, line in enumerate(lines):
+            if line.strip().startswith("## 1. before interview"):
+                start_idx = i
+                break
+    
+    if start_idx == -1:
+        return "No prep guide template found in the generated content."
+    
+    # Find the end of the prep guide template (before technical sections)
+    end_idx = len(lines)
+    for i in range(start_idx, len(lines)):
+        line = lines[i].strip()
+        if (line.startswith("====") or 
+            line.startswith("RESEARCH CITATIONS") or
+            line.startswith("TECHNICAL METADATA") or
+            line.startswith("CRITICAL SUCCESS CRITERIA")):
+            end_idx = i
+            break
+    
+    # Extract only the template content
+    template_lines = lines[start_idx:end_idx]
+    
+    # Clean up empty lines at the end
+    while template_lines and not template_lines[-1].strip():
+        template_lines.pop()
+    
+    return '\n'.join(template_lines)
+
 def send_single_prep_guide(company: str, recipient_email: str):
     """Send a single prep guide via email using bot service"""
     try:
@@ -591,6 +632,17 @@ def send_all_prep_guides(recipient_email: str):
             st.write("3. Try re-authenticating by deleting token files and running again")
             st.write("4. Ensure you have the correct scopes enabled")
             st.code("rm token_files/token_gmail_v1.json", language="bash")
+
+def modify_prep_guide_display():
+    """Modify the prep guide display to show only clean template"""
+    # This function will be used to update the display logic
+    pass
+
+def update_prep_guide_display_in_render():
+    """Update the render function to use clean template extraction"""
+    # Find and replace the prep guide display logic
+    # This will be implemented by modifying the render_interview_prep function
+    pass
 
 if __name__ == "__main__":
     render_interview_prep()
