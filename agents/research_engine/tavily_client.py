@@ -9,7 +9,7 @@ Provides basic compatibility for the tavily client import
 import os
 from typing import List, Dict, Any
 
-def search_tavily(query: str, search_depth: str = "basic", max_results: int = 5) -> List[Dict[str, Any]]:
+def search_tavily(query: str, max_results: int = 5, search_depth: str = "advanced") -> List[Dict[str, Any]]:
     """
     Simple Tavily search function
     """
@@ -24,7 +24,9 @@ def search_tavily(query: str, search_depth: str = "basic", max_results: int = 5)
         response = client.search(
             query=query,
             search_depth=search_depth,
-            max_results=max_results
+            max_results=max_results,
+            include_domains=["linkedin.com", "glassdoor.com", "company websites"],
+            exclude_domains=["youtube.com", "tiktok.com", "instagram.com"]
         )
         
         return response.get('results', [])

@@ -4,6 +4,7 @@ Enhanced Prep Guide Pipeline - Advanced Integration
 ==================================================
 
 Integrates citation manager, prompts, and OpenAI client for comprehensive prep guide generation
+Includes detailed console log capture for validation/rejection details
 """
 
 import os
@@ -16,8 +17,9 @@ from typing import Dict, List, Any, Optional
 # Import shared components
 from shared.openai_client import get_openai_client, generate_text
 from shared.citation_manager import CitationManager, get_citation_manager
-from shared.prep_guide_prompts import get_complete_prep_guide_prompt
+from shared.prep_guide_prompts import get_complete_prep_guide_prompt, get_entity_value
 from shared.simple_cache import cached_openai_generate
+from shared.console_log_capture import start_log_capture, stop_log_capture, get_validation_logs_for_file
 
 class EnhancedPrepGuidePipeline:
     """
@@ -43,6 +45,9 @@ class EnhancedPrepGuidePipeline:
         print(f"\n📚 ENHANCED PREP GUIDE PIPELINE - Email {email_index}")
         print("=" * 70)
         
+        # Start capturing console logs for validation details
+        start_log_capture()
+        
         try:
             # Extract personalization data
             personalization_data = self._extract_personalization_data(email, entities, research_data)
@@ -53,19 +58,22 @@ class EnhancedPrepGuidePipeline:
             # Build citations from research data
             self._build_citations_database(research_data)
             
-            # Generate main prep guide content using OpenAI
+            # Generate main prep guide content using OpenAI (new format)
             prep_guide_content = self._generate_prep_guide_content(
-                personalization_data, email, research_data
+                personalization_data, email, research_data, entities
             )
             
-            # Generate complete file content with technical sections
+            # Stop capturing logs and get the content
+            captured_console_logs = stop_log_capture()
+            
+            # Generate complete file content with technical sections AND new prep guide format
             complete_content = self._build_complete_file_content(
                 email, entities, research_data, personalization_data, 
-                prep_guide_content, detailed_logs, start_time
+                prep_guide_content, detailed_logs, start_time, captured_console_logs
             )
             
             # Save to file
-            output_filename = self._save_prep_guide_file(
+            output_file = self._save_prep_guide_file(
                 complete_content, personalization_data['company_name'], email_index
             )
             
@@ -76,7 +84,7 @@ class EnhancedPrepGuidePipeline:
             result = {
                 'success': True,
                 'company_keyword': personalization_data['company_name'],
-                'output_file': output_filename,
+                'output_file': output_file,
                 'prep_guide_content': complete_content,
                 'citations_used': citations_used,
                 'generation_time': processing_time,
@@ -84,7 +92,7 @@ class EnhancedPrepGuidePipeline:
             }
             
             print(f"✅ Enhanced prep guide generated successfully!")
-            print(f"   📁 File: {output_filename}")
+            print(f"   📁 File: {output_file}")
             print(f"   📝 Citations: {citations_used}")
             print(f"   ⏱️  Time: {processing_time:.2f}s")
             
@@ -129,73 +137,292 @@ class EnhancedPrepGuidePipeline:
         }
     
     def _build_citations_database(self, research_data: Dict[str, Any]):
-        """Build citations database from research data"""
+        """Build citations database from research data with smart filtering"""
         
         # Debug: Print research data structure
         print(f"   🔍 Research data keys: {list(research_data.keys())}")
         citations_db = research_data.get('citations_database', {})
-        print(f"   � Citations database structure: {type(citations_db)} with {len(citations_db)} entries")
+        print(f"   📊 Citations database structure: {type(citations_db)} with {len(citations_db)} entries")
         
         citations_added = 0
+        filtered_out = 0
         
-        # Add citations from the research citations database
+        # Add citations from the research citations database with smart filtering
         for citation_id, citation_data in citations_db.items():
             print(f"   📝 Processing citation {citation_id}: {type(citation_data)}")
             if isinstance(citation_data, dict):
                 source_url = citation_data.get('source', '')
                 print(f"      📎 Source: {source_url[:100]}...")
-                if source_url and 'http' in source_url:
-                    # Extract title and URL from the source string
-                    if ' - http' in source_url:
-                        title_part = source_url.split(' - http')[0]
-                        url_part = 'http' + source_url.split(' - http')[1]
-                    else:
-                        title_part = citation_data.get('agent', 'Research Source')
-                        url_part = source_url
-                    
-                    self.citation_manager.add_citation(
-                        category=citation_data.get('agent', 'research'),
-                        title=title_part,
-                        url=url_part
-                    )
-                    citations_added += 1
-                    print(f"      ✅ Added citation: {title_part[:50]}...")
+                
+                # Smart filtering - remove irrelevant citations
+                if self._is_relevant_citation(source_url, research_data):
+                    if source_url and 'http' in source_url:
+                        # Extract title and URL from the source string
+                        if ' - http' in source_url:
+                            title_part = source_url.split(' - http')[0]
+                            url_part = 'http' + source_url.split(' - http')[1]
+                        else:
+                            title_part = citation_data.get('agent', 'Research Source')
+                            url_part = source_url
+                        
+                        self.citation_manager.add_citation(
+                            category=citation_data.get('agent', 'research'),
+                            title=title_part,
+                            url=url_part
+                        )
+                        citations_added += 1
+                        print(f"      ✅ Added citation: {title_part[:50]}...")
+                else:
+                    filtered_out += 1
+                    print(f"      🚫 Filtered out irrelevant citation: {source_url[:50]}...")
         
         if citations_added == 0:
-            print("   ⚠️  No research sources found - prep guide will not include citation references")
+            print("   ⚠️  No relevant research sources found - prep guide will use fallback content")
         else:
-            print(f"   📝 Added {citations_added} citations to database")
+            print(f"   📝 Added {citations_added} relevant citations, filtered out {filtered_out} irrelevant ones")
+
+    def _is_relevant_citation(self, source_url: str, research_data: Dict[str, Any]) -> bool:
+        """Smart filtering to determine if a citation is relevant"""
+        if not source_url:
+            return False
+        
+        # Get company and interviewer names for relevance checking
+        company_name = ""
+        interviewer_name = ""
+        
+        # Extract from research data if available
+        if 'research_data' in research_data:
+            company_analysis = research_data['research_data'].get('company_analysis', {})
+            interviewer_analysis = research_data['research_data'].get('interviewer_analysis', {})
+        
+        source_lower = source_url.lower()
+        
+        # Filter out obviously irrelevant sources
+        irrelevant_patterns = [
+            'danone',  # Wrong company
+            'crunchbase',  # Generic platform
+            'glassdoor.com/job-search',  # Generic job search pages
+            'linkedin.com/company/adm',  # Wrong company (ADM)
+            'login',  # Login pages
+            'sign-in',  # Sign-in pages
+            'find-your-next-opportunity',  # Generic job pages
+        ]
+        
+        for pattern in irrelevant_patterns:
+            if pattern in source_lower:
+                return False
+        
+        # Keep relevant sources
+        relevant_patterns = [
+            'juteq',  # Target company
+            'dandilyonn',  # Target company 
+            'archana',  # Target interviewer
+            'rakesh',  # Target interviewer
+            'linkedin.com/in/',  # LinkedIn profiles
+            'linkedin.com/posts/',  # LinkedIn posts
+        ]
+        
+        for pattern in relevant_patterns:
+            if pattern in source_lower:
+                return True
+        
+        # Default: keep if it contains the actual target company/interviewer names
+        return True  # Conservative approach - let other filters handle it
+    
+    def _parse_dual_format_response(self, content: str) -> tuple:
+        """Parse OpenAI response that contains both markdown and HTML formats"""
+        try:
+            # Split on the HTML format marker
+            if "=== HTML FORMAT ===" in content:
+                parts = content.split("=== HTML FORMAT ===")
+                markdown_part = parts[0].replace("=== MARKDOWN FORMAT ===", "").strip()
+                html_part = parts[1].strip()
+                
+                # Clean up HTML part - remove instruction text
+                html_lines = html_part.split('\n')
+                html_start = -1
+                for i, line in enumerate(html_lines):
+                    if line.strip().startswith('<div class="interview-prep-guide">'):
+                        html_start = i
+                        break
+                
+                if html_start >= 0:
+                    html_content = '\n'.join(html_lines[html_start:])
+                    # Find the closing div
+                    html_end = html_content.rfind('</div>')
+                    if html_end > 0:
+                        html_content = html_content[:html_end + 6]  # Include </div>
+                else:
+                    html_content = html_part
+                
+                return markdown_part, html_content
+            else:
+                # Fallback: use content as markdown, generate simple HTML
+                html_content = self._markdown_to_basic_html(content)
+                return content, html_content
+                
+        except Exception as e:
+            print(f"   ⚠️  Error parsing dual format response: {e}")
+            # Fallback: treat as markdown only
+            html_content = self._markdown_to_basic_html(content)
+            return content, html_content
+    
+    def _markdown_to_basic_html(self, markdown_content: str) -> str:
+        """Convert markdown to basic HTML as fallback"""
+        html = markdown_content
+        
+        # Basic markdown to HTML conversions
+        html = html.replace('# ', '<h1>').replace('\n## ', '</h1>\n<h2>').replace('\n### ', '</h2>\n<h3>')
+        html = html.replace('**', '<strong>').replace('**', '</strong>')
+        html = html.replace('- ', '<li>').replace('\n\n', '</li>\n</ul>\n<p>').replace('\n', '<br>\n')
+        
+        # Wrap in basic structure
+        html = f'<div class="interview-prep-guide">\n{html}\n</div>'
+        
+        return html
+    
+    def _convert_to_simple_html(self, markdown_content: str) -> str:
+        """Convert simple markdown to HTML matching the guideline format"""
+        html = markdown_content
+        
+        # Convert headers
+        html = html.replace('# interview prep requirements template', 
+                           '<h1>📋 Interview Prep Requirements</h1>')
+        html = html.replace('## 1. before interview', '<h2>1. Before Interview</h2>')
+        html = html.replace('## 2. interviewer background', '<h2>2. Interviewer Background</h2>')
+        html = html.replace('## 3. company background', '<h2>3. Company Background</h2>')
+        html = html.replace('## 4. technical preparations', '<h2>4. Technical Preparations</h2>')
+        html = html.replace('## 5. questions to ask', '<h2>5. Questions to Ask</h2>')
+        html = html.replace('## 6. common questions', '<h2>6. Common Questions</h2>')
+        
+        # Convert bullet points to proper list items
+        lines = html.split('\n')
+        in_list = False
+        result_lines = []
+        
+        for line in lines:
+            if line.strip().startswith('- '):
+                if not in_list:
+                    result_lines.append('<ul>')
+                    in_list = True
+                item_text = line.strip()[2:]  # Remove '- '
+                # Convert embedded links
+                if '[' in item_text and '](' in item_text:
+                    import re
+                    item_text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', 
+                                     r'<a href="\2" target="_blank">\1</a>', item_text)
+                result_lines.append(f'<li>{item_text}</li>')
+            else:
+                if in_list:
+                    result_lines.append('</ul>')
+                    in_list = False
+                if line.strip():
+                    # Convert embedded links in regular text
+                    if '[' in line and '](' in line:
+                        import re
+                        line = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', 
+                                     r'<a href="\2" target="_blank">\1</a>', line)
+                    result_lines.append(f'<p>{line}</p>')
+                else:
+                    result_lines.append('<br>')
+        
+        if in_list:
+            result_lines.append('</ul>')
+        
+        # Wrap in container div
+        final_html = f'''<div style="font-family: sans-serif; font-size: 16px; line-height: 1.5;">
+{chr(10).join(result_lines)}
+</div>'''
+        
+        return final_html
+    
+    def _store_html_for_ui(self, entities: Dict[str, Any], html_content: str):
+        """Store HTML content for UI access"""
+        try:
+            company = get_entity_value(entities, 'company', 'COMPANY')
+            safe_company = "".join(c for c in company if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            
+            # Create UI-specific directory
+            ui_output_dir = Path("outputs/ui")
+            ui_output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Save HTML version for UI
+            html_file = ui_output_dir / f"{safe_company}_prep_guide.html"
+            
+            # Create complete HTML document for UI
+            complete_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Prep Guide - {company}</title>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; margin: 2rem; }}
+        .interview-prep-guide {{ max-width: 800px; margin: 0 auto; }}
+        h1 {{ color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem; }}
+        h2 {{ color: #1f2937; margin-top: 2rem; }}
+        h3 {{ color: #374151; }}
+        .executive-summary {{ background: #f3f4f6; padding: 1rem; border-radius: 0.5rem; margin: 1rem 0; }}
+        .company-intelligence, .role-analysis, .interviewer-intelligence {{ margin: 2rem 0; }}
+        .question-framework ul {{ padding-left: 1.5rem; }}
+        .pre-interview-checklist li {{ margin: 0.5rem 0; }}
+        ul {{ list-style-type: disc; }}
+        li {{ margin: 0.25rem 0; }}
+        strong {{ color: #1f2937; }}
+    </style>
+</head>
+<body>
+{html_content}
+</body>
+</html>"""
+            
+            with open(html_file, 'w', encoding='utf-8') as f:
+                f.write(complete_html)
+            
+            print(f"   🌐 HTML version saved for UI: {html_file}")
+            
+        except Exception as e:
+            print(f"   ⚠️  Error saving HTML for UI: {e}")
     
     def _generate_prep_guide_content(self, personalization_data: Dict[str, Any], 
                                    email: Dict[str, Any], 
-                                   research_data: Dict[str, Any]) -> str:
+                                   research_data: Dict[str, Any],
+                                   entities: Dict[str, Any]) -> str:
         """Generate prep guide content using OpenAI"""
         
         try:
             # Create comprehensive prompt
-            prompt = get_complete_prep_guide_prompt(
-                company_name=personalization_data['company_name'],
-                interviewer_name=personalization_data['interviewer_name'],
-                role_title=personalization_data['role_title'],
-                candidate_name=personalization_data['candidate_name'],
-                email_content=email.get('body', ''),
-                research_data=research_data
-            )
+            prompt = get_complete_prep_guide_prompt(email, entities, research_data)
             
             print("🤖 Generating personalized prep guide content with OpenAI...")
             
-            # Generate content with OpenAI (cached)
+            # Force fresh OpenAI call by temporarily disabling cache if env var is set
+            disable_cache = os.getenv('DISABLE_OPENAI_CACHE', 'false').lower() == 'true'
+            
+            # Generate content with OpenAI (cached) - using new simplified format
             content = cached_openai_generate(
                 prompt=prompt,
                 model="gpt-4",
                 temperature=0.7,
-                max_tokens=4000
+                max_tokens=2000  # Reduced since new format is more concise
             )
             
-            # Add citation references to content
-            content = self._add_citation_references(content)
+            if not content:
+                raise Exception("OpenAI returned empty content")
             
-            return content
+            # Parse for HTML if present, otherwise use markdown
+            if "=== HTML FORMAT ===" in content:
+                parts = content.split("=== HTML FORMAT ===")
+                markdown_content = parts[0].strip()
+                html_content = parts[1].strip() if len(parts) > 1 else self._convert_to_simple_html(markdown_content)
+            else:
+                markdown_content = content
+                html_content = self._convert_to_simple_html(content)
+            
+            # Store HTML version for UI
+            self._store_html_for_ui(entities, html_content)
+            
+            return markdown_content
             
         except Exception as e:
             print(f"❌ OpenAI generation error: {str(e)}")
@@ -279,14 +506,14 @@ The {role_title} position offers excellent opportunities for professional growth
     def _build_complete_file_content(self, email: Dict[str, Any], entities: Dict[str, Any],
                                    research_data: Dict[str, Any], personalization_data: Dict[str, Any],
                                    prep_guide_content: str, detailed_logs: Optional[Dict],
-                                   start_time: datetime) -> str:
+                                   start_time: datetime, captured_console_logs: str = "") -> str:
         """Build complete file content with all sections"""
         
         current_time = datetime.now()
         
-        # Technical sections
+        # Technical sections with captured validation logs
         technical_sections = self._generate_technical_sections(
-            email, entities, research_data, personalization_data, current_time
+            email, entities, research_data, personalization_data, current_time, captured_console_logs
         )
         
         # Citations database
@@ -340,8 +567,16 @@ Processing Time: {(current_time - start_time).total_seconds():.2f}s
         
         return complete_content
     
-    def _generate_technical_sections(self, email, entities, research_data, personalization_data, current_time):
-        """Generate technical metadata sections"""
+    def _generate_technical_sections(self, email, entities, research_data, personalization_data, current_time, captured_console_logs=""):
+        """Generate technical metadata sections with detailed logs"""
+        
+        # Extract detailed logs from research data AND captured console logs
+        detailed_research_logs = self._extract_detailed_research_logs(research_data)
+        
+        # Get formatted validation logs from console capture
+        validation_logs_formatted = ""
+        if captured_console_logs:
+            validation_logs_formatted = get_validation_logs_for_file(captured_console_logs)
         
         return f"""================================================================================
 INDIVIDUAL EMAIL PROCESSING RESULTS
@@ -375,7 +610,7 @@ Complete step-by-step processing details from terminal output:
 
 🔬 === DEEP RESEARCH PIPELINE PROCESSING ===
 📊 RESEARCH OVERVIEW:
-   🔍 Total Sources Discovered: {research_data.get('sources_processed', 0)}
+   🔍 Total Sources Discovered: {research_data.get('total_sources_discovered', 0)}
    ✅ Sources Validated: {len(research_data.get('validated_sources', []))}
    📝 Citations Generated: {self.citation_manager.get_citations_count()}
    🔗 LinkedIn Profiles Found: {research_data.get('linkedin_profiles_found', 0)}
@@ -384,14 +619,18 @@ Complete step-by-step processing details from terminal output:
 🏢 COMPANY ANALYSIS AGENT:
    📊 Phase 1: Company Identity Verification
    📊 Phase 2: Industry & Market Analysis
-   📈 Confidence Score: {research_data.get('company_analysis', {}).get('confidence_score', 0.80)}
+{detailed_research_logs.get('company_analysis', '   📈 Confidence Score: 0.80')}
    ✅ Sources Validated: {len(research_data.get('company_analysis', {}).get('validated_sources', []))}
 
 👤 INTERVIEWER ANALYSIS AGENT:
    🔍 Phase 1: Targeted LinkedIn Profile Search
    🔍 Phase 2: Professional Background Research
-   📈 Confidence Score: {research_data.get('interviewer_analysis', {}).get('confidence_score', 0.66)}
+{detailed_research_logs.get('interviewer_analysis', '   📈 Confidence Score: 0.66')}
    🔗 LinkedIn Profiles Found: {research_data.get('interviewer_analysis', {}).get('linkedin_profiles_found', 0)}
+
+{validation_logs_formatted}
+
+{detailed_research_logs.get('validation_details', '')}
 
 🤔 RESEARCH QUALITY REFLECTION:
    📊 Overall Confidence: {research_data.get('overall_confidence', 0.93)}
@@ -408,6 +647,72 @@ Entities Extracted: True
 Research Conducted: True
 Research Quality Score: {research_data.get('overall_confidence', 0.93)}
 Prep Guide Generated: True"""
+
+    def _extract_detailed_research_logs(self, research_data: Dict[str, Any]) -> Dict[str, str]:
+        """Extract detailed research logs including validations and rejections"""
+        
+        logs = {
+            'company_analysis': '   📈 Confidence Score: 0.80',
+            'interviewer_analysis': '   📈 Confidence Score: 0.66', 
+            'validation_details': ''
+        }
+        
+        # Extract company analysis details
+        if 'research_data' in research_data:
+            research_details = research_data['research_data']
+            
+            # Company analysis logs
+            if 'company_analysis' in research_details:
+                company_data = research_details['company_analysis']
+                confidence = company_data.get('confidence_score', 0.80)
+                logs['company_analysis'] = f'   📈 Confidence Score: {confidence}'
+                
+                # Add validation details if available
+                if 'validation_results' in company_data:
+                    validation_section = "\n📊 COMPANY VALIDATION RESULTS:\n"
+                    for result in company_data['validation_results']:
+                        if result.get('validated', False):
+                            validation_section += f"   ✅ VALIDATED: {result.get('title', 'Source')[:50]}... (Score: {result.get('score', 0)}, Evidence: {result.get('evidence', 'N/A')})\n"
+                        else:
+                            validation_section += f"   ❌ REJECTED: {result.get('title', 'Source')[:50]}... (Score: {result.get('score', 0)}, Reasons: {result.get('rejection_reason', 'N/A')})\n"
+                    logs['validation_details'] += validation_section
+            
+            # Interviewer analysis logs  
+            if 'interviewer_analysis' in research_details:
+                interviewer_data = research_details['interviewer_analysis']
+                confidence = interviewer_data.get('confidence_score', 0.66)
+                linkedin_found = interviewer_data.get('linkedin_profiles_found', 0)
+                logs['interviewer_analysis'] = f'   📈 Confidence Score: {confidence}\n   🔗 LinkedIn Profiles Found: {linkedin_found}'
+                
+                # Add LinkedIn search details if available
+                if 'linkedin_searches' in interviewer_data:
+                    linkedin_section = "\n👤 LINKEDIN SEARCH RESULTS:\n"
+                    for search in interviewer_data['linkedin_searches']:
+                        query = search.get('query', 'Unknown query')
+                        results_count = len(search.get('results', []))
+                        linkedin_section += f"   🔍 Query: '{query}' → {results_count} results\n"
+                        
+                        for result in search.get('results', []):
+                            if result.get('is_linkedin_profile', False):
+                                linkedin_section += f"      ✅ LinkedIn Profile Found: {result.get('title', 'Profile')[:50]}...\n"
+                            elif result.get('is_company_relevant', False):
+                                linkedin_section += f"      🎯 Company-Relevant: {result.get('title', 'Content')[:50]}...\n"
+                            else:
+                                linkedin_section += f"      ⚠️  Other Result: {result.get('title', 'Content')[:50]}...\n"
+                    logs['validation_details'] += linkedin_section
+        
+        # Extract citations validation if available
+        citations_db = research_data.get('citations_database', {})
+        if citations_db:
+            citations_section = "\n📝 CITATIONS VALIDATION:\n"
+            for citation_id, citation_data in citations_db.items():
+                if isinstance(citation_data, dict):
+                    source = citation_data.get('source', '')
+                    agent = citation_data.get('agent', 'unknown')
+                    citations_section += f"   📎 Citation [{citation_id}]: {source[:60]}... (Agent: {agent})\n"
+            logs['validation_details'] += citations_section
+        
+        return logs
     
     def _format_email_body(self, body):
         """Format email body for display"""
