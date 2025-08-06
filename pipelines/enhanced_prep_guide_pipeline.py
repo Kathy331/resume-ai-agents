@@ -17,6 +17,7 @@ from typing import Dict, List, Any, Optional
 from shared.openai_client import get_openai_client, generate_text
 from shared.citation_manager import CitationManager, get_citation_manager
 from shared.prep_guide_prompts import get_complete_prep_guide_prompt
+from shared.simple_cache import cached_openai_generate
 
 class EnhancedPrepGuidePipeline:
     """
@@ -183,8 +184,8 @@ class EnhancedPrepGuidePipeline:
             
             print("🤖 Generating personalized prep guide content with OpenAI...")
             
-            # Generate content with OpenAI
-            content = generate_text(
+            # Generate content with OpenAI (cached)
+            content = cached_openai_generate(
                 prompt=prompt,
                 model="gpt-4",
                 temperature=0.7,
