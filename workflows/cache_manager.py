@@ -30,192 +30,89 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 def get_tavily_cache_info() -> Dict[str, Any]:
     """Get information about the current Tavily cache"""
-    # Check directory first to avoid auto-creation
-    cache_dir = "cache/tavily"  
-    
-    if not os.path.exists(cache_dir):
+    try:
+        from shared.simple_cache import get_tavily_cache
+        
+        cache = get_tavily_cache()
+        stats = cache.get_stats()
+        
+        return {
+            'cache_exists': True,
+            'cached_queries': stats.get('valid_files', 0),
+            'expired_files': stats.get('expired_files', 0),
+            'cache_size_mb': stats.get('total_size_mb', 0),
+            'cache_directory': stats.get('cache_dir', 'cache/tavily'),
+            'message': f"Tavily cache contains {stats.get('valid_files', 0)} queries ({stats.get('total_size_mb', 0):.2f} MB)"
+        }
+        
+    except Exception as e:
         return {
             'cache_exists': False,
             'cached_queries': 0,
             'cache_size_mb': 0,
-            'cache_directory': cache_dir,
-            'message': 'No Tavily cache directory found'
-        }
-    
-    try:
-        from shared.tavily_cache import get_tavily_cache
-        
-        cache = get_tavily_cache()
-        stats = cache.get_cache_stats()
-        
-        return {
-            'cache_exists': True,
-            'cached_queries': stats.get('total_cached_results', 0),
-            'valid_files': stats.get('valid_cache_files', 0),
-            'expired_files': stats.get('expired_cache_files', 0),
-            'cache_size_mb': stats.get('cache_size_mb', 0),
             'cache_directory': 'cache/tavily',
-            'message': f"Tavily cache contains {stats.get('total_cached_results', 0)} queries ({stats.get('cache_size_mb', 0):.2f} MB)"
+            'error': str(e),
+            'message': f'Error accessing Tavily cache: {str(e)}'
         }
-        
-    except Exception as e:
-        # Fallback to direct directory check
-        try:
-            # Count cache files
-            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
-            files_count = len(cache_files)
-            
-            # Calculate total cache size
-            total_size = 0
-            for file in cache_files:
-                file_path = os.path.join(cache_dir, file)
-                total_size += os.path.getsize(file_path)
-            
-            size_mb = total_size / (1024 * 1024)  # Convert to MB
-            
-            return {
-                'cache_exists': True,
-                'cached_queries': files_count,
-                'cache_size_mb': round(size_mb, 2),
-                'cache_directory': cache_dir,
-                'message': f'Tavily cache contains {files_count} queries ({size_mb:.2f} MB)'
-            }
-            
-        except Exception as fallback_error:
-            return {
-                'cache_exists': False,
-                'error': str(fallback_error),
-                'message': f'Error accessing Tavily cache: {str(fallback_error)}'
-            }
 
 
 def get_openai_cache_info() -> Dict[str, Any]:
     """Get information about the current OpenAI cache"""
-    # Check directory first to avoid auto-creation
-    cache_dir = ".openai_cache"
-    
-    if not os.path.exists(cache_dir):
+    try:
+        from shared.simple_cache import get_openai_cache
+        
+        cache = get_openai_cache()
+        stats = cache.get_stats()
+        
+        return {
+            'cache_exists': True,
+            'cached_responses': stats.get('valid_files', 0),
+            'expired_files': stats.get('expired_files', 0),
+            'cache_size_mb': stats.get('total_size_mb', 0),
+            'cache_directory': stats.get('cache_dir', 'cache/openai'),
+            'message': f"OpenAI cache contains {stats.get('valid_files', 0)} responses ({stats.get('total_size_mb', 0):.2f} MB)"
+        }
+        
+    except Exception as e:
         return {
             'cache_exists': False,
             'cached_responses': 0,
             'cache_size_mb': 0,
-            'cache_directory': cache_dir,
-            'message': 'No OpenAI cache directory found'
+            'cache_directory': 'cache/openai',
+            'error': str(e),
+            'message': f'Error accessing OpenAI cache: {str(e)}'
         }
-    
-    try:
-        from shared.openai_cache import OpenAICache
-        
-        cache = OpenAICache()
-        stats = cache.get_cache_stats()
-        
-        return {
-            'cache_exists': True,
-            'cached_responses': stats.get('total_entries', 0),  # Fixed: was 'cached_queries'
-            'cache_size_mb': stats.get('cache_size_mb', 0),
-            'cache_directory': stats.get('cache_dir', '.openai_cache'),
-            'estimated_savings': stats.get('estimated_savings', 0),
-            'message': f"OpenAI cache contains {stats.get('total_entries', 0)} responses ({stats.get('cache_size_mb', 0):.2f} MB)"
-        }
-        
-    except Exception as e:
-        # Fallback to direct directory check
-        try:
-            # Count cache files (exclude info file)
-            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json') and f != '_cache_info.json']
-            files_count = len(cache_files)
-            
-            # Calculate total cache size
-            total_size = 0
-            for file in cache_files:
-                file_path = os.path.join(cache_dir, file)
-                total_size += os.path.getsize(file_path)
-            
-            size_mb = total_size / (1024 * 1024)  # Convert to MB
-            
-            return {
-                'cache_exists': True,
-                'cached_responses': files_count,
-                'cache_size_mb': round(size_mb, 2),
-                'cache_directory': cache_dir,
-                'estimated_savings': 0,  # Can't calculate without cache object
-                'message': f'OpenAI cache contains {files_count} responses ({size_mb:.2f} MB)'
-            }
-            
-        except Exception as fallback_error:
-            return {
-                'cache_exists': False,
-                'error': str(fallback_error),
-                'message': f'Error accessing OpenAI cache: {str(fallback_error)}'
-            }
 
 
 def clear_tavily_cache() -> Dict[str, Any]:
     """Clear the Tavily research cache"""
     try:
-        from shared.tavily_cache import get_tavily_cache
+        from shared.simple_cache import get_tavily_cache
         
         cache = get_tavily_cache()
+        cleared_count = cache.clear()
         
-        # Get initial stats
-        initial_stats = cache.get_cache_stats()
-        initial_files = initial_stats.get('total_cached_results', 0)
-        
-        # Clear expired cache first
-        expired_removed = cache.clear_expired_cache()
-        
-        # Clear all cache
-        cache_dir = "cache/tavily"
-        if os.path.exists(cache_dir):
-            shutil.rmtree(cache_dir)
-            
         return {
             'success': True,
-            'message': f'Successfully cleared Tavily cache - {initial_files} files removed',
-            'files_removed': initial_files,
-            'expired_removed': expired_removed
+            'message': f'Successfully cleared Tavily cache - {cleared_count} files removed',
+            'files_removed': cleared_count
         }
         
     except Exception as e:
-        # Fallback to direct directory removal
-        try:
-            cache_dir = "cache/tavily"
-            
-            if not os.path.exists(cache_dir):
-                return {
-                    'success': True,
-                    'message': 'Tavily cache directory does not exist - nothing to clear',
-                    'files_removed': 0
-                }
-            
-            # Count files before removal
-            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
-            files_count = len(cache_files)
-            
-            # Remove the entire cache directory
-            shutil.rmtree(cache_dir)
-            
-            return {
-                'success': True,
-                'message': f'Successfully cleared Tavily cache - {files_count} files removed',
-                'files_removed': files_count
-            }
-            
-        except Exception as fallback_error:
-            return {
-                'success': False,
-                'error': str(fallback_error),
-                'message': f'Failed to clear Tavily cache: {str(fallback_error)}',
-                'files_removed': 0
-            }
+        return {
+            'success': False,
+            'error': str(e),
+            'message': f'Failed to clear Tavily cache: {str(e)}',
+            'files_removed': 0
+        }
 
 
 def clear_openai_cache() -> Dict[str, Any]:
     """Clear the OpenAI cache"""
     try:
-        from shared.openai_cache import OpenAICache
+        from shared.simple_cache import get_openai_cache
         
-        cache = OpenAICache()
+        cache = get_openai_cache()
         cleared_count = cache.clear()
         
         return {
@@ -225,37 +122,12 @@ def clear_openai_cache() -> Dict[str, Any]:
         }
         
     except Exception as e:
-        # Fallback to direct directory removal
-        try:
-            cache_dir = ".openai_cache"
-            
-            if not os.path.exists(cache_dir):
-                return {
-                    'success': True,
-                    'message': 'OpenAI cache directory does not exist - nothing to clear',
-                    'responses_removed': 0
-                }
-            
-            # Count files before removal
-            cache_files = [f for f in os.listdir(cache_dir) if f.endswith('.json')]
-            files_count = len(cache_files)
-            
-            # Remove the entire cache directory
-            shutil.rmtree(cache_dir)
-            
-            return {
-                'success': True,
-                'message': f'Successfully cleared OpenAI cache - {files_count} responses removed',
-                'responses_removed': files_count
-            }
-            
-        except Exception as fallback_error:
-            return {
-                'success': False,
-                'error': str(fallback_error),
-                'message': f'Failed to clear OpenAI cache: {str(fallback_error)}',
-                'responses_removed': 0
-            }
+        return {
+            'success': False,
+            'error': str(e),
+            'message': f'Failed to clear OpenAI cache: {str(e)}',
+            'responses_removed': 0
+        }
 
 
 def clear_all_caches() -> Dict[str, Any]:

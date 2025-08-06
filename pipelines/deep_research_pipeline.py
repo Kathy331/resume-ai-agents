@@ -21,6 +21,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import research components
 from agents.research_engine.tavily_client import search_tavily, EnhancedTavilyClient
+from shared.simple_cache import cached_tavily_search
 
 
 class DeepResearchPipeline:
@@ -217,9 +218,9 @@ class DeepResearchPipeline:
             validation_log = []
             
             for query in identity_queries:
-                results = self.tavily_client.search_general(query, max_results=3)
-                identity_sources.extend(results.get('results', []))
-                print(f"      🔍 Query: '{query}' → {len(results.get('results', []))} sources")
+                results = cached_tavily_search(query, max_results=3)
+                identity_sources.extend(results)
+                print(f"      🔍 Query: '{query}' → {len(results)} sources")
             
             # Phase 2: Industry & Market Analysis
             print(f"   🔍 Phase 2: Industry & Market Analysis")
@@ -232,9 +233,9 @@ class DeepResearchPipeline:
             
             industry_sources = []
             for query in industry_queries:
-                results = self.tavily_client.search_general(query, max_results=3)
-                industry_sources.extend(results.get('results', []))
-                print(f"      🔍 Query: '{query}' → {len(results.get('results', []))} sources")
+                results = cached_tavily_search(query, max_results=3)
+                identity_sources.extend(results)
+                print(f"      🔍 Query: '{query}' → {len(results)} sources")
             
             # Enhanced validation with detailed reasoning
             all_sources = identity_sources + industry_sources
@@ -284,9 +285,9 @@ class DeepResearchPipeline:
             
             role_sources = []
             for query in role_queries:
-                results = self.tavily_client.search_general(query, max_results=3)
-                role_sources.extend(results.get('results', []))
-                print(f"      🔍 Query: '{query}' → {len(results.get('results', []))} sources")
+                results = cached_tavily_search(query, max_results=3)
+                role_sources.extend(results)
+                print(f"      🔍 Query: '{query}' → {len(results)} sources")
             
             # Phase 2: Skills & Market Analysis
             print(f"   🔍 Phase 2: Skills & Market Analysis")
@@ -299,9 +300,9 @@ class DeepResearchPipeline:
             
             skills_sources = []
             for query in skills_queries:
-                results = self.tavily_client.search_general(query, max_results=2)
-                skills_sources.extend(results.get('results', []))
-                print(f"      🔍 Query: '{query}' → {len(results.get('results', []))} sources")
+                results = cached_tavily_search(query, max_results=2)
+                skills_sources.extend(results)
+                print(f"      🔍 Query: '{query}' → {len(results)} sources")
             
             # Validate and process sources with detailed logging
             all_sources = role_sources + skills_sources
@@ -356,11 +357,11 @@ class DeepResearchPipeline:
             
             for query in linkedin_queries:
                 print(f"      🔍 LinkedIn Search: '{query}'")
-                results = self.tavily_client.search_general(query, max_results=4)
-                linkedin_sources.extend(results.get('results', []))
+                results = cached_tavily_search(query, max_results=4)
+                linkedin_sources.extend(results)
                 
                 # Count LinkedIn profiles with validation and name extraction
-                for result in results.get('results', []):
+                for result in results:
                     url = result.get('url', '').lower()
                     title = result.get('title', '')
                     content = result.get('content', '').lower()
@@ -396,9 +397,9 @@ class DeepResearchPipeline:
             
             background_sources = []
             for query in background_queries:
-                results = self.tavily_client.search_general(query, max_results=2)
-                background_sources.extend(results.get('results', []))
-                print(f"      🔍 Query: '{query}' → {len(results.get('results', []))} sources")
+                results = cached_tavily_search(query, max_results=2)
+                background_sources.extend(results)
+                print(f"      🔍 Query: '{query}' → {len(results)} sources")
             
             # Enhanced validation with detailed reasoning
             all_sources = linkedin_sources + background_sources
