@@ -184,6 +184,76 @@ def send_all_prep_guides_to_email(prep_guides: dict):
 
 def render_interview_prep():
     """Render the enhanced interview prep page with tabs"""
+    
+    # Add custom CSS for rounded tabs with proper styling
+    st.markdown("""
+    <style>
+    /* Tab container styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: transparent !important;
+        padding: 4px;
+    }
+    
+    /* Individual tab styling */
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        padding: 8px 20px !important;
+        border-radius: 12px !important;
+        background-color: #DDF1F6 !important;
+        color: #125584 !important;
+        border: 2px solid #125584 !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        transition: all 0.3s ease !important;
+        margin: 0 4px !important;
+        min-width: auto !important;
+        white-space: nowrap !important;
+    }
+    
+    /* Active/selected tab styling */
+    .stTabs [aria-selected="true"] {
+        background-color: #125584 !important;
+        color: white !important;
+        border: 2px solid #125584 !important;
+        box-shadow: 0 2px 8px rgba(18, 85, 132, 0.3) !important;
+    }
+    
+    /* Hover effect for inactive tabs */
+    .stTabs [data-baseweb="tab"]:hover:not([aria-selected="true"]) {
+        background-color: #FBA09F !important;
+        color: #125584 !important;
+        border: 2px solid #FBA09F !important;
+    }
+    
+    /* Tab content area */
+    .stTabs [data-baseweb="tab-panel"] {
+        padding: 20px 0 !important;
+        background-color: transparent !important;
+    }
+    
+    /* Ensure text inside tabs is properly styled */
+    .stTabs [data-baseweb="tab"] p,
+    .stTabs [data-baseweb="tab"] span,
+    .stTabs [data-baseweb="tab"] div {
+        color: inherit !important;
+        font-weight: inherit !important;
+    }
+    
+    /* Remove any underlines from tab text */
+    .stTabs [data-baseweb="tab"] {
+        text-decoration: none !important;
+    }
+    
+    /* Active tab text color override */
+    .stTabs [aria-selected="true"] p,
+    .stTabs [aria-selected="true"] span,
+    .stTabs [aria-selected="true"] div {
+        color: white !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     st.markdown("## 📚 Interview Prep AI")
     st.markdown("*Generate and manage personalized interview preparation guides*")
     
