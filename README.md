@@ -162,7 +162,7 @@ Ensure you have Python 3.10+
 
 5. Run the Streamlit app:
    ```bash
-   streamlit run ui/app.py
+   streamlit run ui/testui/app.py
    ```
 
 6. Optional: Use Docker for containerized deployment:

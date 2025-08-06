@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Enhanced Interview Prep Page - Multi-Tab Interface
-=================================================
+Enhanced Interview Prep Page - Multi-Tab Interface (Fixed)
+=========================================================
 
 Features:
-- Tabs for different emails/companies
+- Tabs for different emails/companies (cleared properly on cache clear)
+- Real email sending to authenticated user
 - Tab names as company names
 - Save Changes & Download per tab
 - Send 1 to Email / Send All to Email buttons
@@ -18,10 +19,7 @@ from pathlib import Path
 import glob
 import os
 from datetime import datetime
-
-# Import Gmail services for email sending
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from shared.google_oauth.dual_gmail_services import get_user_gmail_service, get_bot_gmail_service, check_gmail_authentication
+from shared.google_oauth.dual_gmail_services import get_bot_gmail_service
 
 def extract_prep_guide_template(full_content: str) -> str:
     """Extract only the interview prep requirements template from full content"""
@@ -107,25 +105,25 @@ def load_all_prep_guides() -> dict:
     
     return prep_guides
 
-def clear_cache_only():
-    """Clear OpenAI cache only and reset prep guides"""
+def clear_cache_and_guides():
+    """Clear OpenAI cache and completely remove all prep guides from session"""
     try:
         result = subprocess.run([
             sys.executable, "workflows/cache_manager.py", "--clear-openai"
         ], capture_output=True, text=True, cwd=Path.cwd())
         
         if result.returncode == 0:
-            # Clear session state to remove prep guides from display
-            if 'edited_guides' in st.session_state:
-                del st.session_state['edited_guides']
+            # Completely clear all session state related to prep guides
+            keys_to_remove = []
+            for key in st.session_state.keys():
+                if any(term in key.lower() for term in ['prep', 'guide', 'edited']):
+                    keys_to_remove.append(key)
             
-            # Also clear any other prep guide related session state
-            keys_to_remove = [key for key in st.session_state.keys() if 'prep_guide' in key.lower()]
             for key in keys_to_remove:
                 del st.session_state[key]
             
-            st.success("🧹 ✅ Cache cleared successfully! All prep guides removed from display.")
-            st.rerun()  # Refresh to update the interface
+            st.success("🧹 ✅ Cache cleared! All prep guides removed from display.")
+            st.rerun()
         else:
             st.error(f"❌ Failed to clear cache: {result.stderr}")
     except Exception as e:
@@ -139,7 +137,7 @@ def run_workflow_only():
             sys.executable,
             "workflows/interview_prep_workflow.py",
             "--folder", "demo",
-            "--max-emails", "5"  # Process multiple emails
+            "--max-emails", "5"
         ], capture_output=True, text=True, cwd=Path.cwd())
         
         if result.returncode == 0:
@@ -152,27 +150,20 @@ def run_workflow_only():
         st.error(f"❌ Error running workflow: {str(e)}")
         return False
 
-def send_prep_guide_to_email(company_name: str, content: str):
-    """Send a single prep guide to email using bot service with send permissions"""
+def send_single_guide_to_email(company_name: str, content: str):
+    """Send a single prep guide via Gmail bot service"""
     try:
-        # Use bot service which has send permissions
         bot_service = get_bot_gmail_service()
         if not bot_service:
-            st.error("❌ Bot email service not authenticated. Please run `python setup_bot_email.py` and choose option 2.")
+            st.error("❌ Bot email not authenticated. Run: python setup_bot_email.py")
             return
         
-        # Send to the authenticated user's email
         user_email = "liveinthemoment780@gmail.com"
-        
-        # Create email content
         subject = f"Interview Prep Guide - {company_name}"
-        body = f"""Hi!
+        
+        email_body = f"""Hi!
 
 Here's your personalized interview preparation guide for {company_name}:
-
-Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
----
 
 {content}
 
@@ -181,91 +172,82 @@ Best of luck with your interview!
 
 Sent by Resume AI Assistant"""
         
-        # Create message using bot service
+        # Create and send email
         import base64
         from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
         
-        message = MIMEText(body)
+        message = MIMEMultipart()
         message['to'] = user_email
         message['subject'] = subject
+        message.attach(MIMEText(email_body, 'plain'))
         
-        # Encode message
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        send_message = {'raw': raw_message}
         
-        # Send email using bot service (which has send permissions)
-        send_message = bot_service.users().messages().send(
-            userId='me',
-            body={'raw': raw_message}
-        ).execute()
+        result = bot_service.users().messages().send(userId='me', body=send_message).execute()
         
-        st.success(f"📧 ✅ {company_name} prep guide sent to {user_email}!")
-        
+        if result:
+            st.success(f"📧 ✅ {company_name} guide sent to {user_email}!")
+        else:
+            st.error("❌ Failed to send email")
+            
     except Exception as e:
-        st.error(f"❌ Error sending email: {str(e)}")
-        st.info("💡 Make sure bot email is authenticated with send permissions: python setup_bot_email.py (option 2)")
+        st.error(f"❌ Email error: {str(e)}")
 
-def send_all_prep_guides_to_email(prep_guides: dict):
-    """Send all prep guides to email using bot service with send permissions"""
+def send_all_guides_to_email(prep_guides: dict):
+    """Send all prep guides in one email"""
     try:
-        # Use bot service which has send permissions
         bot_service = get_bot_gmail_service()
         if not bot_service:
-            st.error("❌ Bot email service not authenticated. Please run `python setup_bot_email.py` and choose option 2.")
+            st.error("❌ Bot email not authenticated. Run: python setup_bot_email.py")
             return
         
-        # Send to the authenticated user's email
         user_email = "liveinthemoment780@gmail.com"
+        subject = f"All Interview Prep Guides ({len(prep_guides)} companies)"
         
-        # Combine all guides into one email
-        combined_content = f"Hi!\n\nHere are all your interview preparation guides:\n\n"
-        combined_content += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        combined_content = "Hi!\n\nHere are all your interview preparation guides:\n\n"
         
         for company_name, guide_data in prep_guides.items():
-            combined_content += f"## {company_name}\n\n"
-            combined_content += guide_data['content']
-            combined_content += "\n\n" + "="*80 + "\n\n"
+            combined_content += f"## {company_name}\n\n{guide_data['content']}\n\n{'='*50}\n\n"
         
         combined_content += "Best of luck with all your interviews!\n\nSent by Resume AI Assistant"
         
-        # Create email using bot service
+        # Create and send email
         import base64
         from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
         
-        subject = f"All Interview Prep Guides ({len(prep_guides)} companies)"
-        
-        message = MIMEText(combined_content)
+        message = MIMEMultipart()
         message['to'] = user_email
         message['subject'] = subject
+        message.attach(MIMEText(combined_content, 'plain'))
         
-        # Encode message
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        send_message = {'raw': raw_message}
         
-        # Send email using bot service (which has send permissions)
-        send_message = bot_service.users().messages().send(
-            userId='me',
-            body={'raw': raw_message}
-        ).execute()
+        result = bot_service.users().messages().send(userId='me', body=send_message).execute()
         
-        st.success(f"📧 ✅ All {len(prep_guides)} prep guides sent to {user_email}!")
-        
+        if result:
+            st.success(f"📧 ✅ All {len(prep_guides)} guides sent to {user_email}!")
+        else:
+            st.error("❌ Failed to send email")
+            
     except Exception as e:
-        st.error(f"❌ Error sending all guides: {str(e)}")
-        st.info("💡 Make sure bot email is authenticated with send permissions: python setup_bot_email.py (option 2)")
+        st.error(f"❌ Email error: {str(e)}")
 
 def render_interview_prep():
-    """Render the enhanced interview prep page with tabs"""
+    """Main render function with proper cache clearing and email sending"""
     
-    # Add custom CSS for rounded tabs with proper styling and hyperlinks
+    # Add CSS styling for tabs and links
     st.markdown("""
     <style>
-    /* Tab container styling */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background-color: transparent !important;
         padding: 4px;
     }
     
-    /* Individual tab styling */
     .stTabs [data-baseweb="tab"] {
         height: 50px;
         padding: 8px 20px !important;
@@ -277,11 +259,8 @@ def render_interview_prep():
         font-size: 14px !important;
         transition: all 0.3s ease !important;
         margin: 0 4px !important;
-        min-width: auto !important;
-        white-space: nowrap !important;
     }
     
-    /* Active/selected tab styling */
     .stTabs [aria-selected="true"] {
         background-color: #125584 !important;
         color: white !important;
@@ -289,62 +268,18 @@ def render_interview_prep():
         box-shadow: 0 2px 8px rgba(18, 85, 132, 0.3) !important;
     }
     
-    /* Hover effect for inactive tabs */
     .stTabs [data-baseweb="tab"]:hover:not([aria-selected="true"]) {
         background-color: #FBA09F !important;
         color: #125584 !important;
         border: 2px solid #FBA09F !important;
     }
     
-    /* Tab content area */
-    .stTabs [data-baseweb="tab-panel"] {
-        padding: 20px 0 !important;
-        background-color: transparent !important;
-    }
-    
-    /* Ensure text inside tabs is properly styled */
-    .stTabs [data-baseweb="tab"] p,
-    .stTabs [data-baseweb="tab"] span,
-    .stTabs [data-baseweb="tab"] div {
-        color: inherit !important;
-        font-weight: inherit !important;
-    }
-    
-    /* Remove any underlines from tab text */
-    .stTabs [data-baseweb="tab"] {
-        text-decoration: none !important;
-    }
-    
-    /* Active tab text color override */
-    .stTabs [aria-selected="true"] p,
-    .stTabs [aria-selected="true"] span,
-    .stTabs [aria-selected="true"] div {
-        color: white !important;
-    }
-    
-    /* Fix hyperlinks in text areas to be visible */
-    .stTextArea textarea {
-        line-height: 1.6 !important;
-    }
-    
-    /* Style for hyperlinks in markdown display */
     .stMarkdown a {
         color: #1f77b4 !important;
         text-decoration: underline !important;
     }
     
     .stMarkdown a:hover {
-        color: #0d5aa7 !important;
-        text-decoration: underline !important;
-    }
-    
-    /* Style hyperlinks in any content */
-    a {
-        color: #1f77b4 !important;
-        text-decoration: underline !important;
-    }
-    
-    a:hover {
         color: #0d5aa7 !important;
     }
     </style>
@@ -356,7 +291,7 @@ def render_interview_prep():
     # Authentication check
     st.info("📧 Make sure your Gmail is authenticated using `python setup_bot_email.py`")
     
-    # Control buttons section
+    # Control buttons
     st.markdown("### 🎛️ Controls")
     
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -370,43 +305,29 @@ def render_interview_prep():
     
     with col2:
         if st.button("🧹 Clear Cache", key="clear_cache"):
-            clear_cache_only()
+            clear_cache_and_guides()
     
     with col3:
         if st.button("🔄 Refresh", key="refresh"):
             st.rerun()
     
-    # Load all prep guides
+    # Load prep guides (will be empty if cache was cleared)
     prep_guides = load_all_prep_guides()
-    
-    # Check if session state has edited guides but no files exist (after cache clear)
-    if 'edited_guides' in st.session_state and not prep_guides:
-        # Clear session state if no files exist
-        del st.session_state.edited_guides
     
     if not prep_guides:
         st.info("👆 Click 'Generate Prep Guides' to create personalized guides from your emails")
         
-        # Show example
         st.markdown("#### 📖 Example Output:")
         st.code("""## 1. before interview
-
 - email mentions date options: Tuesday, August 6 or Wednesday, August 7
 - time: flexible between 10:00 a.m. and 4:00 p.m. (ET)
-- duration: 30 minutes
-- respond by end of day Friday, August 2 to confirm your time slot
-- format: virtual, zoom - test your zoom setup
 
 ## 2. interviewer background
-
 - rakesh gohel is a professional at juteq with expertise in AI
-- background: scaling with AI agents, cloud-native solutions focus
 - [rakesh gohel linkedin](https://ca.linkedin.com/in/rakeshgohel01)
 
 ## 3. company background
-
 - juteq is a technology company specializing in AI and cloud-native solutions
-- focuses on cloud-native innovation and DevOps solutions
 - [juteq linkedin](https://ca.linkedin.com/company/juteq)
 
 ... (sections 4-6 continue with specific technical prep, questions, etc.)
@@ -416,7 +337,6 @@ def render_interview_prep():
     # Display prep guides in tabs
     st.markdown("### 📋 Interview Prep Guides")
     
-    # Create tabs with company names
     company_names = list(prep_guides.keys())
     tabs = st.tabs([f"🏢 {name}" for name in company_names])
     
@@ -429,7 +349,7 @@ def render_interview_prep():
             st.markdown(f"#### {company_name}")
             st.caption(f"Last updated: {guide_data['last_modified'].strftime('%Y-%m-%d %H:%M:%S')}")
             
-            # Initialize edited content for this company if not exists
+            # Initialize edited content
             if company_name not in st.session_state.edited_guides:
                 st.session_state.edited_guides[company_name] = guide_data['content']
             
@@ -442,27 +362,24 @@ def render_interview_prep():
                 help="Edit the content as needed. Links will be clickable when downloaded."
             )
             
-            # Update session state when content changes
+            # Update session state
             st.session_state.edited_guides[company_name] = edited_content
             
-            # Show preview with clickable links
+            # Show link preview
             if "[" in edited_content and "](" in edited_content:
                 st.markdown("##### 🔗 Link Preview:")
-                # Convert markdown links to HTML for preview
                 import re
                 preview_content = edited_content
-                # Convert [text](url) to clickable links
                 link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
                 preview_content = re.sub(link_pattern, r'<a href="\2" target="_blank">\1</a>', preview_content)
                 
-                # Show first few lines with links
                 preview_lines = preview_content.split('\n')[:10]
                 for line in preview_lines:
                     if '<a href=' in line:
                         st.markdown(line, unsafe_allow_html=True)
                         break
             
-            # Action buttons for this tab
+            # Action buttons
             col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
             
             with col1:
@@ -480,14 +397,13 @@ def render_interview_prep():
                 )
             
             with col3:
-                if st.button("� Send to Email", key=f"send_{company_name}"):
-                    send_prep_guide_to_email(company_name, edited_content)
+                if st.button("📧 Send to Email", key=f"send_{company_name}"):
+                    send_single_guide_to_email(company_name, edited_content)
             
             with col4:
-                # Show file info
                 st.caption(f"📁 {Path(guide_data['file_path']).name}")
     
-    # Global action buttons
+    # Global actions
     if prep_guides:
         st.markdown("### 🌐 Global Actions")
         
@@ -495,16 +411,14 @@ def render_interview_prep():
         
         with col1:
             if st.button("📧 Send All to Email", key="send_all"):
-                # Use edited content from session state
                 guides_to_send = {}
                 for company_name in prep_guides.keys():
                     guides_to_send[company_name] = {
                         'content': st.session_state.edited_guides.get(company_name, prep_guides[company_name]['content'])
                     }
-                send_all_prep_guides_to_email(guides_to_send)
+                send_all_guides_to_email(guides_to_send)
         
         with col2:
-            # Show summary stats
             st.metric("Total Guides", len(prep_guides))
         
         with col3:
