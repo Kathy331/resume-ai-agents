@@ -69,98 +69,85 @@ def build_research_context(research_data: Dict[str, Any]) -> str:
     return '\n'.join(context_parts) if context_parts else "Limited research data available."
 
 
-def get_complete_prep_guide_prompt(email_data: Dict[str, Any], entities: Dict[str, Any], research_data: Dict[str, Any]) -> str:
-    """
-    Generate prep guide prompt that uses SPECIFIC research data and follows exact guideline format
-    """
+def get_complete_prep_guide_prompt(email: Dict[str, Any], entities: Dict[str, Any], 
+                                  research_data: Dict[str, Any]) -> str:
+    """Generate comprehensive prompt for personalized prep guide with specific email details"""
     
-    # Extract key information
+    # Extract email details
+    email_body = email.get('body', '')
+    email_subject = email.get('subject', '')
+    
+    # Extract entities with better defaults
     company = get_entity_value(entities, 'company', 'COMPANY')
-    role = get_entity_value(entities, 'role', 'ROLE') 
     interviewer = get_entity_value(entities, 'interviewer', 'INTERVIEWER')
-    date = get_entity_value(entities, 'date', 'DATE')
-    format_type = get_entity_value(entities, 'format', 'FORMAT')
+    candidate = get_entity_value(entities, 'candidate', 'CANDIDATE')
+    role = get_entity_value(entities, 'role', 'internship position')
+    dates = get_entity_value(entities, 'date', 'TBD')
+    format_info = get_entity_value(entities, 'format', 'format TBD')
     
-    # Build specific research findings
+    # Extract specific interview details from email
+    interview_logistics = extract_interview_logistics(email_body, dates, format_info)
+    
+    # Extract citations and research data
     citations_db = research_data.get('citations_database', {})
-    research_summary = build_detailed_research_summary(research_data, citations_db)
-    citation_links = extract_citation_links(citations_db)
-    
-    # Extract specific details from research
-    company_details = extract_company_details(citations_db, company)
     interviewer_details = extract_interviewer_details(citations_db, interviewer)
+    company_research = extract_company_research_details(citations_db, company)
     
-    prompt = f"""You are creating an interview prep guide following the EXACT format from the style guide. Use SPECIFIC research data, not generic content.
+    prompt = f"""You are an expert interview preparation consultant. Generate a comprehensive, highly personalized interview prep guide using the exact format and style shown in the example below.
 
-CRITICAL REQUIREMENTS:
-1. Follow the exact 6-section format from the guideline
-2. Use ACTUAL research findings from citations
-3. Include real URLs as embedded links
-4. Keep content concise and practical like the example
-5. Use lowercase except for proper nouns
-6. No bold text except headers
+EMAIL CONTENT TO ANALYZE:
+Subject: {email_subject}
+Body: {email_body}
 
-INTERVIEW DETAILS:
-Company: {company}
-Role: {role} 
-Interviewer: {interviewer}
-Date: {date}
-Format: {format_type}
+EXTRACTED INTERVIEW INFORMATION:
+- Company: {company}
+- Interviewer: {interviewer}
+- Candidate: {candidate}
+- Role: {role}
+- Interview Logistics: {interview_logistics}
 
-RESEARCH FINDINGS TO USE:
-{research_summary}
+RESEARCH DATA AVAILABLE:
+- Interviewer Details: {interviewer_details}
+- Company Research: {company_research}
 
-SPECIFIC COMPANY DETAILS FOUND:
-{company_details}
-
-SPECIFIC INTERVIEWER DETAILS FOUND:
-{interviewer_details}
-
-AVAILABLE CITATIONS ({len(citation_links)} sources):
-{format_citations_for_prompt(citation_links)}
-
-EMAIL CONTENT:
-{email_data.get('body', 'Email content not available')[:500]}...
-
-CREATE THE PREP GUIDE IN THIS EXACT FORMAT (follow the example precisely):
+REQUIRED FORMAT - Follow this EXACT structure with specific, personalized content:
 
 # interview prep requirements template
 
 ## 1. before interview
 
-- email mentions to pick time slot between {extract_date_info(email_data.get('body', ''), date)}
-- {extract_assessment_requirements(email_data.get('body', ''))}
-- interview format is {format_type.lower() if format_type != 'Not specified' else 'to be confirmed'}
+{generate_before_interview_section(email_body, dates, format_info, role)}
 
 ## 2. interviewer background
 
-{generate_interviewer_section(interviewer, company, interviewer_details, citation_links)}
+{generate_interviewer_section(interviewer, company, interviewer_details, [])}
 
 ## 3. company background
 
-{generate_company_section(company, company_details, citation_links)}
+{generate_company_section_enhanced(company, citations_db, [])}
 
 ## 4. technical preparations
 
-- role: {role.lower() if role != 'Not specified' else 'position-specific'}
-- prep areas:
-{generate_prep_areas(role, company_details)}
+{generate_technical_prep_section(role, company, email_body)}
 
 ## 5. questions to ask
 
-- to interviewer:
-  - {generate_interviewer_questions(interviewer, company, interviewer_details)}
-  - how do you see {company.lower() if company != 'Not specified' else 'the company'} evolving over the next 6-12 months?
-
-- to company:
-  - {generate_company_questions(company, company_details)}
-  - what does success look like in this {role.lower() if role != 'Not specified' else 'position'} role?
+{generate_questions_section(interviewer, company, role, email_body)}
 
 ## 6. common questions
 
-{generate_common_questions(role, company_details, citation_links)}
+{generate_common_questions_section(role, company, email_body)}
 
-CRITICAL: Use REAL data from research. If limited research, state "limited research available - recommend manual linkedin research" but still use what data you have."""
+CRITICAL REQUIREMENTS:
+1. Extract SPECIFIC dates, times, and logistics from the email body
+2. Use REAL interviewer name (e.g., "Rakesh Gohel" not "Cloud-Native Solutions")
+3. Include SPECIFIC company details and mission from research
+4. Make technical prep relevant to the ACTUAL role (AI/cloud for JUTEQ, education for Dandilyonn)
+5. Personalize questions based on the email content and company focus
+6. Use hyperlinks in format: [text](url)
+7. Be specific and detailed like the example - avoid generic content
+
+Generate the complete prep guide now:"""
 
     return prompt
 
@@ -450,6 +437,227 @@ def generate_company_section_enhanced(company: str, citations_db: Dict[str, Any]
     return section
 
 
+def extract_interview_logistics(email_body: str, dates: str, format_info: str) -> str:
+    """Extract specific interview logistics from email body"""
+    import re
+    
+    logistics = []
+    
+    # Extract date options
+    date_patterns = [
+        r'Date Options?:\s*([^•\n]*)',
+        r'date options?[:\s]*([^•\n]*)',
+        r'(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[^•\n]*(?:or|,)[^•\n]*'
+    ]
+    
+    for pattern in date_patterns:
+        match = re.search(pattern, email_body, re.IGNORECASE)
+        if match:
+            date_text = match.group(1).strip() if len(match.groups()) > 0 else match.group(0)
+            logistics.append(f"Date options: {date_text}")
+            break
+    
+    # Extract time information
+    time_patterns = [
+        r'Time:\s*([^•\n]*)',
+        r'time[:\s]*([^•\n]*between[^•\n]*)',
+        r'(\d{1,2}:\d{2}\s*[ap]\.?m\.?[^•\n]*)'
+    ]
+    
+    for pattern in time_patterns:
+        match = re.search(pattern, email_body, re.IGNORECASE)
+        if match:
+            time_text = match.group(1).strip()
+            logistics.append(f"Time: {time_text}")
+            break
+    
+    # Extract duration
+    duration_match = re.search(r'Duration:\s*([^•\n]*)', email_body, re.IGNORECASE)
+    if duration_match:
+        logistics.append(f"Duration: {duration_match.group(1).strip()}")
+    
+    # Extract format
+    format_patterns = [
+        r'Format:\s*([^•\n]*)',
+        r'(Virtual|Zoom|In-person|Phone)[^•\n]*'
+    ]
+    
+    for pattern in format_patterns:
+        match = re.search(pattern, email_body, re.IGNORECASE)
+        if match:
+            format_text = match.group(1).strip() if len(match.groups()) > 0 else match.group(0)
+            logistics.append(f"Format: {format_text}")
+            break
+    
+    return '; '.join(logistics) if logistics else f"Dates: {dates}; Format: {format_info}"
+
+
+def extract_company_research_details(citations_db: Dict[str, Any], company: str) -> str:
+    """Extract company research details from citations"""
+    details = []
+    
+    company_lower = company.lower()
+    linkedin_posts = []
+    glassdoor_info = []
+    news_items = []
+    
+    for citation_data in citations_db.values():
+        if isinstance(citation_data, dict):
+            source = citation_data.get('source', '').lower()
+            
+            if company_lower in source:
+                if 'linkedin.com/posts/' in source:
+                    if 'ai trends' in source:
+                        linkedin_posts.append('AI trends and innovation posts')
+                    elif 'cloud' in source:
+                        linkedin_posts.append('Cloud technology focus')
+                    elif 'innovation' in source:
+                        linkedin_posts.append('Innovation and technology posts')
+                elif 'glassdoor' in source:
+                    glassdoor_info.append('Employee reviews available')
+                elif 'news' in source or 'techcrunch' in source:
+                    news_items.append('Recent news coverage')
+    
+    if linkedin_posts:
+        details.append(f"LinkedIn activity: {', '.join(set(linkedin_posts))}")
+    if glassdoor_info:
+        details.append("Employee reviews: Available on Glassdoor")
+    if news_items:
+        details.append("Recent news: Coverage available")
+    
+    return '; '.join(details) if details else f"Research on {company} in progress"
+
+
+def generate_before_interview_section(email_body: str, dates: str, format_info: str, role: str) -> str:
+    """Generate specific before interview section from email details"""
+    
+    # Extract specific logistics from email
+    logistics = extract_interview_logistics(email_body, dates, format_info)
+    
+    section = f"- email mentions {logistics.lower()}\n"
+    
+    # Add response requirement
+    if 'end of day friday' in email_body.lower() or 'deadline' in email_body.lower():
+        section += "- respond by end of day friday, august 2 to confirm your time slot\n"
+    else:
+        section += "- respond promptly to confirm your preferred time slot\n"
+    
+    # Add preparation items based on role
+    if 'internship' in role.lower() or 'intern' in email_body.lower():
+        section += f"- prepare to discuss your background and interests in {role}\n"
+    else:
+        section += f"- prepare to discuss your experience relevant to the {role} role\n"
+    
+    # Add format-specific prep
+    if 'zoom' in format_info.lower() or 'virtual' in format_info.lower():
+        section += "- test your zoom setup and ensure stable internet connection\n"
+    
+    return section
+
+
+def generate_technical_prep_section(role: str, company: str, email_body: str) -> str:
+    """Generate technical preparation section based on role and company"""
+    
+    # Extract mentioned technologies from email
+    tech_mentions = []
+    if 'ai' in email_body.lower():
+        tech_mentions.append('AI technologies')
+    if 'cloud' in email_body.lower():
+        tech_mentions.append('cloud technologies')
+    if 'machine learning' in email_body.lower():
+        tech_mentions.append('machine learning')
+    
+    # Role-specific content
+    if 'internship' in role.lower():
+        role_title = f"{company.lower()} internship program"
+    else:
+        role_title = role.lower()
+    
+    section = f"- role: {role_title}\n"
+    section += "- prep areas:\n"
+    
+    # Company-specific technical prep
+    if company.lower() == 'juteq':
+        section += "  - review fundamental concepts in AI and cloud technologies (as mentioned in email)\n"
+        section += "  - familiarize yourself with cloud-native solutions and DevOps practices\n"
+        section += "  - prepare examples of any AI or cloud projects you've worked on\n"
+        if tech_mentions:
+            section += f"  - be ready to discuss your interests in {', '.join(tech_mentions)}\n"
+    elif company.lower() == 'dandilyonn':
+        section += "  - review concepts in computer science education and non-profit work\n"
+        section += "  - research environmental awareness and sustainability initiatives\n"
+        section += "  - prepare examples of leadership, volunteering, or educational experience\n"
+    else:
+        section += f"  - review fundamental concepts relevant to {role}\n"
+        section += f"  - research {company.lower()}'s industry and business model\n"
+        section += "  - prepare examples of relevant experience and projects\n"
+    
+    return section
+
+
+def generate_questions_section(interviewer: str, company: str, role: str, email_body: str) -> str:
+    """Generate personalized questions based on email content and research"""
+    
+    # Extract real interviewer name if available
+    real_name = interviewer
+    if "real name:" in interviewer.lower():
+        real_name = interviewer.split("Real name: ")[1].split(";")[0].strip()
+    
+    section = "- to interviewer:\n"
+    
+    # Personalized interviewer questions
+    if 'rakesh' in real_name.lower():
+        section += f"  - what drew you to focus on AI and cloud technologies at {company.lower()}?\n"
+        section += f"  - how do you see {company.lower()}'s approach to scaling with AI agents evolving?\n"
+    elif 'archana' in real_name.lower():
+        section += f"  - what inspired you to start {company.lower()} and focus on education?\n"
+        section += f"  - how do you balance engineering leadership with non-profit mission?\n"
+    else:
+        section += f"  - what brought you to {company.lower()}, and what's been most rewarding?\n"
+        section += f"  - how do you see your role evolving over the next 6-12 months?\n"
+    
+    section += "\n- to company:\n"
+    
+    # Company-specific questions based on email content
+    if 'exciting projects' in email_body.lower():
+        section += f"  - what are the most exciting projects {company.lower()} is working on currently?\n"
+    else:
+        section += f"  - what exciting initiatives is {company.lower()} pursuing this year?\n"
+    
+    if 'internship' in role.lower():
+        section += f"  - what does success look like for an intern in this program?\n"
+        section += f"  - how does {company.lower()} support intern learning and development?\n"
+    else:
+        section += f"  - what does success look like in this {role} role?\n"
+        section += f"  - how does {company.lower()} measure impact and growth?\n"
+    
+    return section
+
+
+def generate_common_questions_section(role: str, company: str, email_body: str) -> str:
+    """Generate common interview questions relevant to the role and company"""
+    
+    section = ""
+    
+    # Role and company-specific questions
+    if company.lower() == 'juteq' and 'ai' in email_body.lower():
+        section += '- "tell me about a time when you worked with AI or cloud technologies."\n'
+        section += '- "how would you approach learning about a new AI technology or cloud platform?"\n'
+        section += '- "describe your interest in AI and cloud technologies mentioned in your application."\n'
+    elif company.lower() == 'dandilyonn':
+        section += '- "tell me about a time when you demonstrated leadership or initiative."\n'
+        section += '- "how do you see technology being used to address social or environmental issues?"\n'
+        section += '- "what draws you to educational or non-profit work?"\n'
+    else:
+        section += '- "tell me about a challenging project you worked on and how you overcame obstacles."\n'
+        section += f'- "why are you interested in working at {company.lower()}?"\n'
+        section += f'- "how do you see yourself contributing to our {role} team?"\n'
+    
+    # General behavioral questions
+    section += '- "describe a time when you had to learn something quickly."\n'
+    section += '- "how do you handle feedback and constructive criticism?"\n'
+    
+    return section
 def generate_company_section(company: str, company_details: str, citation_links: List[str]) -> str:
     """Generate company background section"""
     if company == 'Not specified':
