@@ -182,8 +182,8 @@ def send_prep_guide_to_email(company_name: str, content: str):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interview Prep Guide</title>
 </head>
-<body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+<body style="margin: 0; padding: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
+    <div style="max-width: 95%; width: 100%; margin: 0 auto; background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #DDF1F6, #125584); padding: 30px; text-align: center; border: 3px solid #125584;">
@@ -311,8 +311,8 @@ def send_all_prep_guides_to_email(prep_guides: dict):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Interview Prep Guides</title>
 </head>
-<body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
-    <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+<body style="margin: 0; padding: 10px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5;">
+    <div style="max-width: 95%; width: 100%; margin: 0 auto; background-color: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #DDF1F6, #125584); padding: 30px; text-align: center; border: 3px solid #125584;">
