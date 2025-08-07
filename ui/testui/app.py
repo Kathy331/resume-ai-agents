@@ -590,7 +590,7 @@ def show_user_authentication_instructions():
 # Header
 col_logo, col_title = st.columns([1, 6])
 with col_logo:
-    st.image("ui/images/inky2.png", width=60)
+    st.image("ui/images/inky6.png", width=60)
 
 with col_title:
     st.markdown("""

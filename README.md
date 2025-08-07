@@ -9,7 +9,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/Kathy331/resume-ai-agents">
-    <img src="ui/images/Inky.png" alt="Logo" width="80" height="80">
+    <img src="ui/images/Inky6.png" alt="Logo" width="80" height="80">
   </a>
 
   <h3 align="center">InterviewPrep AI Agents</h3>
@@ -79,36 +79,28 @@ Resume AI Agents is a modular AI system designed to automate job search and appl
 
 #### AI & Machine Learning
 * ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat-square&logo=openai&logoColor=white) - GPT models for intelligent text processing and generation
-* ![LangGraph](https://img.shields.io/badge/LangGraph-1C3C3C?style=flat-square&logo=langchain&logoColor=white) - Workflow orchestration with state management and conditional routing
 * ![spaCy](https://img.shields.io/badge/spaCy-09A3D5?style=flat-square&logo=spacy&logoColor=white) - Named Entity Recognition for email parsing and resume analysis
 * ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikit-learn&logoColor=white) - Machine learning utilities and text classification
-* ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white) - LLM application framework
+* ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat-square&logo=langchain&logoColor=white) - LLM application framework 
 
 #### Frontend & Interface
 * ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat-square&logo=streamlit&logoColor=white) - Interactive web dashboard and user interface
 * ![Plotly](https://img.shields.io/badge/Plotly-3F4F75?style=flat-square&logo=plotly&logoColor=white) - Data visualizations and analytics charts
-* ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white) - Custom UI components and styling
 
 #### Backend & APIs
-* ![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white) - High-performance async web framework
 * ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) - Core backend language (3.10+)
 * ![SQLite](https://img.shields.io/badge/SQLite-07405E?style=flat-square&logo=sqlite&logoColor=white) - Interview data storage with deduplication
 * ![Pandas](https://img.shields.io/badge/Pandas-150458?style=flat-square&logo=pandas&logoColor=white) - Data manipulation and analysis
-* ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat-square&logo=openai&logoColor=white) - GPT models for intelligent text processing and generation
 * ![Tavily API](https://img.shields.io/badge/Tavily_API-FF6B6B?style=flat-square&logo=search&logoColor=white) - Web search and company/interviewer research intelligence
 * ![Google Gmail API](https://img.shields.io/badge/Gmail_API-EA4335?style=flat-square&logo=gmail&logoColor=white) - Email fetching and sending automation
+* ![Google OAuth](https://img.shields.io/badge/Google_OAuth-4285F4?style=flat-square&logo=google&logoColor=white) - Secure authentication and authorization
+* ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=flat-square&logo=pydantic&logoColor=white) - Data validation and settings management
+
+#### Concepts & Techniques
+* ![pytest](https://img.shields.io/badge/pytest-0A9EDC?style=flat-square&logo=pytest&logoColor=white) - Testing framework for unit tests and integration tests
 * ![RAG](https://img.shields.io/badge/RAG-1C3C3C?style=flat-square&logo=search&logoColor=white) - Retrieval-Augmented Generation for context enrichment
-* ![Citation Manager](https://img.shields.io/badge/Citation_Manager-009688?style=flat-square&logo=database&logoColor=white) - Source tracking and validation
 * ![Cache Manager](https://img.shields.io/badge/Cache_Manager-FFA500?style=flat-square&logo=memory&logoColor=white) - OpenAI API cache optimization and output file management
 
-#### Integrations & APIs
-* ![Google OAuth](https://img.shields.io/badge/Google_OAuth-4285F4?style=flat-square&logo=google&logoColor=white) - Secure authentication and authorization
-* ![LinkedIn](https://img.shields.io/badge/LinkedIn_API-0077B5?style=flat-square&logo=linkedin&logoColor=white) - Professional profile discovery and networking
-
-#### *Data & Storage
-* ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=flat-square&logo=pydantic&logoColor=white) - Data validation and settings management
-* ![JSON](https://img.shields.io/badge/JSON-000000?style=flat-square&logo=json&logoColor=white) - Structured data exchange and configuration
-* ![Vector Store](https://img.shields.io/badge/Vector_Store-FF69B4?style=flat-square&logo=database&logoColor=white) - Semantic search and document embeddings
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
