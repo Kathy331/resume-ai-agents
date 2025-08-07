@@ -124,21 +124,23 @@ async def test_resume_analyzer_with_keywords():
 
     print(f"Resume + keyword test output saved to: {output_path}")
 
-# TODO: Need to fix pdf file first
-# @pytest.mark.asyncio
-# async def test_pdf_resume_analysis():
-#     agent = ResumeAnalyzerAgent(config={})
-#     test_file_path = "tests/sample_data/sample_resume.pdf"
-#     assert os.path.exists(test_file_path), f"PDF resume not found: {test_file_path}"
+@pytest.mark.asyncio
+async def test_pdf_resume_analysis():
+    agent = ResumeAnalyzerAgent(config={})
+    test_file_path = "tests/sample_data/sample_resume.pdf"
+    assert os.path.exists(test_file_path), f"PDF resume not found: {test_file_path}"
 
-#     input_data = AgentInput(data={"file_path": test_file_path})
-#     result = await agent.execute(input_data)
+    input_data = AgentInput(data={"file_path": test_file_path})
+    result = await agent.execute(input_data)
 
-#     assert result.success, f"PDF analysis failed: {result.errors}"
-#     assert "raw_resume_text" in result.data
-#     assert "extracted_keywords" in result.data
+    assert result.success, f"PDF analysis failed: {result.errors}"
+    assert "chunks" in result.data
+    assert any("name" in chunk for chunk in result.data["chunks"]), "No name found in chunks"
+    assert any("skills" in chunk for chunk in result.data["chunks"]), "No skills found in chunks"
+    assert any("summary" in chunk for chunk in result.data["chunks"]), "No summary found in chunks"
+    assert any("education" in chunk for chunk in result.data["chunks"]), "No education found in chunks"
+    assert "extracted_keywords" in result.data
 
-# => TODO: fix
 @pytest.mark.asyncio
 async def test_docx_resume_analysis():
     agent = ResumeAnalyzerAgent(config={})
@@ -149,5 +151,9 @@ async def test_docx_resume_analysis():
     result = await agent.execute(input_data)
 
     assert result.success, f"DOCX analysis failed: {result.errors}"
-    assert "raw_resume_text" in result.data
+    assert "chunks" in result.data
+    assert any("name" in chunk for chunk in result.data["chunks"]), "No name found in chunks"
+    assert any("skills" in chunk for chunk in result.data["chunks"]), "No skills found in chunks"
+    assert any("summary" in chunk for chunk in result.data["chunks"]), "No summary found in chunks"
+    assert any("education" in chunk for chunk in result.data["chunks"]), "No education found in chunks"
     assert "extracted_keywords" in result.data

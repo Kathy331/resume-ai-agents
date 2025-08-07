@@ -9,7 +9,8 @@ from agents.keyword_extractor.agent import KeywordExtractorAgent
 
 from shared.llm_client import call_llm
 
-from langchain_community.document_loaders import PyPDFLoader, UnstructuredFileLoader, TextLoader
+from langchain_community.document_loaders import PyPDFLoader, TextLoader
+from langchain_unstructured import UnstructuredLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
 
@@ -77,7 +78,7 @@ class ResumeAnalyzerAgent(BaseAgent):
         elif file_ext == ".txt":
             loader = TextLoader(file_path)
         elif file_ext == ".docx":
-            loader = UnstructuredFileLoader(file_path)
+            loader = UnstructuredLoader(file_path)
         else:
             raise ValueError(f"Unsupported file format: {file_ext}")
 

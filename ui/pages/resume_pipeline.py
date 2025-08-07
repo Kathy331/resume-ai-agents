@@ -1,6 +1,10 @@
 import streamlit as st
+import tempfile
 import pandas as pd
 from datetime import datetime
+from agents.resume_analyzer.agent import ResumeAnalyzerAgent
+from agents.base_agent import AgentInput
+import asyncio
 import json
 
 def render_resume_pipeline():
@@ -20,34 +24,44 @@ def render_resume_pipeline():
             type=['pdf', 'docx', 'txt'],
             help="Supported formats: PDF, DOCX, TXT. Max size: 10MB"
         )
-        
         if uploaded_file is not None:
             st.success(f"✅ File uploaded: {uploaded_file.name}")
-            
             # File info
             file_details = {
                 "Filename": uploaded_file.name,
                 "File size": f"{uploaded_file.size / 1024:.1f} KB",
                 "File type": uploaded_file.type
             }
-            
-            st.json(file_details)
-            
-            # Processing button
-            if st.button("🔄 Process Resume", type="primary", use_container_width=True):
-                with st.spinner("Processing resume..."):
-                    # Mock processing
-                    progress_bar = st.progress(0)
-                    for i in range(100):
-                        progress_bar.progress(i + 1)
-                    
-                    st.success("✅ Resume processed successfully!")
-                    st.session_state['resume_processed'] = True
-                    st.session_state['resume_data'] = {
-                        "filename": uploaded_file.name,
-                        "processed_at": datetime.now().isoformat()
-                    }
-    
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
+                tmp_file.write(uploaded_file.read())
+                file_path = tmp_file.name
+        # Set up Agent
+        analyzer = ResumeAnalyzerAgent(config={})
+        input_data = AgentInput(data={"file_path": file_path})
+
+        if st.button("Analyze Resume"):
+            with st.spinner("Processing resume..."):
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(analyzer.execute(input_data))
+
+                if result.success:
+                    st.success("Analysis Complete!")
+                    # Store raw data in session state
+                    st.session_state["resume_analysis_result"] = result.data
+
+                    # TODO: delete later... Optionally display for debugging
+                    st.json(result.data) 
+                else:
+                    st.error(f"Error: {result.errors}")
+                
+                st.success("✅ Resume processed successfully!")
+                st.session_state['resume_processed'] = True
+                st.session_state['resume_data'] = {
+                    "filename": uploaded_file.name,
+                    "processed_at": datetime.now().isoformat()
+                }
+
     with upload_col2:
         st.markdown("**📋 Processing Steps**")
         
@@ -72,17 +86,20 @@ def render_resume_pipeline():
         
         # Tabs for different analysis views
         tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "🛠️ Skills", "💼 Experience", "🎓 Education"])
+
+        analysis_data = st.session_state.get("resume_analysis_result", {})
         
         with tab1:
             # Overview metrics
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.metric("📝 Total Sections", "6", help="Resume sections identified")
+                st.metric("📝 Total Sections", len(analysis_data.get("chunks", [])))
             with col2:
-                st.metric("🛠️ Skills Found", "23", delta="Technical + Soft skills")
+                st.metric("🛠️ Skills Found", len(analysis_data.get("extracted_keywords"., "").split(',')))
             with col3:
-                st.metric("💼 Work Experience", "4 positions", delta="8.5 years total")
+                st.metric("💼 Work Experience", len())
+                          #len(analysis_data.get("chunks", [])))
             with col4:
                 st.metric("🎓 Education", "2 degrees", delta="BS + MS")
             
