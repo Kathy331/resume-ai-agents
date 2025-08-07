@@ -176,14 +176,22 @@ def run_workflow_only():
 def send_prep_guide_to_email(company_name: str, content: str):
     """Send a single prep guide to email using bot service with professional styling"""
     try:
-        # Use bot service which has send permissions
-        bot_service = get_bot_gmail_service()
-        if not bot_service:
-            st.error("❌ Bot email service not authenticated. Please run `python setup_bot_email.py` and choose option 2.")
+        # Check authentication first
+        auth_status = check_gmail_authentication()
+        
+        if not auth_status.get('bot_authenticated', False):
+            st.error("❌ Bot Gmail not authenticated. Please run `python setup_bot_email.py` and choose option 2.")
+            st.info("💡 Make sure to authenticate the bot with full Gmail permissions including send scope.")
             return
         
-        # Send to the authenticated user's email
-        user_email = "liveinthemoment780@gmail.com"
+        # Use bot service which should have send permissions
+        bot_service = get_bot_gmail_service()
+        if not bot_service:
+            st.error("❌ Could not get bot Gmail service.")
+            return
+        
+        # Send to the authenticated user's email - get it from auth status
+        user_email = auth_status.get('user_email', 'liveinthemoment780@gmail.com')
         
         # Create styled HTML email content
         subject = f"🎯 Interview Prep Guide - {company_name}"
@@ -275,7 +283,17 @@ Best of luck with your interview!"""
         
     except Exception as e:
         st.error(f"❌ Error sending email: {str(e)}")
-        st.info("💡 Make sure bot email is authenticated with send permissions: python setup_bot_email.py (option 2)")
+        if "insufficient authentication scopes" in str(e).lower():
+            st.error("🔑 **Authentication Scope Issue**: The bot Gmail service needs broader permissions.")
+            st.info("""
+            **To fix this:**
+            1. Run `python setup_bot_email.py`
+            2. Choose option 5 (Clean Bot Token)
+            3. Then choose option 2 (Setup Bot Gmail Authentication)
+            4. Make sure to grant **all Gmail permissions** including send access
+            """)
+        else:
+            st.info("💡 Make sure bot email is authenticated with send permissions: python setup_bot_email.py (option 2)")
 
 def send_all_prep_guides_to_email(prep_guides: dict):
     """Send all prep guides to email using bot service with professional styling"""
