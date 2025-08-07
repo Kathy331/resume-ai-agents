@@ -115,6 +115,21 @@ def clear_cache_only():
         ], capture_output=True, text=True, cwd=Path.cwd())
         
         if result.returncode == 0:
+            # Clear outputs/fullworkflow folder
+            output_dir = Path("outputs/fullworkflow")
+            if output_dir.exists():
+                import shutil
+                try:
+                    # Remove all files in the directory
+                    for file_path in output_dir.glob("*"):
+                        if file_path.is_file():
+                            file_path.unlink()
+                        elif file_path.is_dir():
+                            shutil.rmtree(file_path)
+                    st.info("🗂️ Cleared outputs/fullworkflow folder")
+                except Exception as e:
+                    st.warning(f"⚠️ Could not clear outputs folder: {str(e)}")
+            
             # Clear ALL session state related to prep guides
             keys_to_clear = []
             for key in list(st.session_state.keys()):
@@ -128,7 +143,7 @@ def clear_cache_only():
             if hasattr(st.session_state, 'cached_prep_guides'):
                 del st.session_state.cached_prep_guides
             
-            st.success("🧹 ✅ Cache cleared successfully! All prep guides removed from display.")
+            st.success("🧹 ✅ Cache cleared successfully! All prep guides and output files removed.")
             st.rerun()  # Force complete refresh
         else:
             st.error(f"❌ Failed to clear cache: {result.stderr}")
