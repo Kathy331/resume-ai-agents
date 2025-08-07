@@ -12,11 +12,11 @@
     <img src="ui/images/Inky.png" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">Resume AI Agents</h3>
+  <h3 align="center">InterviewPrep AI Agents</h3>
 
   <p align="center">
-    A modular AI system that automates job search and application workflows using specialized agents.
-    Streamlines LinkedIn profile discovery, resume analysis, job matching, personalized emails, and calendar integration. All powered by a Streamlit dashboard.
+    A modular AI system that automates Interview preparation workflows using specialized agents.
+    Streamlines Interviewer's background discovery, Company finding, roles insights, all contributing to a comprehensive prep guide, display on Streamlit dashboard and choice to edit and send to your own email via Inky bot service.
     <br />
     <a href="https://github.com/Kathy331/resume-ai-agents"><strong>Explore the docs »</strong></a>
     <br />
