@@ -187,7 +187,7 @@ Ensure you have Python 3.10+
 <!-- USAGE -->
 ## Usage
 Once the app is running, you can:
-demo video with all features below: [link to demo video]
+<!-- demo video with all features below: [link to demo video] ##TODO: add link to demo video -->
 - **View the dashboard**: Access the Streamlit interface in your browser (usually at `http://localhost:8501`)
 - **Set up your bot email**: Authenticate with Gmail to enable sending emails directly from the app
 - **Generate prep guides**: Use the provided buttons to trigger different agents:
