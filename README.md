@@ -316,27 +316,27 @@ flowchart TB
 ```
 
 ---
-## Key Features Highlighted in This Flowchart
+### Key Features Highlighted in This Flowchart
 
-### **3-Pipeline Architecture**
+#### **3-Pipeline Architecture**
 - **Email Pipeline**: Classification, entity extraction, memory management
 - **Deep Research Pipeline**: Multi-agent research with Tavily API integration
 - **Prep Guide Pipeline**: Personalized guide generation with citations
 
-### **Cache Management Systems**
+#### **Cache Management Systems**
 - **Tavily Cache**: Research query caching for cost optimization (`cache/tavily/`)
 - **OpenAI Cache**: Response caching for guide generation (`.openai_cache/`)
 - **Cache Manager CLI**: Centralized cache monitoring and management (`workflows/cache_manager.py`)
 
-### **Memory Systems**
+#### **Memory Systems**
 - **Interview Store**: SQLite-based deduplication and status tracking
 - **Shared Memory**: Cross-agent context synchronization
 
-### **API Integrations**
+#### **API Integrations**
 - **Tavily API**: Web search and company intelligence (`api/run_tavily.py`)
 - **OpenAI API**: Guide generation and content creation (`shared/openai_cache.py`)
 
-### **Main Entry Points**
+#### **Main Entry Points**
 - **Interview Prep Workflow**: `workflows/interview_prep_workflow.py`
 - **Cache Manager**: `workflows/cache_manager.py --status`
 - **Workflow Runner**: `workflows/workflow_runner.py`
