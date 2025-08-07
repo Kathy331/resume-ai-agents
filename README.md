@@ -42,12 +42,10 @@
   <summary>Table of Contents</summary>
   <ol>
     <li>
-      <a href="#about-the-project">About The Project</a>
       <ul>
         <li><a href="#built-with">Built With</a></li>
       </ul>
     </li>
-    <li><a href="#features">Features</a></li>
     <li>
       <a href="#getting-started">Getting Started</a>
       <ul>
@@ -61,20 +59,7 @@
   </ol>
 </details>
 
-<!-- ABOUT THE PROJECT -->
-## About The Project
-
-Resume AI Agents is a modular AI system designed to automate job search and application workflows. It integrates seamlessly into a user friendly Streamlit interface and supports:
-
-- LinkedIn profile discovery and data extraction  
-- Resume to job semantic matching and skill extraction  
-- Personalized application emails matching user tone  
-- Job recommendations powered by deep learning models  
-- Calendar integration for interview scheduling  
-
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
+<!-- Built With -->
 ### Built With
 
 #### AI & Machine Learning
@@ -102,18 +87,6 @@ Resume AI Agents is a modular AI system designed to automate job search and appl
 * ![Cache Manager](https://img.shields.io/badge/Cache_Manager-FFA500?style=flat-square&logo=memory&logoColor=white) - OpenAI API cache optimization and output file management
 
 
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- FEATURES -->
-## Features
-
-- Modular AI agent design for extensibility  
-- Orchestrator pattern for flexible workflows  
-- Resume to job semantic matching with NLP  
-- Personalized email drafting to match user tone  
-- Streamlit dashboard for easy interaction  
-- Future ready for RAG (Retrieval-Augmented Generation) modules  
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
