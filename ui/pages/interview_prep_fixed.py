@@ -108,24 +108,28 @@ def load_all_prep_guides() -> dict:
     return prep_guides
 
 def clear_cache_only():
-    """Clear OpenAI cache only and reset prep guides"""
+    """Clear OpenAI cache only and reset prep guides completely"""
     try:
         result = subprocess.run([
             sys.executable, "workflows/cache_manager.py", "--clear-openai"
         ], capture_output=True, text=True, cwd=Path.cwd())
         
         if result.returncode == 0:
-            # Clear session state to remove prep guides from display
-            if 'edited_guides' in st.session_state:
-                del st.session_state['edited_guides']
+            # Clear ALL session state related to prep guides
+            keys_to_clear = []
+            for key in list(st.session_state.keys()):
+                if any(term in key.lower() for term in ['prep', 'guide', 'edited']):
+                    keys_to_clear.append(key)
             
-            # Also clear any other prep guide related session state
-            keys_to_remove = [key for key in st.session_state.keys() if 'prep_guide' in key.lower()]
-            for key in keys_to_remove:
+            for key in keys_to_clear:
                 del st.session_state[key]
             
+            # Also remove any cached file references
+            if hasattr(st.session_state, 'cached_prep_guides'):
+                del st.session_state.cached_prep_guides
+            
             st.success("🧹 ✅ Cache cleared successfully! All prep guides removed from display.")
-            st.rerun()  # Refresh to update the interface
+            st.rerun()  # Force complete refresh
         else:
             st.error(f"❌ Failed to clear cache: {result.stderr}")
     except Exception as e:
@@ -509,41 +513,39 @@ def render_interview_prep():
     # Load all prep guides
     prep_guides = load_all_prep_guides()
     
+    # Force clear display if cache was just cleared (check session state)
+    if 'cache_just_cleared' in st.session_state:
+        prep_guides = {}  # Override to show empty state
+        del st.session_state['cache_just_cleared']
+    
     # Check if session state has edited guides but no files exist (after cache clear)
     if 'edited_guides' in st.session_state and not prep_guides:
         # Clear session state if no files exist
         del st.session_state.edited_guides
     
     if not prep_guides:
-        st.info("👆 Click 'Generate Prep Guides' to create personalized guides from your emails")
+        # Show clean state before generation
+        st.markdown("### 🎯 Ready to Generate Interview Prep Guides")
         
-        # Show example
-        st.markdown("#### 📖 Example Output:")
-        st.code("""## 1. before interview
-
-- email mentions date options: Tuesday, August 6 or Wednesday, August 7
-- time: flexible between 10:00 a.m. and 4:00 p.m. (ET)
-- duration: 30 minutes
-- respond by end of day Friday, August 2 to confirm your time slot
-- format: virtual, zoom - test your zoom setup
-
-## 2. interviewer background
-
-- rakesh gohel is a professional at juteq with expertise in AI
-- background: scaling with AI agents, cloud-native solutions focus
-- [rakesh gohel linkedin](https://ca.linkedin.com/in/rakeshgohel01)
-
-## 3. company background
-
-- juteq is a technology company specializing in AI and cloud-native solutions
-- focuses on cloud-native innovation and DevOps solutions
-- [juteq linkedin](https://ca.linkedin.com/company/juteq)
-
-... (sections 4-6 continue with specific technical prep, questions, etc.)
-""", language="markdown")
-        return
-    
-    # Display prep guides in tabs
+        st.markdown("""
+        <div style="text-align: center; padding: 40px; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 10px; border: 2px dashed #125584; margin: 20px 0;">
+            <h3 style="color: #125584; margin-bottom: 20px;">📚 No Interview Prep Guides Available</h3>
+            <p style="color: #6c757d; font-size: 16px; margin-bottom: 30px;">Click the button above to generate personalized prep guides from your emails</p>
+            <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #125584; text-align: left; max-width: 500px; margin: 0 auto;">
+                <strong style="color: #125584;">What you'll get:</strong>
+                <ul style="color: #333; margin-top: 10px;">
+                    <li>📅 Interview scheduling details</li>
+                    <li>👤 Interviewer background research</li>
+                    <li>🏢 Company information and insights</li>
+                    <li>💼 Technical preparation requirements</li>
+                    <li>❓ Potential interview questions</li>
+                    <li>📝 Key talking points and tips</li>
+                </ul>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        return    # Display prep guides in tabs
     st.markdown("### 📋 Interview Prep Guides")
     
     # Create tabs with company names
