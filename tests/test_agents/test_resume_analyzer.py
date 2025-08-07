@@ -141,6 +141,14 @@ async def test_pdf_resume_analysis():
     assert any("education" in chunk for chunk in result.data["chunks"]), "No education found in chunks"
     assert "extracted_keywords" in result.data
 
+    # Save output for review
+    os.makedirs("outputs", exist_ok=True)
+    output_path = "outputs/test_resume_with_keywords_output_2.json"
+    with open(output_path, "w") as f:
+        json.dump(result.model_dump(), f, indent=2)
+
+    print(f"Resume + keyword test output saved to: {output_path}")
+
 @pytest.mark.asyncio
 async def test_docx_resume_analysis():
     agent = ResumeAnalyzerAgent(config={})
@@ -157,3 +165,11 @@ async def test_docx_resume_analysis():
     assert any("summary" in chunk for chunk in result.data["chunks"]), "No summary found in chunks"
     assert any("education" in chunk for chunk in result.data["chunks"]), "No education found in chunks"
     assert "extracted_keywords" in result.data
+
+    # Save output for review
+    os.makedirs("outputs", exist_ok=True)
+    output_path = "outputs/test_resume_with_keywords_output_3.json"
+    with open(output_path, "w") as f:
+        json.dump(result.model_dump(), f, indent=2)
+
+    print(f"Resume + keyword test output saved to: {output_path}")

@@ -7,6 +7,7 @@ from agents.base_agent import AgentInput
 import asyncio
 import json
 
+
 def render_resume_pipeline():
     """Render the resume processing pipeline page"""
     
@@ -35,32 +36,32 @@ def render_resume_pipeline():
             with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
                 tmp_file.write(uploaded_file.read())
                 file_path = tmp_file.name
-        # Set up Agent
-        analyzer = ResumeAnalyzerAgent(config={})
-        input_data = AgentInput(data={"file_path": file_path})
+            # Set up Agent
+            analyzer = ResumeAnalyzerAgent(config={})
+            input_data = AgentInput(data={"file_path": file_path})
 
-        if st.button("Analyze Resume"):
-            with st.spinner("Processing resume..."):
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                result = loop.run_until_complete(analyzer.execute(input_data))
+            if st.button("Analyze Resume"):
+                with st.spinner("Processing resume..."):
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    result = loop.run_until_complete(analyzer.execute(input_data))
 
-                if result.success:
-                    st.success("Analysis Complete!")
-                    # Store raw data in session state
-                    st.session_state["resume_analysis_result"] = result.data
+                    if result.success:
+                        st.success("Analysis Complete!")
+                        # Store raw data in session state
+                        st.session_state["resume_analysis_result"] = result.data
 
-                    # TODO: delete later... Optionally display for debugging
-                    st.json(result.data) 
-                else:
-                    st.error(f"Error: {result.errors}")
-                
-                st.success("✅ Resume processed successfully!")
-                st.session_state['resume_processed'] = True
-                st.session_state['resume_data'] = {
-                    "filename": uploaded_file.name,
-                    "processed_at": datetime.now().isoformat()
-                }
+                        # TODO: delete later... Optionally display for debugging
+                        st.json(result.data) 
+                    else:
+                        st.error(f"Error: {result.errors}")
+                    
+                    st.success("✅ Resume processed successfully!")
+                    st.session_state['resume_processed'] = True
+                    st.session_state['resume_data'] = {
+                        "filename": uploaded_file.name,
+                        "processed_at": datetime.now().isoformat()
+                    }
 
     with upload_col2:
         st.markdown("**📋 Processing Steps**")
@@ -92,16 +93,20 @@ def render_resume_pipeline():
         with tab1:
             # Overview metrics
             col1, col2, col3, col4 = st.columns(4)
+
+            chunks = analysis_data.get("chunks", [])
             
             with col1:
                 st.metric("📝 Total Sections", len(analysis_data.get("chunks", [])))
             with col2:
-                st.metric("🛠️ Skills Found", len(analysis_data.get("extracted_keywords"., "").split(',')))
+                keywords = analysis_data.get("extracted_keywords", "")
+                st.metric("🛠️ Skills Found", len([k.strip() for k in keywords.split(",") if k.strip()]))
             with col3:
-                st.metric("💼 Work Experience", len())
-                          #len(analysis_data.get("chunks", [])))
+                experience_count = sum(len(chunk.get("experience", [])) for chunk in chunks)
+                st.metric("💼 Work Experience", experience_count)
             with col4:
-                st.metric("🎓 Education", "2 degrees", delta="BS + MS")
+                education_count = sum(len(chunk.get("education", [])) for chunk in chunks)
+                st.metric("🎓 Education", education_count)
             
             # Resume quality score
             st.markdown("#### 🎯 Resume Quality Analysis")
@@ -118,162 +123,78 @@ def render_resume_pipeline():
                 st.progress(score / 100, text=f"{metric}: {score}/100")
         
         with tab2:
-            # Skills analysis
             st.markdown("#### 🛠️ Extracted Skills")
             
-            # Mock skills data
-            skills_data = {
-                "Technical Skills": [
-                    {"skill": "Python", "proficiency": "Expert", "years": 5, "frequency": 15},
-                    {"skill": "JavaScript", "proficiency": "Advanced", "years": 4, "frequency": 12},
-                    {"skill": "React", "proficiency": "Advanced", "years": 3, "frequency": 8},
-                    {"skill": "SQL", "proficiency": "Intermediate", "years": 3, "frequency": 10},
-                    {"skill": "AWS", "proficiency": "Intermediate", "years": 2, "frequency": 6}
-                ],
-                "Soft Skills": [
-                    {"skill": "Leadership", "evidence": "Led team of 5 developers", "context": "Software Team Lead"},
-                    {"skill": "Communication", "evidence": "Presented to C-level executives", "context": "Project Updates"},
-                    {"skill": "Problem Solving", "evidence": "Resolved critical production issues", "context": "DevOps Role"}
-                ]
-            }
-            
-            # Technical skills table
-            st.markdown("**🔧 Technical Skills**")
-            tech_df = pd.DataFrame(skills_data["Technical Skills"])
-            st.dataframe(tech_df, use_container_width=True, hide_index=True)
-            
-            # Soft skills
-            st.markdown("**🤝 Soft Skills**")
-            for skill in skills_data["Soft Skills"]:
-                st.markdown(f"""
-                <div style="
-                    padding: 0.75rem;
-                    margin-bottom: 0.5rem;
-                    border-left: 4px solid #3b82f6;
-                    background-color: #f8fafc;
-                    border-radius: 0 5px 5px 0;
-                ">
-                    <strong>{skill['skill']}</strong><br>
-                    <small><strong>Evidence:</strong> {skill['evidence']}</small><br>
-                    <small><strong>Context:</strong> {skill['context']}</small>
-                </div>
-                """, unsafe_allow_html=True)
+            for i, chunk in enumerate(chunks):
+                st.markdown(f"**Resume Chunk {i + 1} - {chunk.get('name', 'Unnamed')}**")
+                
+                skills = chunk.get("skills", [])
+                if skills and isinstance(skills[0], dict):  # Categorized
+                    for category_block in skills:
+                        category = category_block.get("category", "General")
+                        skills_list = category_block.get("skills", [])
+                        st.markdown(f"- **{category}**: {', '.join(skills_list)}")
+                elif skills:  # Flat skill list
+                    st.markdown(", ".join(skills))
+                else:
+                    st.markdown("_No skills found._")
         
         with tab3:
-            # Work experience timeline
             st.markdown("#### 💼 Work Experience Timeline")
             
-            experience_data = [
-                {
-                    "company": "Tech Corp",
-                    "role": "Senior Software Engineer",
-                    "duration": "2022 - Present",
-                    "description": "Led development of microservices architecture, managed team of 5",
-                    "achievements": ["Reduced deployment time by 60%", "Led 3 major product launches"],
-                    "technologies": ["Python", "Kubernetes", "AWS"]
-                },
-                {
-                    "company": "StartupXYZ",
-                    "role": "Full Stack Developer",
-                    "duration": "2020 - 2022",
-                    "description": "Built end-to-end web applications using modern tech stack",
-                    "achievements": ["Increased user engagement by 40%", "Implemented CI/CD pipeline"],
-                    "technologies": ["React", "Node.js", "MongoDB"]
-                },
-                {
-                    "company": "Consulting Firm",
-                    "role": "Software Developer",
-                    "duration": "2019 - 2020",
-                    "description": "Developed custom solutions for enterprise clients",
-                    "achievements": ["Delivered 5 client projects on time", "Improved code coverage to 85%"],
-                    "technologies": ["Java", "Spring Boot", "PostgreSQL"]
-                }
-            ]
-            
-            for exp in experience_data:
-                st.markdown(f"""
-                <div style="
-                    padding: 1rem;
-                    margin-bottom: 1rem;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 8px;
-                    background-color: white;
-                ">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-                        <div>
-                            <strong style="font-size: 1.1rem;">{exp['role']}</strong><br>
-                            <span style="color: #3b82f6; font-weight: 500;">{exp['company']}</span>
+            for i, chunk in enumerate(chunks):
+                for exp in chunk.get("experience", []):
+                    st.markdown(f"""
+                    <div style="
+                        padding: 1rem;
+                        margin-bottom: 1rem;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        background-color: white;
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                            <div>
+                                <strong style="font-size: 1.1rem;">{exp.get('title', 'Unknown Role')}</strong><br>
+                                <span style="color: #3b82f6; font-weight: 500;">{exp.get('company', '')}</span>
+                            </div>
+                            <span style="color: #6b7280; font-size: 0.9rem;">{exp.get('dates') or f"{exp.get('start_date', '')} – {exp.get('end_date', '')}"}</span>
                         </div>
-                        <span style="color: #6b7280; font-size: 0.9rem;">{exp['duration']}</span>
+                        
+                        <p style="margin: 0.5rem 0; color: #4b5563;">{exp.get('description', '')}</p>
+                        
+                        <div style="margin: 0.5rem 0;">
+                            <strong>Key Responsibilities:</strong>
+                            <ul style="margin: 0.25rem 0;">
+                                {''.join([f'<li>{resp}</li>' for resp in exp.get('responsibilities', [])])}
+                            </ul>
+                        </div>
                     </div>
-                    
-                    <p style="margin: 0.5rem 0; color: #4b5563;">{exp['description']}</p>
-                    
-                    <div style="margin: 0.5rem 0;">
-                        <strong>Key Achievements:</strong>
-                        <ul style="margin: 0.25rem 0;">
-                            {''.join([f'<li>{achievement}</li>' for achievement in exp['achievements']])}
-                        </ul>
-                    </div>
-                    
-                    <div style="margin-top: 0.5rem;">
-                        <strong>Technologies:</strong>
-                        {' '.join([f'<span style="background-color: #e0e7ff; color: #3730a3; padding: 0.2rem 0.5rem; border-radius: 10px; font-size: 0.8rem; margin-right: 0.25rem;">{tech}</span>' for tech in exp['technologies']])}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
         
         with tab4:
-            # Education details
             st.markdown("#### 🎓 Education Background")
             
-            education_data = [
-                {
-                    "degree": "Master of Science in Computer Science",
-                    "institution": "Stanford University",
-                    "year": "2019",
-                    "gpa": "3.8/4.0",
-                    "relevant_courses": ["Machine Learning", "Distributed Systems", "Algorithms"],
-                    "thesis": "Scalable Machine Learning Infrastructure"
-                },
-                {
-                    "degree": "Bachelor of Science in Software Engineering",
-                    "institution": "UC Berkeley",
-                    "year": "2017",
-                    "gpa": "3.6/4.0",
-                    "relevant_courses": ["Data Structures", "Software Design", "Database Systems"],
-                    "thesis": None
-                }
-            ]
-            
-            for edu in education_data:
-                st.markdown(f"""
-                <div style="
-                    padding: 1rem;
-                    margin-bottom: 1rem;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 8px;
-                    background-color: white;
-                ">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
-                        <div>
-                            <strong style="font-size: 1.1rem;">{edu['degree']}</strong><br>
-                            <span style="color: #3b82f6; font-weight: 500;">{edu['institution']}</span>
-                        </div>
-                        <div style="text-align: right; color: #6b7280; font-size: 0.9rem;">
-                            <div>{edu['year']}</div>
-                            <div>GPA: {edu['gpa']}</div>
+            for i, chunk in enumerate(chunks):
+                for edu in chunk.get("education", []):
+                    st.markdown(f"""
+                    <div style="
+                        padding: 1rem;
+                        margin-bottom: 1rem;
+                        border: 1px solid #e5e7eb;
+                        border-radius: 8px;
+                        background-color: white;
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                            <div>
+                                <strong style="font-size: 1.1rem;">{edu.get('degree', 'Degree')}</strong><br>
+                                <span style="color: #3b82f6; font-weight: 500;">{edu.get('institution', 'Institution')}</span>
+                            </div>
+                            <div style="text-align: right; color: #6b7280; font-size: 0.9rem;">
+                                <div>{edu.get('graduation_date', '')}</div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div style="margin: 0.5rem 0;">
-                        <strong>Relevant Courses:</strong><br>
-                        {', '.join(edu['relevant_courses'])}
-                    </div>
-                    
-                    {f'<div style="margin: 0.5rem 0;"><strong>Thesis:</strong> {edu["thesis"]}</div>' if edu['thesis'] else ''}
-                </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
     
     else:
         st.info("📤 Upload and process a resume to see analysis results")
