@@ -94,11 +94,15 @@ Resume AI Agents is a modular AI system designed to automate job search and appl
 * ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) - Core backend language (3.10+)
 * ![SQLite](https://img.shields.io/badge/SQLite-07405E?style=flat-square&logo=sqlite&logoColor=white) - Interview data storage with deduplication
 * ![Pandas](https://img.shields.io/badge/Pandas-150458?style=flat-square&logo=pandas&logoColor=white) - Data manipulation and analysis
+* ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat-square&logo=openai&logoColor=white) - GPT models for intelligent text processing and generation
+* ![Tavily API](https://img.shields.io/badge/Tavily_API-FF6B6B?style=flat-square&logo=search&logoColor=white) - Web search and company/interviewer research intelligence
+* ![Google Gmail API](https://img.shields.io/badge/Gmail_API-EA4335?style=flat-square&logo=gmail&logoColor=white) - Email fetching and sending automation
+* ![RAG](https://img.shields.io/badge/RAG-1C3C3C?style=flat-square&logo=search&logoColor=white) - Retrieval-Augmented Generation for context enrichment
+* ![Citation Manager](https://img.shields.io/badge/Citation_Manager-009688?style=flat-square&logo=database&logoColor=white) - Source tracking and validation
+* ![Cache Manager](https://img.shields.io/badge/Cache_Manager-FFA500?style=flat-square&logo=memory&logoColor=white) - OpenAI API cache optimization and output file management
 
 #### Integrations & APIs
-* ![Gmail API](https://img.shields.io/badge/Gmail_API-EA4335?style=flat-square&logo=gmail&logoColor=white) - Email fetching and processing automation
 * ![Google OAuth](https://img.shields.io/badge/Google_OAuth-4285F4?style=flat-square&logo=google&logoColor=white) - Secure authentication and authorization
-* ![Tavily API](https://img.shields.io/badge/Tavily_API-FF6B6B?style=flat-square&logo=search&logoColor=white) - Web search and company research intelligence
 * ![LinkedIn](https://img.shields.io/badge/LinkedIn_API-0077B5?style=flat-square&logo=linkedin&logoColor=white) - Professional profile discovery and networking
 
 #### *Data & Storage
@@ -155,22 +159,25 @@ Ensure you have Python 3.10+
 4. Copy .env.example to .env and fill in your:
     - OpenAI API Key (create one here: https://platform.openai.com/api-keys)
     - Tavily API Key (create one here: https://www.tavily.com/)
-    - Google API credentials 
+    - Google API credentials JSON file (create one here: https://cloud.google.com/docs/authentication/getting-started) or contact any of the developers to get the secret file
    ```bash
     cp .env.example .env
    ``` 
+5. Set up bot email credentials:
+   - Follow the instructions in `setup_bot_email.py` to authenticate with Gmail API
+   - Ensure you have the `google_oauth` folder with your credentials JSON file
 
-5. Run the Streamlit app:
+6. Run the Streamlit app:
    ```bash
    streamlit run ui/testui/app.py
    ```
 
-6. Optional: Use Docker for containerized deployment:
+7. Optional: Use Docker for containerized deployment:
     Download Docker for Mac or Windows: https://www.docker.com/  
    ```bash
    docker compose up --build 
    ```
-7. Testing:
+8. Testing:
     to run all test you could run: 
     ```bash
     pytest
@@ -181,10 +188,6 @@ Ensure you have Python 3.10+
     ```
     there will be an `outputs` file generated for you to better see your test results 
 
-8. Get Secret File: 
-
-    In order to run Google API functions, you must have a secret json file inside the `google_oauth` file.
-    To get this file, please contact any of the developers!
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

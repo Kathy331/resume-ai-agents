@@ -14,25 +14,39 @@ The system consists of **three core pipelines** that work together to provide co
 
 ## System Architecture Overview
 
-The system follows a **sequential pipeline architecture** with the Interview Prep Workflow as the main entry point:
+## Components
+- **Streamlit UI:**
+  - Multi-tab dashboard for guide management, editing, and email sending
+- **Workflow Orchestrator:**
+  - Main entry: `workflows/interview_prep_workflow.py`
+  - Handles email fetching, pipeline execution, output file generation
+- **Email Pipeline:**
+  - Classification, entity extraction, memory check
+- **Deep Research Pipeline:**
+  - Multi-agent research using Tavily API
+  - RAG (Retrieval-Augmented Generation) for context enrichment
+  - Citation manager for source tracking
+- **Prep Guide Generator:**
+  - Uses OpenAI GPT for personalized guide synthesis
+  - Incorporates citations and research findings
+- **Cache Manager:**
+  - Handles OpenAI cache and output file cleanup
 
-```
-� Interview Prep Workflow Entry Point
-          ↓
-📬 Email Classification (Interview vs Personal vs Other)
-          ↓ (if Interview Email)
-🔍 Entity Extraction + Memory Check (Company, Role, Interviewer)
-          ↓ (if Not Already Processed)
-🔬 Deep Research Pipeline (Parallel Multi-agent Research)
-          ↓
-🤔 Research Quality Reflection (Adequacy Check)
-          ↓
-📚 Prep Guide Pipeline (Personalized Guide Generation)
-          ↓
-📁 Individual Output Storage (outputs/fullworkflow/[company_name].md)
-```
 
-Each email is processed individually through the complete pipeline, ensuring personalized and focused preparation materials.
+## Data Flow
+1. Gmail API → Email Pipeline → Entity Extraction → Deep Research → Reflection → Prep Guide → Output Files → UI
+
+## Output
+- Guides saved to `outputs/fullworkflow/`
+- HTML guides for UI/email in `outputs/ui/`
+
+## Orchestration
+- All agents are modular and can be extended
+- Workflow is fully automated from email to guide
+
+## Notes
+- All cache and output cleanup is handled via UI and `cache_manager.py`
+- All guides are citation-backed and validated
 
 ---
 
@@ -78,8 +92,34 @@ Entity Data → Research Coordination → Parallel API Calls → Cache Integrati
 ```
 
 **Input:** Structured entity data from Email Pipeline  
-**Output:** Comprehensive research data with citations for prep guide generation
+**Output Categories:**
+- **Company Strategy & Vision**: Strategic insights and forward-looking questions
+- **Role-Specific & Technical**: Position-focused and technical competency questions
+- **Behavioral & Cultural**: Culture fit and experience-based behavioral questions
+- **Strategic & Forward-Looking**: Industry trends and future-oriented discussions
 
+#### Advanced AI Techniques:
+- **Chain-of-Thought Reasoning**: Structured analytical process for context comprehension
+- **Few-Shot Prompting**: Consistent output structure across different interview contexts
+- **Template-Based Generation**: Domain-specific question templates with dynamic customization
+- **Multi-Agent Coordination**: Specialized task distribution for optimized performance
+
+#### Processing Flow:
+```
+Research Context Input → Context Decomposer (CoT Analysis) → Question Generator (Multi-Domain) → 
+Prep Summarizer (Package Assembly) → Strategic Interview Preparation Package
+```
+
+#### Integration Points:
+- **Workflow Runner**: Primary orchestration through `deep_research_pipeline.py`
+- **Research Engine**: Consumes multi-source company and role intelligence
+- **Email Pipeline**: Triggered by interview invitation classification
+- **Memory Systems**: Stores preparation packages and tracks interview outcomes
+
+#### Performance Characteristics:
+- Generates 12-16 strategic questions per interview context
+- Context-aware question prioritization and strategic recommendation generation
+- Quality assessment with relevance scoring and strategic value evaluation
 ---
 
 ### 3. **Prep Guide Pipeline** 📚
@@ -114,193 +154,6 @@ Application Drafting → Human Review → Delivery + Follow-Up Tracking
 
 ---
 
-### 2. **Resume Processing Pipeline** 📄
-
-**Purpose:** Extract meaningful career insights from any document format into actionable structured data.
-
-**Key Components:**
-
-- **Resume Uploader**: Supports PDF, DOCX, Notion imports
-- **NER-Based Parser**: Temporal hierarchy extraction + concept tagging
-- **Semantic Matching Engine**: Aligns resume experiences with job schema templates
-- **Experience Timeline Builder**: Constructs time-framed summaries for reference in outbound messages or self-assessment answers
-
-**Data Flow:**
-```
-Document Parsing → NER Processing → Structured Database Entry → Knowledge Management Portal
-```
-
-**Key Outputs:**
-- Career timeline timelines as JSON documents
-- Skills indexed in searchable formats (topic clusters or vectors)
-- Experience details primed for alignment with role expectations
-
-This pipeline is foundational in enabling smart interview prep generation and application targeting decisions.
-
----
-
-### 3. **Email AI Agent Pipeline** 📧
-
-**Purpose:** Classify and respond intelligently to inbound communication based on intent and sender context.
-
-**Core Components:**
-
-#### Trigger Mechanism:
-- Gmail API polling or label watching (e.g., "InterviewPrep")
-- Real-time inbox sync or background scanning
-
-#### Core Logic Nodes:
-- **Orchestrator**: LangGraph-powered coordinator routing classified emails
-- **EmailClassifierAgent**: 
-  - **Production-ready** intelligent email classification
-  - **Interview Detection**: Advanced pattern matching for interview invitations, scheduling, confirmations
-  - **Personal Email Recognition**: Identifies user-sent emails when user_email provided
-  - **Fallback Support**: Graceful degradation to rule-based classification if agent fails
-  - **Integration**: Fully integrated into `workflows/email_pipeline.py` and orchestration layer
-
-#### Personalization Layers:
-- **Vector Store Ingest**: Analyzes user writing style and thematic elements
-- **RAG-based Writer Agent**: Generates tonally aligned replies drawing on templates and LLM creativity
-- **Reflection System**: Self-modification after feedback triggers or manual adjustments
-
-**Process Example:**
-```
-Inbox Signal → Gmail Fetch → Classification Module → 
-Routing to Respective Agent (Interview Helper / Response Engine) → 
-Auto-replies / Prep Package Saved Locally
-```
-
-Premise is minimal friction in user interaction while maximizing contextual fidelity in auto-generated replies.
-
----
-
-### 4. **Research Engine & Question Generator Suite** 🔬 ❓
-
-**Purpose:** Aggregate company, role, and person-specific intelligence across web sources to generate personalized interview recommendations and proactive prep strategies.
-
-#### Research Streams:
-- **Company**: Recent news, leadership statements, financials, culture trends
-- **Interviewer**: Background checks via social media, publications, and past company pivots
-- **Role**: Industry benchmarks, core skills, automation risk profile, scope updates
-
-#### Multi-Domain Question Creation Framework:
-1. **Star-Specific Behaviors**: Mapped directly from extracted experiences
-2. **Strategic Inquiry Themes**:
-   - Financial outlook, DEI status, product roadmap issues (company-related)
-   - Background-related probes, advanced-topic dialogs (person-level)
-   - Future growth discussions, performance measure queries (position-focused)
-
-**Aggregation Node:**
-- Combines all sources of study into one-manual digest for last-minute preview and execution planning
-    
-**Output Example**: 
-```json
-{
-  "company_name": "AcmeCorp",
-  "research_date": "...",
-  "topics": [
-    { "insight": "Secured funding to expand AI unit" },
-    { "talking_point": "How does your focus in algorithms relate?" }
-  ],
-  ...other blocks...
-}
-```
-
-Supports not only preparation but also situational awareness for accurate, confident responses.
-
----
-
-### 5. **Interview Processing Flow** 🎯
-
-**Purpose:** Scanner + Templater fusion to initialize factual capture from email invites and integrate outcome prompts post-conversation.
-
-#### Pipeline Stages:
-
-1. **Entity Extraction Node**: Uses hybrid extraction and OCR methods to pull:
-
-   - Company name
-   - All interviewer names
-   - Title reference
-   - Slot times (to sync with calendar integrations)
-   
-   Processes both explicit request text and referenced documents if attached directly.
-
-2. **Post-duplication Filtering**:
-   Polls local database for existing entries where hashed identifiers match prior communications. If repeat case detected:
-
-   - Applies simple deduplication flag 
-   - Recommends suppression or adjustment navigation
-
-3. **Local Store Logger**:
-   Mechanism to record conversation outcomes along with:
-
-   - Sentiment tags
-   - Idea transfer acceptance/rejection rate
-   - Quality of question performance from identified rodlists
-
-4. **Research Initiation Bridge**:
-   Calls multiple parallel requests through standard research agents (previously explained).
-
-5. **Question Formulation Loop**:
-   After collective research completion, at least four types of cues are interlaced using dynamic prompting templates via LLM:
-
-   - Company-Centric
-   - Person-Centric
-   - Role-Level
-   - Standard Set (STAR-based toolkit)
-
-6. **Final Output Node**:
-   Consolidated resource package containing:
-   - Full intel summary doc
-   - Compiled questions separated into deeper chunks (by concern domain)
-   - Interview cards offering flashcard-style rehearsal semantics
-
-All designed to enhance ecosystemically managed readiness rather than temporary per-perception tactics.
-
----
-
-### 6. **Deep Research Pipeline** 🤖
-
-**Purpose:** Advanced interview preparation through multi-agent intelligence analysis, providing strategic question generation and comprehensive preparation packages.
-
-**Core Architecture:** Multi-agent research coordination system with specialized agents for company research, role analysis, and interview preparation guide generation.
-
-#### Key Components:
-
-**Research Coordination Agents:**
-- **Company Researcher**: Deep company intelligence and culture analysis
-- **Role Analyzer**: Position requirements and skill matching analysis  
-- **Interview Guide Generator**: Comprehensive preparation package assembly with strategic insights
-
-#### Advanced AI Techniques:
-- **Chain-of-Thought Reasoning**: Structured analytical process for context comprehension
-- **Few-Shot Prompting**: Consistent output structure across different interview contexts
-- **Template-Based Generation**: Domain-specific question templates with dynamic customization
-- **Multi-Agent Coordination**: Specialized task distribution for optimized performance
-
-#### Processing Flow:
-```
-Research Context Input → Context Decomposer (CoT Analysis) → Question Generator (Multi-Domain) → 
-Prep Summarizer (Package Assembly) → Strategic Interview Preparation Package
-```
-
-#### Output Categories:
-- **Company Strategy & Vision**: Strategic insights and forward-looking questions
-- **Role-Specific & Technical**: Position-focused and technical competency questions
-- **Behavioral & Cultural**: Culture fit and experience-based behavioral questions
-- **Strategic & Forward-Looking**: Industry trends and future-oriented discussions
-
-#### Integration Points:
-- **Workflow Runner**: Primary orchestration through `deep_research_pipeline.py`
-- **Research Engine**: Consumes multi-source company and role intelligence
-- **Email Pipeline**: Triggered by interview invitation classification
-- **Memory Systems**: Stores preparation packages and tracks interview outcomes
-
-#### Performance Characteristics:
-- Generates 12-16 strategic questions per interview context
-- Differentiates strategy based on company characteristics (e.g., sustainability vs. tech focus)
-- Context-aware question prioritization and strategic recommendation generation
-- Quality assessment with relevance scoring and strategic value evaluation
 
 **Data Flow Example:**
 ```
@@ -324,30 +177,14 @@ This pipeline represents the most advanced component of the system, utilizing cu
 - **Interview History Logs**: Recursive events noting topics addressed previously alongside reflection markers or response tone drift tracking
 - **Vector Cache Stack**: Pre-filled areas storing common expression patterns pulled from resolved historical outputs
 
-This allows systems to build proficiency organically as it receives continuous signals from developers and users like yourself!
-
-### 🌉 Contextual Messaging Belt:
-
-Purpose: Acts as an API layer between subsystems, translating outputs from one component into inputs for another, maintaining data consistency.
-
-**Facilitates:**
-- Receipt from social identity generator to textual relay nodes within application drafts and cold starter chains.
-- Use of historical context to pre-fill likely next-step responses during feedback sequences
-- user centric prompt derivation from role level criteria aligned with current openings offered or resume-derived stepladders.
-
-Set up approximates relay point jumpers with defined priority trails of term usage depending upon receiving component's goal — opening angle development vs. tone mimicry in sensible contexts.
 
 ### 🔄 Feedback Loop Controller:
-
 **Purpose:** Retro-influences agent behavior, questions quality, and reinforcement criteria based on outcome markers gathered automagically.
-
 **Feedback Metrics Tracked:**
 - Reply success/neglect ratios within interpersonal dialog modules
 - Performance scores tagged to items presented in interview matrices
 - Proactive research accuracy level testing via attitude-embedded sample quoting tags
 - Response rate increases and delays observed in consecutive rounds of scheduled messaging
-
-Such insights ultimately redirect ongoing training validations toward refined linguistic vector directions and internal fidelity settings.
 
 ---
 
@@ -364,16 +201,6 @@ Such insights ultimately redirect ongoing training validations toward refined li
 | Email I/O Management         | Gmail Unified Messaging Interface|
 | Calendar Coordination        | Google & Microsoft Outlook SDK |
 
-### Security Posture:
-- Opaque reverse proxy separation maintained between personal identity modules and exposed public agent nodes
-- On-device classification of sensitive messages such that only output summaries propagate beyond sandboxed compute paths
-- Two-tiered access management — entry request disambiguator codes
-
-### Accessibility Controls:
-- Configurable level profiles tailored to individual comfort (candidate-assistant mode to recruiter-aware boilerplate builder flow)
-- Stepwise controls embedded natively into each intent pipe allowing throttling or full trial reviews under certain thresholds
-
-With this layered security, it provides customized transparency balances while operating under identical foundational design withdrawn behind umbrella sandbox protection.
 
 ---
 
@@ -426,6 +253,31 @@ Defined modularly where behaviors like tone norms, language preferences, and pre
 ---
 
 ## Example Use Cases
+### 1. **Smart Interview Prep Sheet Making**
+```
+Received Interview Invitation Email via Inbox Monitor →
+Pulled Through Orchestrator Agent Pipe (via Shared Context Stop Point) →
+Parsed Subject Line & Embedded Calendar Elements for Entity Tags →
+Checked Against Internal Archive First for Repetition Indicators →
+If Fresh Request Collected, Be Ready Request Initiated to Company/Person/Role Analyses Schemes →
+Extract Final Results Then Feed Into Tailored Question Builder System →
+Create Custom Prep Card ->
+Save to Output Directory with Citation References →
+Send Notification to User via Streamlit UI or Email
+```
+
+
+---
+
+## Future Enhancement Roadmap
+
+| Area                             | Description                                           | ETA         |
+|----------------------------------|-------------------------------------------------------|-------------|
+| Auto Job Matching                | Machine Learning Model for Role Accuracy Matching     |  TBD  |
+| Enhanced Persona Embedding       | Fine-tuned end-to-end aliased aliases per country/culture|  TBD |
+| Full CRM Integration             | Connect LinkedIn Sales Navigator/Data unlock paths    |  TBD   |
+| Analytics Dashboard Expansion    | Show performance scorecards with analytics visualizations| TBD |
+| Voice-to-Text Module             | Interview practice spoken optimum extracting assist config| TBD       |
 
 ### 1. **Automated Cold Outreach Campaign**
 ```
@@ -439,19 +291,7 @@ Delivered by Calendarropriate Sending Time →
 Post-viewing Trigger Starts Enrichment Updates Based on Response Percolation
 ```
 
-### 2. **Smart Interview Prep Sheet Making**
-```
-Received Interview Invitation Email via Inbox Monitor →
-Pulled Through Orchestrator Agent Pipe (via Shared Context Stop Point) →
-Parsed Subject Line & Embedded Calendar Elements for Entity Tags →
-Checked Against Internal Archive First for Repetition Indicators →
-If Fresh Request Collected, Be Ready Request Initiated to Company/Person/Role Analyses Schemes →
-Extract Final Results Then Feed Into Tailored Question Builder System →
-Create Custom Prep Card Bundle With Experience Anchors Embedded →
-Sent Securely as Highlighted Data Blob(s) inside Upcoming Date Alert & Link Preloads Page for Presentation
-```
-
-### 3. **Advanced Deep Research Intelligence Processing**
+### 2. **Advanced Deep Research Intelligence Processing**
 ```
 Interview Context Detected →
 Deep Research Pipeline Triggered via Workflow Runner →
@@ -463,30 +303,3 @@ Quality Assessment & Strategic Value Integration →
 Final Package Delivered with Complete Interview Preparation →
 Memory Storage for Future Reference & Feedback Integration
 ```
-
----
-
-## Deployment Plan Highlights
-
-### Development Platform:
-- Containerization Either Locally via Docker or Remotely via GCP/AWS Instances
-- Real-Time Mirroring Enabled Through Git-Repos atop Watchful Merger Scripts keeping Track on External IP Rotations for Source Availability Denoted Features interactions
-
-### Deployment Safety:
-- API Usage Monitored Monthly Burn Accounts Configured for Test Cycling Before Live Production Rollouts
-- Message Drift Tracking by Profiling Each Interaction Aggregations Alongside Trigger to Conscious Adjustments to Restore Legibility Opinion Instantaneously
-
-Systems tied to familiar monitoring dashboards enabling live editing besides raw action debugging — comfortably letting stakeholders observe actual internal decision making through traceability lenses.
-
----
-
-## Future Enhancement Roadmap
-
-| Area                             | Description                                           | ETA         |
-|----------------------------------|-------------------------------------------------------|-------------|
-| Auto Job Matching                | Machine Learning Model for Role Accuracy Matching     | Q1 2025     |
-| Enhanced Persona Embedding       | Fine-tuned end-to-end aliased aliases per country/culture| Q2 2025  |
-| Full CRM Integration             | Connect LinkedIn Sales Navigator/Data unlock paths    | Q2 2025     |
-| Analytics Dashboard Expansion    | Show performance scorecards with analytics visualizations| Mid 2025 |
-| Voice-to-Text Module             | Interview practice spoken optimum extracting assist config| TBD       |
-
