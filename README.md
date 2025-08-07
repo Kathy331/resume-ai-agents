@@ -186,14 +186,18 @@ Ensure you have Python 3.10+
 
 <!-- USAGE -->
 ## Usage
-
 Once the app is running, you can:
+demo video with all features below: [link to demo video]
+- **View the dashboard**: Access the Streamlit interface in your browser (usually at `http://localhost:8501`)
+- **Set up your bot email**: Authenticate with Gmail to enable sending emails directly from the app
+- **Generate prep guides**: Use the provided buttons to trigger different agents:
+- **Monitor logs**: Check the console output for agent activity and debugging information
+- **Send emails**: Use the Inky bot service to send personalized application emails directly from the app, you can send all the generated prep guide to your own email or pick a specific email address to send 
+- **View results**: Check the generated prep guide on the dashboard, which includes company insights, role details, and personalized questions
+- **Edit and save**: Modify the prep guide as needed and save it to your local machine or send it via email
+- **Download files**: Download any generated files or reports for offline access
 
-- Upload your resume and get matched jobs  
-- Use the dashboard to view job insights  
-- Automatically generate customized emails  
-- Sync interviews to your calendar  
-- Extend agents or integrate new models as needed  
+
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
