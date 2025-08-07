@@ -136,21 +136,23 @@ def clear_cache_only():
         st.error(f"❌ Error clearing cache: {str(e)}")
 
 def run_workflow_only():
-    """Run the workflow without clearing cache"""
+    """Run the workflow without clearing cache - show terminal logs in real-time"""
     try:
         st.write("🚀 Running interview prep workflow...")
+        
+        # Run workflow with real-time terminal output (not captured)
         result = subprocess.run([
             sys.executable,
             "workflows/interview_prep_workflow.py",
             "--folder", "demo",
             "--max-emails", "5"  # Process multiple emails
-        ], capture_output=True, text=True, cwd=Path.cwd())
+        ], cwd=Path.cwd())  # Remove capture_output=True to show logs in terminal
         
         if result.returncode == 0:
             st.success("✅ Workflow completed successfully!")
             return True
         else:
-            st.error(f"❌ Workflow failed: {result.stderr}")
+            st.error(f"❌ Workflow failed with return code: {result.returncode}")
             return False
     except Exception as e:
         st.error(f"❌ Error running workflow: {str(e)}")
