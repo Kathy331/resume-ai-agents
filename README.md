@@ -351,7 +351,7 @@ Kathy Chen - [@Linkedin](https://www.linkedin.com/in/kathy-chen-b35b532a6/) - em
 
 Grace Chen - [@Linkedin](https://www.linkedin.com/in/chen-p-grace/) - email: chenpgrace1@gmail.com
 
-Julianna Bracamonte - [@Linkedin](https://www.linkedin.com/in/julianna-bracamonte-759644237/) - email: 
+Julianna Bracamonte - [@Linkedin](https://www.linkedin.com/in/julianna-bracamonte-759644237/) - email: bracamontejulianna@gmail.com 
 
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
