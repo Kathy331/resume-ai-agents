@@ -12,7 +12,7 @@
     <img src="ui/images/Inky6.png" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">InterviewPrep AI Agents</h3>
+  <h3 align="center">Inky - InterviewPrep AI Agents</h3>
 
   <p align="center">
     A modular AI system that automates Interview preparation workflows using specialized agents.
