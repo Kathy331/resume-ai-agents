@@ -165,7 +165,7 @@ Ensure you have Python 3.10+
 
 <!-- USAGE -->
 ## Usage
-[demo](https://youtu.be/B0gPpqxy5SE) 
+[demo](https://youtu.be/B0gPpqxy5SE)
 Once the app is running, you can:
 <!-- demo video with all features below: [link to demo video] ##TODO: add link to demo video -->
 - **View the dashboard**: Access the Streamlit interface in your browser (usually at `http://localhost:8501`)
