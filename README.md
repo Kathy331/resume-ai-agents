@@ -63,7 +63,7 @@
 
 <!-- ABOUT THE PROJECT -->
 ## About The Project
-For more information please refer to the "docs" folder. Inside, there are flowcharts folders, agents folder, guidelines (standard for interview prep guide) folder, and pipeline folder, also include architecture markdown, etc. Which will all help you to understand the overall project architecture better.
+For more information please refer to the "docs" folder. Inside, there are flowcharts folders, agents folder, guidelines (standard for interview prep guide) folder, and pipeline folder, also include architecture markdown, etc. Which will all help you to understand more about the overall project architecture.
 
 <!-- Built With -->
 ### Built With
