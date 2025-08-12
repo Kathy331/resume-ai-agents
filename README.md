@@ -21,6 +21,8 @@
     <a href="https://github.com/Kathy331/resume-ai-agents"><strong>Explore the docs »</strong></a>
     <br />
     <br />
+    <a href="https://www.youtube.com/watch?v=N23SKQILCYY&feature=youtu.be">View Presentation</a>
+    ·
     <a href="https://youtu.be/B0gPpqxy5SE">View Demo</a>
     ·
     <a href="https://github.com/Kathy331/resume-ai-agents/issues/new?labels=bug&template=bug-report---.md">Report Bugs</a>
